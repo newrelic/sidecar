@@ -130,11 +130,10 @@ func formatServices(list *memberlist.Memberlist) string {
 	for hostname, server := range servicesState {
 		output += fmt.Sprintf("  %s: (%s)\n", hostname, server.LastUpdated.String())
 		for _, service := range server.Services {
-			output += fmt.Sprintf("      %s %-20s %-30s %20s %-20s\n",
+			output += fmt.Sprintf("      %s %-20s %-30s %20s\n",
 				service.ID,
 				service.Name,
 				service.Image,
-				service.Created,
 				service.Updated,
 			)
 		}
