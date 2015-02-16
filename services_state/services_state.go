@@ -11,6 +11,10 @@ import (
 	"github.com/newrelic/bosun/service"
 )
 
+const (
+	TOMBSTONE_LIFESPAN = 3 * time.Hour
+)
+
 // Holds the state about one server in our cluster
 type Server struct {
 	Name string
@@ -30,8 +34,10 @@ type ServicesState struct {
 	Servers map[string]*Server
 }
 
-func (state *ServicesState) Init() {
+func New() *ServicesState {
+	var state ServicesState
 	state.Servers = make(map[string]*Server, 5)
+	return &state
 }
 
 func (state *ServicesState) Encode() []byte {

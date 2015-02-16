@@ -9,14 +9,9 @@ import (
 	"github.com/newrelic/bosun/services_state"
 )
 
-const (
-	TOMBSTONE_LIFESPAN = 3 * time.Hour
-)
-
 var (
 	broadcasts chan [][]byte
 )
-
 
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
 	for ;; {
@@ -44,11 +39,9 @@ func announceMembers(list *memberlist.Memberlist, state *services_state.Services
 }
 
 func main() {
-	opts := parseCommandLine()
-
-	var state services_state.ServicesState
-	state.Init()
-	delegate := servicesDelegate{state: &state}
+	opts     := parseCommandLine()
+	state    := services_state.New()
+	delegate := servicesDelegate{state: state}
 
 	broadcasts = make(chan [][]byte)
 
@@ -67,11 +60,11 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go announceMembers(list, &state)
+	go announceMembers(list, state)
 	go state.StayCurrent(broadcasts, containers)
 	go updateMetaData(list, metaUpdates)
 
-	serveHttp(list, &state)
+	serveHttp(list, state)
 
 	time.Sleep(4 * time.Second)
 	metaUpdates <-[]byte("A message!")
