@@ -14,6 +14,7 @@ type ServiceContainer struct {
 	Image string
 	Created time.Time
 	Hostname string
+	Updated time.Time
 }
 
 func (container ServiceContainer) Encode() ([]byte, error) {
@@ -36,7 +37,8 @@ func toServiceContainer(container docker.APIContainers) ServiceContainer {
 	svcContainer.ID       = container.ID[0:7]  // Use short IDs
 	svcContainer.Name     = container.Names[0] // Use the first name
 	svcContainer.Image    = container.Image
-	svcContainer.Created  = time.Unix(container.Created, 0)
+	svcContainer.Created  = time.Unix(container.Created, 0).UTC()
+	svcContainer.Updated  = time.Now().UTC()
 	svcContainer.Hostname = hostname
 
 	return svcContainer

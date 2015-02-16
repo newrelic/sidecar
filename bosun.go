@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -64,7 +65,12 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
 	fmt.Printf("LocalState(): %b\n", join)
-	return []byte("some state")
+	jsonData, err := json.Marshal(servicesState)
+	if err != nil {
+		return []byte{}
+	}
+
+	return jsonData
 }
 
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
@@ -124,11 +130,12 @@ func formatServices(list *memberlist.Memberlist) string {
 	for hostname, server := range servicesState {
 		output += fmt.Sprintf("  %s: (%s)\n", hostname, server.LastUpdated.String())
 		for _, service := range server.Services {
-			output += fmt.Sprintf("      %s %-20s %-30s %s\n",
+			output += fmt.Sprintf("      %s %-20s %-30s %20s %-20s\n",
 				service.ID,
 				service.Name,
 				service.Image,
 				service.Created,
+				service.Updated,
 			)
 		}
 		output += "\n"
@@ -160,9 +167,13 @@ func addServiceEntry(data ServiceContainer) {
 		servicesState[data.Hostname] = &server
 	}
 
-	servicesState[data.Hostname].Services[data.ID] = &data
-	// TODO Use the message time!
-	servicesState[data.Hostname].LastUpdated = time.Now().UTC()
+	containerRef := servicesState[data.Hostname]
+	// Only apply changes that are newer
+	if containerRef.Services[data.ID] == nil || data.Updated.After(containerRef.Services[data.ID].Updated) {
+		containerRef.Services[data.ID] = &data
+	}
+
+	containerRef.LastUpdated = time.Now().UTC()
 }
 
 func main() {
