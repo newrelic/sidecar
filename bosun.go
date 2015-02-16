@@ -3,16 +3,36 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/memberlist"
 )
 
+const (
+	TOMBSTONE_LIFESPAN = 3 * time.Hour
+)
+
 var (
 	broadcasts chan [][]byte
 )
 
+// Holds the state about one server in our cluster
+type Server struct {
+	Name string
+	Services map[string]*Service
+	LastUpdated time.Time
+}
+
+func (p *Server) Init(name string) {
+	p.Name = ""
+	// Pre-create for 5 services per host
+	p.Services = make(map[string]*Service, 5)
+	p.LastUpdated = time.Unix(0, 0)
+}
+
+// Holds the state about all the servers in the cluster
 type ServicesState struct {
 	Servers map[string]*Server
 }
@@ -29,7 +49,7 @@ func (state *ServicesState) HasEntry(hostname string) bool {
 	return false
 }
 
-func (state *ServicesState) AddServiceEntry(data ServiceContainer) {
+func (state *ServicesState) AddServiceEntry(data Service) {
 
 	if !state.HasEntry(data.Hostname) {
 		var server Server
@@ -53,12 +73,7 @@ func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 	for hostname, server := range state.Servers {
 		output += fmt.Sprintf("  %s: (%s)\n", hostname, server.LastUpdated.String())
 		for _, service := range server.Services {
-			output += fmt.Sprintf("      %s %-20s %-30s %20s\n",
-				service.ID,
-				service.Name,
-				service.Image,
-				service.Updated,
-			)
+			output += service.Format()
 		}
 		output += "\n"
 	}
@@ -74,23 +89,12 @@ func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 }
 
 func (state *ServicesState) Print(list *memberlist.Memberlist) {
-	println(state.Format(list))
+	log.Println(state.Format(list))
 }
 
-type Server struct {
-	Name string
-	Services map[string]*ServiceContainer
-	LastUpdated time.Time
-}
-
-func (p *Server) Init(name string) {
-	p.Name = ""
-	// Pre-create for 5 services per host
-	p.Services = make(map[string]*ServiceContainer, 5)
-	p.LastUpdated = time.Unix(0, 0)
-}
-
-func updateState(state *ServicesState) {
+// Loops forever, keeping our state current, and transmitting state
+// on the broadcast channel.
+func (state *ServicesState) StayCurrent() {
 	for ;; {
 		containerList := containers()
 		prepared := make([][]byte, len(containerList))
@@ -105,10 +109,50 @@ func updateState(state *ServicesState) {
 
 			prepared = append(prepared, encoded)
 		}
-		broadcasts <- prepared
+
+		// Tell people about our dead services
+		tombstones := state.TombstoneServices(containerList)
+		if tombstones != nil {
+			prepared = append(prepared, tombstones...)
+		}
+
+		broadcasts <- prepared // Put it on the wire
 
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func (state *ServicesState) TombstoneServices(containerList []Service) [][]byte {
+	hostname, _ := os.Hostname()
+
+	if !state.HasEntry(hostname) {
+		log.Println("TombstoneServices(): New host or not running services, skipping.")
+		return nil
+	}
+
+	result := make([][]byte, len(containerList))
+
+	// Build a map from the list first
+	mapping := make(map[string]*Service, len(containerList))
+	for _, container := range containerList {
+		mapping[container.ID] = &container
+	}
+
+	for id, service := range state.Servers[hostname].Services {
+		if mapping[id] == nil && service.Status == ALIVE {
+			log.Printf("Tombstoning %s\n", service.ID)
+			service.Tombstone()
+			encoded, err := service.Encode()
+			if err != nil {
+				log.Printf("ERROR encoding container: (%s)", err.Error())
+				continue
+			}
+
+			result = append(result, encoded)
+		}
+	}
+
+	return result
 }
 
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
@@ -136,8 +180,6 @@ func announceMembers(list *memberlist.Memberlist, state *ServicesState) {
 	}
 }
 
-
-
 func main() {
 	opts := parseCommandLine()
 
@@ -147,6 +189,7 @@ func main() {
 
 	broadcasts = make(chan [][]byte)
 
+	// Use a LAN config but add our delegate
 	config := memberlist.DefaultLANConfig()
 	config.Delegate = &delegate
 
@@ -162,7 +205,7 @@ func main() {
 	wg.Add(1)
 
 	go announceMembers(list, &state)
-	go updateState(&state)
+	go state.StayCurrent()
 	go updateMetaData(list, metaUpdates)
 
 	serveHttp(list, &state)

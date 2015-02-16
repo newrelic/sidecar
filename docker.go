@@ -2,27 +2,57 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
 )
 
-type ServiceContainer struct {
+const (
+	ALIVE = iota
+	TOMBSTONE = iota
+)
+
+type Service struct {
 	ID string
 	Name string
 	Image string
 	Created time.Time
 	Hostname string
 	Updated time.Time
+	Status int
 }
 
-func (container ServiceContainer) Encode() ([]byte, error) {
+func (container Service) Encode() ([]byte, error) {
 	return json.Marshal(container)
 }
 
-func Decode(data []byte) *ServiceContainer {
-	var container ServiceContainer
+func (container *Service) AliveOrDead() string {
+	if container.Status == ALIVE {
+		return "Alive"
+	}
+
+	return "Tombstone"
+}
+
+func (container *Service) Format() string {
+	return fmt.Sprintf("      %s %-20s %-30s %20s %-9s\n",
+				container.ID,
+				container.Name,
+				container.Image,
+				container.Updated,
+				container.AliveOrDead(),
+	)
+}
+
+func (container *Service) Tombstone() {
+	container.Status  = TOMBSTONE
+	container.Updated = time.Now().UTC()
+}
+
+func Decode(data []byte) *Service {
+	var container Service
 	json.Unmarshal(data, &container)
 
 	return &container
@@ -30,8 +60,8 @@ func Decode(data []byte) *ServiceContainer {
 
 // Format an APIContainers struct into a more compact struct we
 // can ship over the wire in a broadcast.
-func toServiceContainer(container docker.APIContainers) ServiceContainer {
-	var svcContainer ServiceContainer
+func toService(container docker.APIContainers) Service {
+	var svcContainer Service
 	hostname, _ := os.Hostname()
 
 	svcContainer.ID       = container.ID[0:7]  // Use short IDs
@@ -40,11 +70,12 @@ func toServiceContainer(container docker.APIContainers) ServiceContainer {
 	svcContainer.Created  = time.Unix(container.Created, 0).UTC()
 	svcContainer.Updated  = time.Now().UTC()
 	svcContainer.Hostname = hostname
+	svcContainer.Status   = ALIVE
 
 	return svcContainer
 }
 
-func containers() []ServiceContainer {
+func containers() []Service {
 	endpoint := "tcp://localhost:2375"
 	client, _ := docker.NewClient(endpoint)
 	containers, err := client.ListContainers(docker.ListContainersOptions{All: false})
@@ -52,10 +83,10 @@ func containers() []ServiceContainer {
 		return nil
 	}
 
-	var containerList []ServiceContainer
+	var containerList []Service
 
 	for _, container := range containers {
-		containerList = append(containerList, toServiceContainer(container))
+		containerList = append(containerList, toService(container))
 	}
 
 	return containerList

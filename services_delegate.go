@@ -7,6 +7,7 @@ import (
 
 type servicesDelegate struct {
 	state *ServicesState
+	broadcasts chan [][]byte
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
