@@ -1,32 +1,30 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	"log"
 )
 
 type servicesDelegate struct {
 	state *ServicesState
-	broadcasts chan [][]byte
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
-	fmt.Printf("NodeMeta(): %d\n", limit)
+	log.Printf("NodeMeta(): %d\n", limit)
 	return []byte(`{ "State": "Running" }`)
 }
 
 func (d *servicesDelegate) NotifyMsg(message []byte) {
 	if len(message) <  1 {
-		fmt.Println("NotifyMsg(): empty")
+		log.Println("NotifyMsg(): empty")
 		return
 	}
 
-	fmt.Printf("NotifyMsg(): %s\n", string(message))
+	log.Printf("NotifyMsg(): %s\n", string(message))
 
 	// TODO don't just send container structs, send message structs
 	data := Decode(message)
 	if data == nil {
-		fmt.Printf("NotifyMsg(): error decoding!\n")
+		log.Printf("NotifyMsg(): error decoding!\n")
 		return
 	}
 
@@ -34,7 +32,7 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 }
 
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
-	fmt.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
+	log.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
 
 	select {
 		case broadcast := <-broadcasts:
@@ -46,15 +44,10 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 }
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
-	fmt.Printf("LocalState(): %b\n", join)
-	jsonData, err := json.Marshal(d.state.Servers)
-	if err != nil {
-		return []byte{}
-	}
-
-	return jsonData
+	log.Printf("LocalState(): %b\n", join)
+	return d.state.Encode()
 }
 
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
-	fmt.Printf("MergeRemoteState(): %s %b\n", string(buf), join)
+	log.Printf("MergeRemoteState(): %s %b\n", string(buf), join)
 }

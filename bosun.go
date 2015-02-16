@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -39,6 +40,16 @@ type ServicesState struct {
 
 func (state *ServicesState) Init() {
 	state.Servers = make(map[string]*Server, 5)
+}
+
+func (state *ServicesState) Encode() []byte {
+	jsonData, err := json.Marshal(state.Servers)
+	if err != nil {
+		log.Println("ERROR: Failed to Marshal state")
+		return []byte{}
+	}
+
+	return jsonData
 }
 
 func (state *ServicesState) HasEntry(hostname string) bool {
@@ -93,7 +104,7 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 }
 
 // Loops forever, keeping our state current, and transmitting state
-// on the broadcast channel.
+// on the broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) StayCurrent() {
 	for ;; {
 		containerList := containers()
