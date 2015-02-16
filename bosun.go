@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -10,8 +9,73 @@ import (
 	"github.com/hashicorp/memberlist"
 )
 
-var broadcasts chan [][]byte
-var servicesState map[string]*Server
+var (
+	broadcasts chan [][]byte
+)
+
+type ServicesState struct {
+	Servers map[string]*Server
+}
+
+func (state *ServicesState) Init() {
+	state.Servers = make(map[string]*Server, 5)
+}
+
+func (state *ServicesState) HasEntry(hostname string) bool {
+	if state.Servers[hostname] != nil {
+		return true
+	}
+
+	return false
+}
+
+func (state *ServicesState) AddServiceEntry(data ServiceContainer) {
+
+	if !state.HasEntry(data.Hostname) {
+		var server Server
+		server.Init(data.Hostname)
+		state.Servers[data.Hostname] = &server
+	}
+
+	containerRef := state.Servers[data.Hostname]
+	// Only apply changes that are newer
+	if containerRef.Services[data.ID] == nil || data.Updated.After(containerRef.Services[data.ID].Updated) {
+		containerRef.Services[data.ID] = &data
+	}
+
+	containerRef.LastUpdated = time.Now().UTC()
+}
+
+func (state *ServicesState) Format(list *memberlist.Memberlist) string {
+	var output string
+
+	output += "Services ------------------------------\n"
+	for hostname, server := range state.Servers {
+		output += fmt.Sprintf("  %s: (%s)\n", hostname, server.LastUpdated.String())
+		for _, service := range server.Services {
+			output += fmt.Sprintf("      %s %-20s %-30s %20s\n",
+				service.ID,
+				service.Name,
+				service.Image,
+				service.Updated,
+			)
+		}
+		output += "\n"
+	}
+
+	output += "\nCluster Hosts -------------------------\n"
+	for _, host := range list.Members() {
+		output += fmt.Sprintf("    %s\n", host.Name)
+	}
+
+	output += "---------------------------------------"
+
+	return output
+}
+
+func (state *ServicesState) Print(list *memberlist.Memberlist) {
+	println(state.Format(list))
+}
 
 type Server struct {
 	Name string
@@ -26,64 +90,13 @@ func (p *Server) Init(name string) {
 	p.LastUpdated = time.Unix(0, 0)
 }
 
-type servicesDelegate struct {}
-
-func (d *servicesDelegate) NodeMeta(limit int) []byte {
-	fmt.Printf("NodeMeta(): %d\n", limit)
-	return []byte(`{ "State": "Running" }`)
-}
-
-func (d *servicesDelegate) NotifyMsg(message []byte) {
-	if len(message) <  1 {
-		fmt.Println("NotifyMsg(): empty")
-		return
-	}
-
-	fmt.Printf("NotifyMsg(): %s\n", string(message))
-
-	// TODO don't just send container structs, send message structs
-	data := Decode(message)
-	if data == nil {
-		fmt.Printf("NotifyMsg(): error decoding!\n")
-		return
-	}
-
-	addServiceEntry(*data)
-}
-
-func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
-	fmt.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
-
-	select {
-		case broadcast := <-broadcasts:
-			println("Sending broadcast")
-			return broadcast
-		default:
-			return nil
-	}
-}
-
-func (d *servicesDelegate) LocalState(join bool) []byte {
-	fmt.Printf("LocalState(): %b\n", join)
-	jsonData, err := json.Marshal(servicesState)
-	if err != nil {
-		return []byte{}
-	}
-
-	return jsonData
-}
-
-func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
-	fmt.Printf("MergeRemoteState(): %s %b\n", string(buf), join)
-}
-
-func updateState() {
+func updateState(state *ServicesState) {
 	for ;; {
 		containerList := containers()
 		prepared := make([][]byte, len(containerList))
 
 		for _, container := range containerList {
-			addServiceEntry(container)
+			state.AddServiceEntry(container)
 			encoded, err := container.Encode()
 			if err != nil {
 				log.Printf("ERROR encoding container: (%s)", err.Error())
@@ -109,7 +122,7 @@ func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
 	}
 }
 
-func announceMembers(list *memberlist.Memberlist) {
+func announceMembers(list *memberlist.Memberlist, state *ServicesState) {
 	for ;; {
 		// Ask for members of the cluster
 		for _, member := range list.Members() {
@@ -117,68 +130,20 @@ func announceMembers(list *memberlist.Memberlist) {
 			fmt.Printf("  Meta:\n    %s\n", string(member.Meta))
 		}
 
-		printServices(list);
+		state.Print(list);
 
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func formatServices(list *memberlist.Memberlist) string {
-	var output string
 
-	output += "Services ------------------------------\n"
-	for hostname, server := range servicesState {
-		output += fmt.Sprintf("  %s: (%s)\n", hostname, server.LastUpdated.String())
-		for _, service := range server.Services {
-			output += fmt.Sprintf("      %s %-20s %-30s %20s\n",
-				service.ID,
-				service.Name,
-				service.Image,
-				service.Updated,
-			)
-		}
-		output += "\n"
-	}
-
-	output += "\nCluster Hosts -------------------------\n"
-	for _, host := range list.Members() {
-		output += fmt.Sprintf("    %s\n", host.Name)
-	}
-
-	output += "---------------------------------------"
-
-	return output
-}
-
-func printServices(list *memberlist.Memberlist) {
-	println(formatServices(list))
-}
-
-func addServiceEntry(data ServiceContainer) {
-	// Lazily create the maps
-	if servicesState == nil {
-		// Pre-create for 5 hosts
-		servicesState = make(map[string]*Server, 5)
-	}
-	if servicesState[data.Hostname] == nil {
-		var server Server
-		server.Init(data.Hostname)
-		servicesState[data.Hostname] = &server
-	}
-
-	containerRef := servicesState[data.Hostname]
-	// Only apply changes that are newer
-	if containerRef.Services[data.ID] == nil || data.Updated.After(containerRef.Services[data.ID].Updated) {
-		containerRef.Services[data.ID] = &data
-	}
-
-	containerRef.LastUpdated = time.Now().UTC()
-}
 
 func main() {
 	opts := parseCommandLine()
 
-	var delegate servicesDelegate
+	var state ServicesState
+	state.Init()
+	delegate := servicesDelegate{state: &state}
 
 	broadcasts = make(chan [][]byte)
 
@@ -196,11 +161,11 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go announceMembers(list)
-	go updateState()
+	go announceMembers(list, &state)
+	go updateState(&state)
 	go updateMetaData(list, metaUpdates)
 
-	serveHttp(list)
+	serveHttp(list, &state)
 
 	time.Sleep(4 * time.Second)
 	metaUpdates <-[]byte("A message!")

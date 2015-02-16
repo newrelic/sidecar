@@ -8,13 +8,13 @@ import (
 )
 
 
-func makeQueryHandler(fn func (http.ResponseWriter, *http.Request, *memberlist.Memberlist), list *memberlist.Memberlist) http.HandlerFunc {
+func makeQueryHandler(fn func (http.ResponseWriter, *http.Request, *memberlist.Memberlist, *ServicesState), list *memberlist.Memberlist, state *ServicesState) http.HandlerFunc {
 	return func(response http.ResponseWriter, req *http.Request) {
-		fn(response, req, list)
+		fn(response, req, list, state)
 	}
 }
 
-func servicesQueryHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist) {
+func servicesQueryHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *ServicesState) {
 	//params := mux.Vars(req)
 
 	defer req.Body.Close()
@@ -25,14 +25,14 @@ func servicesQueryHandler(response http.ResponseWriter, req *http.Request, list 
  			<head>
  			<meta http-equiv="refresh" content="4">
  			</head> 
-	    	<pre>` + formatServices(list) + "</pre>"))
+	    	<pre>` + state.Format(list) + "</pre>"))
 }
 
-func serveHttp(list *memberlist.Memberlist) {
+func serveHttp(list *memberlist.Memberlist, state *ServicesState) {
 	router := mux.NewRouter()
 
 	router.HandleFunc(
-		"/services", makeQueryHandler(servicesQueryHandler, list),
+		"/services", makeQueryHandler(servicesQueryHandler, list, state),
 	).Methods("GET")
 
 	http.Handle("/", router)
