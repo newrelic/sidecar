@@ -143,10 +143,7 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 	result := make([][]byte, len(containerList))
 
 	// Build a map from the list first
-	mapping := make(map[string]*service.Service, len(containerList))
-	for _, container := range containerList {
-		mapping[container.ID] = &container
-	}
+	mapping := makeServiceMapping(containerList)
 
 	// Copy this so we can change the real list in the loop
 	services := state.Servers[hostname].Services
@@ -176,4 +173,13 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 	}
 
 	return result
+}
+
+func makeServiceMapping(containerList []service.Service) map[string]*service.Service {
+	mapping := make(map[string]*service.Service, len(containerList))
+	for _, container := range containerList {
+		mapping[container.ID] = &container
+	}
+
+	return mapping
 }
