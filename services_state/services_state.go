@@ -22,11 +22,14 @@ type Server struct {
 	LastUpdated time.Time
 }
 
-func (p *Server) Init(name string) {
-	p.Name = ""
+func NewServer(name string) *Server {
+	var server Server
+	server.Name = name
 	// Pre-create for 5 services per host
-	p.Services = make(map[string]*service.Service, 5)
-	p.LastUpdated = time.Unix(0, 0)
+	server.Services = make(map[string]*service.Service, 5)
+	server.LastUpdated = time.Unix(0, 0)
+
+	return &server
 }
 
 // Holds the state about all the servers in the cluster
@@ -34,7 +37,7 @@ type ServicesState struct {
 	Servers map[string]*Server
 }
 
-func New() *ServicesState {
+func NewServicesState() *ServicesState {
 	var state ServicesState
 	state.Servers = make(map[string]*Server, 5)
 	return &state
@@ -50,7 +53,7 @@ func (state *ServicesState) Encode() []byte {
 	return jsonData
 }
 
-func (state *ServicesState) HasEntry(hostname string) bool {
+func (state *ServicesState) HasServer(hostname string) bool {
 	if state.Servers[hostname] != nil {
 		return true
 	}
@@ -60,10 +63,8 @@ func (state *ServicesState) HasEntry(hostname string) bool {
 
 func (state *ServicesState) AddServiceEntry(data service.Service) {
 
-	if !state.HasEntry(data.Hostname) {
-		var server Server
-		server.Init(data.Hostname)
-		state.Servers[data.Hostname] = &server
+	if !state.HasServer(data.Hostname) {
+		state.Servers[data.Hostname] = NewServer(data.Hostname)
 	}
 
 	containerRef := state.Servers[data.Hostname]
@@ -134,7 +135,7 @@ func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []se
 func (state *ServicesState) TombstoneServices(containerList []service.Service) [][]byte {
 	hostname, _ := os.Hostname()
 
-	if !state.HasEntry(hostname) {
+	if !state.HasServer(hostname) {
 		log.Println("TombstoneServices(): New host or not running services, skipping.")
 		return nil
 	}
@@ -151,13 +152,16 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 		if mapping[id] == nil && svc.Status == service.ALIVE {
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
-			encoded, err := svc.Encode()
-			if err != nil {
-				log.Printf("ERROR encoding container: (%s)", err.Error())
-				continue
-			}
+			// Tombstone each record twice to help with receipt
+			for i := 0; i < 2; i++ {
+				encoded, err := svc.Encode()
+				if err != nil {
+					log.Printf("ERROR encoding container: (%s)", err.Error())
+					continue
+				}
 
-			result = append(result, encoded)
+				result = append(result, encoded)
+			}
 		}
 	}
 

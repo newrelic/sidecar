@@ -40,7 +40,7 @@ func announceMembers(list *memberlist.Memberlist, state *services_state.Services
 
 func main() {
 	opts     := parseCommandLine()
-	state    := services_state.New()
+	state    := services_state.NewServicesState()
 	delegate := servicesDelegate{state: state}
 
 	broadcasts = make(chan [][]byte)
