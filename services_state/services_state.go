@@ -148,7 +148,17 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 		mapping[container.ID] = &container
 	}
 
-	for id, svc := range state.Servers[hostname].Services {
+	// Copy this so we can change the real list in the loop
+	services := state.Servers[hostname].Services
+
+	for id, svc := range services {
+		// Manage tombstone life so we don't keep them forever
+		if svc.Status == service.TOMBSTONE &&
+				svc.Updated.Before(time.Now().UTC().Add(0 - TOMBSTONE_LIFESPAN)) {
+			delete(state.Servers[hostname].Services, id)
+			continue
+		}
+
 		if mapping[id] == nil && svc.Status == service.ALIVE {
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
