@@ -2,10 +2,13 @@ package main
 
 import (
 	"log"
+
+	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/bosun/services_state"
 )
 
 type servicesDelegate struct {
-	state *ServicesState
+	state *services_state.ServicesState
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
@@ -22,7 +25,7 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 	log.Printf("NotifyMsg(): %s\n", string(message))
 
 	// TODO don't just send container structs, send message structs
-	data := Decode(message)
+	data := service.Decode(message)
 	if data == nil {
 		log.Printf("NotifyMsg(): error decoding!\n")
 		return

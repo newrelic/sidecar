@@ -5,16 +5,17 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/memberlist"
+	"github.com/newrelic/bosun/services_state"
 )
 
 
-func makeQueryHandler(fn func (http.ResponseWriter, *http.Request, *memberlist.Memberlist, *ServicesState), list *memberlist.Memberlist, state *ServicesState) http.HandlerFunc {
+func makeQueryHandler(fn func (http.ResponseWriter, *http.Request, *memberlist.Memberlist, *services_state.ServicesState), list *memberlist.Memberlist, state *services_state.ServicesState) http.HandlerFunc {
 	return func(response http.ResponseWriter, req *http.Request) {
 		fn(response, req, list, state)
 	}
 }
 
-func servicesQueryHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *ServicesState) {
+func servicesQueryHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
 	//params := mux.Vars(req)
 
 	defer req.Body.Close()
@@ -28,7 +29,7 @@ func servicesQueryHandler(response http.ResponseWriter, req *http.Request, list 
 	    	<pre>` + state.Format(list) + "</pre>"))
 }
 
-func serveHttp(list *memberlist.Memberlist, state *ServicesState) {
+func serveHttp(list *memberlist.Memberlist, state *services_state.ServicesState) {
 	router := mux.NewRouter()
 
 	router.HandleFunc(
