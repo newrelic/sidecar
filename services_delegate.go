@@ -53,4 +53,14 @@ func (d *servicesDelegate) LocalState(join bool) []byte {
 
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 	log.Printf("MergeRemoteState(): %s %b\n", string(buf), join)
+
+	otherState, err := services_state.Decode(buf)
+	if err != nil {
+		log.Printf("Failed to MergeRemoteState(): %s", err.Error())
+		return
+	}
+
+	log.Printf("Merging state: %s", otherState.Format(nil))
+
+	d.state.Merge(otherState)
 }

@@ -77,6 +77,14 @@ func (state *ServicesState) AddServiceEntry(data service.Service) {
 	containerRef.LastUpdated = time.Now().UTC()
 }
 
+func (state *ServicesState) Merge(otherState *ServicesState) {
+	for _, server := range otherState.Servers {
+		for _, service := range server.Services {
+			state.AddServiceEntry(*service)
+		}
+	}
+}
+
 func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 	var output string
 
@@ -87,6 +95,11 @@ func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 			output += service.Format()
 		}
 		output += "\n"
+	}
+
+	// Don't show member list
+	if list == nil {
+		return output
 	}
 
 	output += "\nCluster Hosts -------------------------\n"
@@ -172,6 +185,7 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
 			// Tombstone each record twice to help with receipt
+			// TODO do we need to do this now that we send them 10 times?
 			for i := 0; i < 2; i++ {
 				encoded, err := svc.Encode()
 				if err != nil {
@@ -194,4 +208,14 @@ func makeServiceMapping(containerList []service.Service) map[string]*service.Ser
 	}
 
 	return mapping
+}
+
+func Decode(data []byte) (*ServicesState, error) {
+	newState := NewServicesState()
+	err := json.Unmarshal(data, &newState.Servers)
+	if err != nil {
+		log.Printf("Error decoding state! (%s)", err.Error())
+	}
+
+	return newState, err
 }
