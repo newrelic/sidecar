@@ -24,38 +24,42 @@ type Service struct {
 	Status int
 }
 
-func (container Service) Encode() ([]byte, error) {
-	return json.Marshal(container)
+func (svc Service) Encode() ([]byte, error) {
+	return json.Marshal(svc)
 }
 
-func (container *Service) AliveOrDead() string {
-	if container.Status == ALIVE {
+func (svc *Service) AliveOrDead() string {
+	if svc.Status == ALIVE {
 		return "Alive"
 	}
 
 	return "Tombstone"
 }
 
-func (container *Service) Format() string {
+func (svc *Service) Invalidates(otherSvc *Service) bool {
+	return otherSvc != nil && svc.Updated.After(otherSvc.Updated)
+}
+
+func (svc *Service) Format() string {
 	return fmt.Sprintf("      %s %-20s %-30s %20s %-9s\n",
-				container.ID,
-				container.Name,
-				container.Image,
-				container.Updated,
-				container.AliveOrDead(),
+				svc.ID,
+				svc.Name,
+				svc.Image,
+				svc.Updated,
+				svc.AliveOrDead(),
 	)
 }
 
-func (container *Service) Tombstone() {
-	container.Status  = TOMBSTONE
-	container.Updated = time.Now().UTC()
+func (svc *Service) Tombstone() {
+	svc.Status  = TOMBSTONE
+	svc.Updated = time.Now().UTC()
 }
 
 func Decode(data []byte) *Service {
-	var container Service
-	json.Unmarshal(data, &container)
+	var svc Service
+	json.Unmarshal(data, &svc)
 
-	return &container
+	return &svc
 }
 
 // Format an APIContainers struct into a more compact struct we

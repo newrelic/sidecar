@@ -62,16 +62,17 @@ func (state *ServicesState) HasServer(hostname string) bool {
 	return false
 }
 
-func (state *ServicesState) AddServiceEntry(data service.Service) {
+func (state *ServicesState) AddServiceEntry(entry service.Service) {
 
-	if !state.HasServer(data.Hostname) {
-		state.Servers[data.Hostname] = NewServer(data.Hostname)
+	if !state.HasServer(entry.Hostname) {
+		state.Servers[entry.Hostname] = NewServer(entry.Hostname)
 	}
 
-	containerRef := state.Servers[data.Hostname]
+	containerRef := state.Servers[entry.Hostname]
 	// Only apply changes that are newer
-	if containerRef.Services[data.ID] == nil || data.Updated.After(containerRef.Services[data.ID].Updated) {
-		containerRef.Services[data.ID] = &data
+	if containerRef.Services[entry.ID] == nil ||
+			entry.Invalidates(containerRef.Services[entry.ID]) {
+		containerRef.Services[entry.ID] = &entry
 	}
 
 	containerRef.LastUpdated = time.Now().UTC()
