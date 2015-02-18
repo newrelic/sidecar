@@ -46,7 +46,7 @@ func main() {
 	broadcasts = make(chan [][]byte)
 
 	// Use a LAN config but add our delegate
-	config := memberlist.DefaultLANConfig()
+	config := memberlist.DefaultWANConfig()
 	config.Delegate = &delegate
 
 	list, err := memberlist.Create(config)
