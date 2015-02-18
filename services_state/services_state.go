@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	TOMBSTONE_LIFESPAN = 3 * time.Hour
+	TOMBSTONE_LIFESPAN = 3 * time.Hour // How long we keep tombstones around
+	TOMBSTONE_COUNT = 10               // Send 1/second 10 times
 )
 
 // Holds the state about one server in our cluster
@@ -122,8 +123,19 @@ func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []se
 
 		// Tell people about our dead services
 		tombstones := state.TombstoneServices(containerList)
+
 		if tombstones != nil {
+			// Announce them now
 			prepared = append(prepared, tombstones...)
+
+			// Announce these every second for awhile
+			go func() {
+				for i := 0; i < TOMBSTONE_COUNT; i++ {
+					broadcasts <- tombstones
+					time.Sleep(1 * time.Second)
+				}
+			}()
+
 		}
 
 		broadcasts <- prepared // Put it on the wire
@@ -153,7 +165,7 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 		if svc.Status == service.TOMBSTONE &&
 				svc.Updated.Before(time.Now().UTC().Add(0 - TOMBSTONE_LIFESPAN)) {
 			delete(state.Servers[hostname].Services, id)
-			continue
+			delete(mapping, id)
 		}
 
 		if mapping[id] == nil && svc.Status == service.ALIVE {
