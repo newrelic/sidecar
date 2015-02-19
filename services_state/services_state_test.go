@@ -43,7 +43,7 @@ func Test_NewServicesState(t *testing.T) {
 	})
 }
 
-func Test_ServicesState(t *testing.T) {
+func Test_ServicesStateWithData(t *testing.T) {
 
 	Convey("When working with data", t, func() {
 		state := NewServicesState()
@@ -78,6 +78,9 @@ func Test_ServicesState(t *testing.T) {
 
 		Convey("HasServer() is true when a server exists", func() {
 			So(state.HasServer(hostname), ShouldBeTrue)
+		})
+
+		Convey("HasServer() is false when a server is missing", func() {
 			So(state.HasServer("junk"), ShouldBeFalse)
 		})
 
