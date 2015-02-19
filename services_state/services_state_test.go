@@ -49,7 +49,7 @@ func Test_ServicesState(t *testing.T) {
 
 	baseTime := time.Now().UTC()
 
-	service := service.Service{
+	svc := service.Service{
 		ID: "deadbeef123",
 		Name: "radical_service",
 		Image: "101deadbeef",
@@ -75,13 +75,33 @@ func Test_ServicesState(t *testing.T) {
 	Convey("AddServiceEntry() merges in a new service", t, func() {
 		So(state.HasServer(anotherHostname), ShouldBeFalse)
 
-		state.AddServiceEntry(service)
+		state.AddServiceEntry(svc)
 
 		So(state.HasServer(anotherHostname), ShouldBeTrue)
-		So(state.Servers[anotherHostname].Services[service.ID], ShouldNotBeNil)
+		So(state.Servers[anotherHostname].Services[svc.ID], ShouldNotBeNil)
 	})
 
-	Convey("AddServiceEntry() doesn't merge a stale service", t, func() {})
+	Convey("AddServiceEntry() doesn't merge a stale service", t, func() {
+		state.Servers[anotherHostname].Services[svc.ID] = &svc
+
+		staleService := service.Service{
+			ID: "deadbeef123",
+			Name: "radical_service",
+			Image: "stale",
+			Created: baseTime,
+			Hostname: anotherHostname,
+			Updated: baseTime.Add(0 - 1 * time.Minute),
+			Status: service.ALIVE,
+		}
+
+		state.AddServiceEntry(staleService)
+
+		So(state.HasServer(anotherHostname), ShouldBeTrue)
+		So(state.Servers[anotherHostname].Services[svc.ID].Updated,
+			ShouldBeTheSameTimeAs, baseTime)
+		So(state.Servers[anotherHostname].Services[svc.ID].Image,
+			ShouldEqual, "101deadbeef")
+	})
 }
 
 
