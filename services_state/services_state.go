@@ -132,7 +132,7 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 
 // Loops forever, keeping our state current, and transmitting state
 // on the broadcast channel. Intended to run as a background goroutine.
-func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []service.Service ) {
+func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []service.Service, quit chan bool) {
 	for ;; {
 		containerList := fn()
 		prepared := make([][]byte, len(containerList))
@@ -166,6 +166,12 @@ func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []se
 		}
 
 		broadcasts <- prepared // Put it on the wire
+
+		// Now that we're finished, see if we're supposed to exit
+		select {
+			case <- quit:
+				return
+		}
 
 		time.Sleep(2 * time.Second)
 	}
@@ -224,6 +230,7 @@ func makeServiceMapping(containerList []service.Service) map[string]*service.Ser
 	return mapping
 }
 
+// Take a byte slice and return a properly reconstituted state struct
 func Decode(data []byte) (*ServicesState, error) {
 	newState := NewServicesState()
 	err := json.Unmarshal(data, &newState.Servers)

@@ -60,8 +60,10 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	var quitStayCurrent chan bool
+
 	go announceMembers(list, state)
-	go state.StayCurrent(broadcasts, containers)
+	go state.StayCurrent(broadcasts, containers, quitStayCurrent)
 	go updateMetaData(list, metaUpdates)
 
 	serveHttp(list, state)
