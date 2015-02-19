@@ -6,10 +6,13 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/newrelic/bosun/service"
 )
 
+var hostname = "shakespeare"
+var anotherHostname = "chaucer"
+
 func Test_NewServer(t *testing.T) {
-	hostname := "shakespeare"
 
 	Convey("Invoking NewServer()", t, func() {
 		Convey("Returns a server with the correct name", func() {
@@ -39,6 +42,48 @@ func Test_NewServicesState(t *testing.T) {
 
 	})
 }
+
+func Test_ServicesState(t *testing.T) {
+	state := NewServicesState()
+	state.Servers[hostname] = NewServer(hostname)
+
+	baseTime := time.Now().UTC()
+
+	service := service.Service{
+		ID: "deadbeef123",
+		Name: "radical_service",
+		Image: "101deadbeef",
+		Created: baseTime,
+		Hostname: anotherHostname,
+		Updated: baseTime,
+		Status: service.ALIVE,
+	}
+
+	Convey("Encode() generates JSON that we can Decode()", t, func() {
+		decoded, err := Decode(state.Encode())
+
+		So(err, ShouldBeNil)
+		So(decoded.Servers[hostname].Name, ShouldEqual, hostname)
+		So(len(decoded.Servers), ShouldEqual, 1)
+	})
+
+	Convey("HasServer() is true when a server exists", t, func() {
+		So(state.HasServer(hostname), ShouldBeTrue)
+		So(state.HasServer("junk"), ShouldBeFalse)
+	})
+
+	Convey("AddServiceEntry() merges in a new service", t, func() {
+		So(state.HasServer(anotherHostname), ShouldBeFalse)
+
+		state.AddServiceEntry(service)
+
+		So(state.HasServer(anotherHostname), ShouldBeTrue)
+		So(state.Servers[anotherHostname].Services[service.ID], ShouldNotBeNil)
+	})
+
+	Convey("AddServiceEntry() doesn't merge a stale service", t, func() {})
+}
+
 
 func ShouldBeTheSameTimeAs(actual interface{}, expected ...interface{}) string {
     wanted := expected[0].(time.Time)

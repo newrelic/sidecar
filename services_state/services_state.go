@@ -62,6 +62,9 @@ func (state *ServicesState) HasServer(hostname string) bool {
 	return false
 }
 
+// Take a service and merge it into our state. Correctly handle
+// timestamps so we only add things newer than what we already
+// know.
 func (state *ServicesState) AddServiceEntry(entry service.Service) {
 
 	if !state.HasServer(entry.Hostname) {
@@ -78,6 +81,8 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 	containerRef.LastUpdated = time.Now().UTC()
 }
 
+// Merge a complete state struct into this one. Usually used on
+// node startup and during anti-entropy operations.
 func (state *ServicesState) Merge(otherState *ServicesState) {
 	for _, server := range otherState.Servers {
 		for _, service := range server.Services {
@@ -86,6 +91,8 @@ func (state *ServicesState) Merge(otherState *ServicesState) {
 	}
 }
 
+// Pretty-print(ish) a services state struct so a human can read
+// it on the terminal. Makes for awesome web apps.
 func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 	var output string
 
@@ -113,6 +120,7 @@ func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 	return output
 }
 
+// Print the formatted struct
 func (state *ServicesState) Print(list *memberlist.Memberlist) {
 	log.Println(state.Format(list))
 }
