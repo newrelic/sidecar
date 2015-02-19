@@ -125,13 +125,18 @@ func Test_ServicesStateWithData(t *testing.T) {
 			})
 		})
 
+		Convey("Format() pretty-prints the state even without a Memberlist", func() {
+			formatted := state.Format(nil)
+
+			So(formatted, ShouldNotBeNil)
+		})
+
 		Reset(func() {
 			state = NewServicesState()
 			state.Servers[hostname] = NewServer(hostname)
 		})
 	})
 }
-
 
 func ShouldBeTheSameTimeAs(actual interface{}, expected ...interface{}) string {
     wanted := expected[0].(time.Time)
