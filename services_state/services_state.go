@@ -44,6 +44,8 @@ func NewServicesState() *ServicesState {
 	return &state
 }
 
+// Return a Marshaled/Encoded byte array that can be deocoded with
+// services_state.Decode()
 func (state *ServicesState) Encode() []byte {
 	jsonData, err := json.Marshal(state.Servers)
 	if err != nil {
@@ -54,6 +56,7 @@ func (state *ServicesState) Encode() []byte {
 	return jsonData
 }
 
+// Do we even have an entry for this server?
 func (state *ServicesState) HasServer(hostname string) bool {
 	if state.Servers[hostname] != nil {
 		return true
@@ -71,14 +74,16 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 		state.Servers[entry.Hostname] = NewServer(entry.Hostname)
 	}
 
-	containerRef := state.Servers[entry.Hostname]
+	server := state.Servers[entry.Hostname]
 	// Only apply changes that are newer
-	if containerRef.Services[entry.ID] == nil ||
-			entry.Invalidates(containerRef.Services[entry.ID]) {
-		containerRef.Services[entry.ID] = &entry
+	if server.Services[entry.ID] == nil ||
+			entry.Invalidates(server.Services[entry.ID]) {
+		server.Services[entry.ID] = &entry
 	}
 
-	containerRef.LastUpdated = time.Now().UTC()
+	if entry.Updated.After(server.LastUpdated) {
+		server.LastUpdated = entry.Updated
+	}
 }
 
 // Merge a complete state struct into this one. Usually used on
