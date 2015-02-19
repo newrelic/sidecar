@@ -69,6 +69,13 @@ func Test_ServicesState(t *testing.T) {
 			So(len(decoded.Servers), ShouldEqual, 1)
 		})
 
+		Convey("Decode() returns an error when handed junk", func() {
+			result, err := Decode([]byte("asdf"))
+
+			So(result.Servers, ShouldBeEmpty)
+			So(err, ShouldNotBeNil)
+		})
+
 		Convey("HasServer() is true when a server exists", func() {
 			So(state.HasServer(hostname), ShouldBeTrue)
 			So(state.HasServer("junk"), ShouldBeFalse)
