@@ -148,13 +148,11 @@ func Test_BroadcastServices(t *testing.T) {
 		quit       := make(chan bool)
 		svcId1     := "deadbeef123"
 		svcId2     := "deadbeef101"
-		service1   := service.Service{
-			ID: svcId1, Hostname: hostname, Updated: time.Now().UTC(),
-		}
-		service2   := service.Service{
-			ID: svcId2, Hostname: hostname, Updated: time.Now().UTC(),
-		}
-		services   := []service.Service{ service1, service2 }
+		baseTime   := time.Now().UTC()
+
+		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
+		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
+		services := []service.Service{ service1, service2 }
 
 		containerFn := func() []service.Service {
 			return services
