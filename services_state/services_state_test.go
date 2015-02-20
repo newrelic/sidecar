@@ -139,7 +139,7 @@ func Test_ServicesStateWithData(t *testing.T) {
 	})
 }
 
-func Test_BroadcastServices(t *testing.T) {
+func Test_Broadcasts(t *testing.T) {
 
 	Convey("When Broadcasting services", t, func() {
 		state := NewServicesState()
@@ -157,6 +157,8 @@ func Test_BroadcastServices(t *testing.T) {
 		containerFn := func() []service.Service {
 			return services
 		}
+
+		state.HostnameFn = func() (string, error) { return hostname, nil }
 
 		Convey("New services are serialized into the channel", func() {
 			go func() { quit <- true }()
@@ -180,6 +182,38 @@ func Test_BroadcastServices(t *testing.T) {
 			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)
 			So(state.Servers[hostname].Services[svcId1].ID, ShouldEqual, svcId1)
 			So(state.Servers[hostname].Services[svcId2].ID, ShouldEqual, svcId2)
+		})
+
+		Convey("All of the tombstones are serialized into the channel", func() {
+			go func() { quit <- true }()
+			junk := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
+			state.AddServiceEntry(junk)
+			state.AddServiceEntry(service1)
+			state.AddServiceEntry(service2)
+			go state.BroadcastTombstones(broadcasts, containerFn, quit)
+
+			junk2 := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
+			junk2.Status = service.TOMBSTONE
+			//jsonStr, _ := json.Marshal(junk2)
+
+			readBroadcasts := <-broadcasts
+			So(len(readBroadcasts), ShouldEqual, 2) // 2 per service
+			//SoSkip(string(readBroadcasts[0]), ShouldEqual, string(jsonStr))
+			//SoSkip(string(readBroadcasts[1]), ShouldEqual, string(jsonStr))
+		})
+
+		Convey("Services that are still alive are not tombstoned", func() {
+			go func() { quit <- true }()
+			state.AddServiceEntry(service1)
+			state.AddServiceEntry(service2)
+			go state.BroadcastTombstones(broadcasts, containerFn, quit)
+
+			readBroadcasts := <-broadcasts
+			So(len(readBroadcasts), ShouldEqual, 0)
+		})
+
+		Reset(func() {
+			broadcasts = make(chan [][]byte)
 		})
 	})
 }

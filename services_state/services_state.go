@@ -36,11 +36,13 @@ func NewServer(name string) *Server {
 // Holds the state about all the servers in the cluster
 type ServicesState struct {
 	Servers map[string]*Server
+	HostnameFn func() (string, error)
 }
 
 func NewServicesState() *ServicesState {
 	var state ServicesState
 	state.Servers = make(map[string]*Server, 5)
+	state.HostnameFn = os.Hostname
 	return &state
 }
 
@@ -154,7 +156,6 @@ func (state *ServicesState) BroadcastServices(broadcasts chan [][]byte, fn func(
 		select {
 			case <- quit:
 				return
-			default:
 		}
 
 		time.Sleep(2 * time.Second)
@@ -183,7 +184,6 @@ func (state *ServicesState) BroadcastTombstones(broadcasts chan [][]byte, fn fun
 		select {
 			case <- quit:
 				return
-			default:
 		}
 
 		time.Sleep(2 * time.Second)
@@ -191,14 +191,14 @@ func (state *ServicesState) BroadcastTombstones(broadcasts chan [][]byte, fn fun
 }
 
 func (state *ServicesState) TombstoneServices(containerList []service.Service) [][]byte {
-	hostname, _ := os.Hostname()
+	hostname, _ := state.HostnameFn()
 
 	if !state.HasServer(hostname) {
 		log.Println("TombstoneServices(): New host or not running services, skipping.")
 		return nil
 	}
 
-	result := make([][]byte, len(containerList))
+	result := make([][]byte, 0, len(containerList))
 
 	// Build a map from the list first
 	mapping := makeServiceMapping(containerList)
@@ -219,13 +219,12 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 			svc.Tombstone()
 			// Tombstone each record twice to help with receipt
 			// TODO do we need to do this now that we send them 10 times?
-			for i := 0; i < 2; i++ {
-				encoded, err := svc.Encode()
-				if err != nil {
-					log.Printf("ERROR encoding container: (%s)", err.Error())
-					continue
-				}
+			encoded, err := svc.Encode()
+			if err != nil {
+				log.Printf("ERROR encoding container: (%s)", err.Error())
+			}
 
+			for i := 0; i < 2; i++ {
 				result = append(result, encoded)
 			}
 		}
