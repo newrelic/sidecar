@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"regexp"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -148,7 +149,7 @@ func Test_Broadcasts(t *testing.T) {
 		quit       := make(chan bool)
 		svcId1     := "deadbeef123"
 		svcId2     := "deadbeef101"
-		baseTime   := time.Now().UTC()
+		baseTime   := time.Now().UTC().Round(time.Second)
 
 		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
 		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
@@ -192,14 +193,11 @@ func Test_Broadcasts(t *testing.T) {
 			state.AddServiceEntry(service2)
 			go state.BroadcastTombstones(broadcasts, containerFn, quit)
 
-			junk2 := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
-			junk2.Status = service.TOMBSTONE
-			//jsonStr, _ := json.Marshal(junk2)
-
 			readBroadcasts := <-broadcasts
 			So(len(readBroadcasts), ShouldEqual, 2) // 2 per service
-			//SoSkip(string(readBroadcasts[0]), ShouldEqual, string(jsonStr))
-			//SoSkip(string(readBroadcasts[1]), ShouldEqual, string(jsonStr))
+			// Match with regexes since the timestamp changes during tombstoning
+			So(readBroadcasts[0], ShouldMatch, "^{\"ID\":\"runs\".*\"Status\":1}$")
+			So(readBroadcasts[1], ShouldMatch, "^{\"ID\":\"runs\".*\"Status\":1}$")
 		})
 
 		Convey("Services that are still alive are not tombstoned", func() {
@@ -227,4 +225,17 @@ func ShouldBeTheSameTimeAs(actual interface{}, expected ...interface{}) string {
     }
 
     return ""
+}
+
+func ShouldMatch(actual interface{}, expected ...interface{}) string {
+	wanted := expected[0].(string)
+	got    := actual.([]byte)
+
+	wantedRegexp := regexp.MustCompile(wanted)
+
+	if !wantedRegexp.Match(got) {
+		return "expected:\n" + fmt.Sprintf("%#v", wanted) + "\n\nto match:\n" + fmt.Sprintf("%v", string(got))
+	}
+
+	return ""
 }
