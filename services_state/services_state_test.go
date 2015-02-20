@@ -210,10 +210,40 @@ func Test_Broadcasts(t *testing.T) {
 			So(len(readBroadcasts), ShouldEqual, 0)
 		})
 
+		Convey("Tombstones have a lifespan, then expire", func() {
+			go func() { quit <- true }()
+			service1.Tombstone()
+			service1.Updated = service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
+			state.AddServiceEntry(service1)
+			state.AddServiceEntry(service2)
+			So(state.Servers[hostname].Services[service1.ID], ShouldNotBeNil)
+
+			go state.BroadcastTombstones(broadcasts, containerFn, quit)
+			<-broadcasts
+
+			So(state.Servers[hostname].Services[service1.ID], ShouldBeNil)
+		})
+
 		Reset(func() {
 			broadcasts = make(chan [][]byte)
 		})
 	})
+}
+
+func Example_BroadcastTombstones() {
+	state := NewServicesState()
+	state.HostnameFn = func() (string, error) {
+		return "something", nil
+	}
+	broadcasts := make(chan [][]byte)
+	quit       := make(chan bool)
+
+	go func() { quit <- true }()
+	state.BroadcastTombstones(broadcasts, func() []service.Service { return []service.Service{} }, quit)
+
+	// TODO go test seems broken. It should match this, but can't for some reason:
+	// TombstoneServices(): New host or not running services, skipping.
+	// Output:
 }
 
 func ShouldBeTheSameTimeAs(actual interface{}, expected ...interface{}) string {

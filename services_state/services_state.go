@@ -194,7 +194,7 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 	hostname, _ := state.HostnameFn()
 
 	if !state.HasServer(hostname) {
-		log.Println("TombstoneServices(): New host or not running services, skipping.")
+		println("TombstoneServices(): New host or not running services, skipping.")
 		return nil
 	}
 
