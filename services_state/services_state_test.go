@@ -146,8 +146,14 @@ func Test_BroadcastServices(t *testing.T) {
 		state.Servers[hostname] = NewServer(hostname)
 		broadcasts := make(chan [][]byte)
 		quit       := make(chan bool)
-		service1   := service.Service{ ID: "deadbeef123" }
-		service2   := service.Service{ ID: "deadbeef101" }
+		svcId1     := "deadbeef123"
+		svcId2     := "deadbeef101"
+		service1   := service.Service{
+			ID: svcId1, Hostname: hostname, Updated: time.Now().UTC(),
+		}
+		service2   := service.Service{
+			ID: svcId2, Hostname: hostname, Updated: time.Now().UTC(),
+		}
 		services   := []service.Service{ service1, service2 }
 
 		containerFn := func() []service.Service {
@@ -165,6 +171,17 @@ func Test_BroadcastServices(t *testing.T) {
 			So(len(readBroadcasts), ShouldEqual, 2)
 			So(string(readBroadcasts[0]), ShouldEqual, string(json1))
 			So(string(readBroadcasts[1]), ShouldEqual, string(json2))
+		})
+
+		Convey("All of the services are added to state", func() {
+			go func() { quit <- true }()
+			go state.BroadcastServices(broadcasts, containerFn, quit)
+			<-broadcasts // Block until we get a result
+
+			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
+			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)
+			So(state.Servers[hostname].Services[svcId1].ID, ShouldEqual, svcId1)
+			So(state.Servers[hostname].Services[svcId2].ID, ShouldEqual, svcId2)
 		})
 	})
 }
