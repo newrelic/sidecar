@@ -130,12 +130,12 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 	log.Println(state.Format(list))
 }
 
-// Loops forever, keeping our state current, and transmitting state
+// Loops forever, keeping transmitting info about our containers
 // on the broadcast channel. Intended to run as a background goroutine.
-func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []service.Service, quit chan bool) {
+func (state *ServicesState) BroadcastServices(broadcasts chan [][]byte, fn func() []service.Service, quit chan bool) {
 	for ;; {
 		containerList := fn()
-		prepared := make([][]byte, len(containerList))
+		prepared := make([][]byte, 0, len(containerList))
 
 		for _, container := range containerList {
 			state.AddServiceEntry(container)
@@ -148,12 +148,27 @@ func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []se
 			prepared = append(prepared, encoded)
 		}
 
+		broadcasts <- prepared // Put it on the wire
+
+		// Now that we're finished, see if we're supposed to exit
+		select {
+			case <- quit:
+				return
+			default:
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func (state *ServicesState) BroadcastTombstones(broadcasts chan [][]byte, fn func() []service.Service, quit chan bool) {
+	for ;; {
+		containerList := fn()
 		// Tell people about our dead services
 		tombstones := state.TombstoneServices(containerList)
 
 		if tombstones != nil {
-			// Announce them now
-			prepared = append(prepared, tombstones...)
+			broadcasts <- tombstones // Put it on the wire
 
 			// Announce these every second for awhile
 			go func() {
@@ -162,15 +177,13 @@ func (state *ServicesState) StayCurrent(broadcasts chan [][]byte, fn func() []se
 					time.Sleep(1 * time.Second)
 				}
 			}()
-
 		}
-
-		broadcasts <- prepared // Put it on the wire
 
 		// Now that we're finished, see if we're supposed to exit
 		select {
 			case <- quit:
 				return
+			default:
 		}
 
 		time.Sleep(2 * time.Second)

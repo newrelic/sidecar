@@ -1,6 +1,7 @@
 package services_state
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -134,6 +135,36 @@ func Test_ServicesStateWithData(t *testing.T) {
 		Reset(func() {
 			state = NewServicesState()
 			state.Servers[hostname] = NewServer(hostname)
+		})
+	})
+}
+
+func Test_BroadcastServices(t *testing.T) {
+
+	Convey("When Broadcasting services", t, func() {
+		state := NewServicesState()
+		state.Servers[hostname] = NewServer(hostname)
+		broadcasts := make(chan [][]byte)
+		quit       := make(chan bool)
+		service1   := service.Service{ ID: "deadbeef123" }
+		service2   := service.Service{ ID: "deadbeef101" }
+		services   := []service.Service{ service1, service2 }
+
+		containerFn := func() []service.Service {
+			return services
+		}
+
+		Convey("New services are serialized into the channel", func() {
+			go func() { quit <- true }()
+			go state.BroadcastServices(broadcasts, containerFn, quit)
+
+			json1, _ := json.Marshal(service1)
+			json2, _ := json.Marshal(service2)
+
+			readBroadcasts := <-broadcasts
+			So(len(readBroadcasts), ShouldEqual, 2)
+			So(string(readBroadcasts[0]), ShouldEqual, string(json1))
+			So(string(readBroadcasts[1]), ShouldEqual, string(json2))
 		})
 	})
 }

@@ -46,7 +46,7 @@ func main() {
 	broadcasts = make(chan [][]byte)
 
 	// Use a LAN config but add our delegate
-	config := memberlist.DefaultWANConfig()
+	config := memberlist.DefaultLANConfig()
 	config.Delegate = &delegate
 
 	list, err := memberlist.Create(config)
@@ -60,10 +60,12 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	var quitStayCurrent chan bool
+	quitBroadcastingServices   := make(chan bool)
+	quitBroadcastingTombstones := make(chan bool)
 
 	go announceMembers(list, state)
-	go state.StayCurrent(broadcasts, containers, quitStayCurrent)
+	go state.BroadcastServices(broadcasts, containers, quitBroadcastingServices)
+	go state.BroadcastTombstones(broadcasts, containers, quitBroadcastingTombstones)
 	go updateMetaData(list, metaUpdates)
 
 	serveHttp(list, state)
