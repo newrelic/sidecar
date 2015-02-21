@@ -14,6 +14,7 @@ import (
 const (
 	TOMBSTONE_LIFESPAN = 3 * time.Hour // How long we keep tombstones around
 	TOMBSTONE_COUNT = 10               // Send 1/second 10 times
+	SLEEP_INTERVAL = 2 * time.Second   // Sleep between checks
 )
 
 // Holds the state about one server in our cluster
@@ -165,7 +166,7 @@ func (state *ServicesState) BroadcastServices(broadcasts chan [][]byte, fn func(
 			default:
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(SLEEP_INTERVAL)
 	}
 }
 
@@ -198,7 +199,7 @@ func (state *ServicesState) BroadcastTombstones(broadcasts chan [][]byte, fn fun
 			default:
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(SLEEP_INTERVAL)
 	}
 }
 
