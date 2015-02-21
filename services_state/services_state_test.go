@@ -261,11 +261,9 @@ func Test_Broadcasts(t *testing.T) {
 			state.Servers[hostname].Services[service1.ID].Tombstone()
 			state.Servers[hostname].Services[service1.ID].Updated =
 					service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
-			//Print(state.Format(nil))
 
 			So(state.Servers[hostname], ShouldNotBeNil)
 			state.TombstoneServices([]service.Service{})
-			//Print(state.Format(nil))
 			So(state.Servers[hostname], ShouldBeNil)
 		})
 
@@ -284,6 +282,7 @@ func Example_BroadcastTombstones() {
 	quit       := make(chan bool)
 
 	go func() { quit <- true }()
+	go func() { <-broadcasts }()
 	state.BroadcastTombstones(broadcasts, func() []service.Service { return []service.Service{} }, quit)
 
 	// TODO go test seems broken. It should match this, but can't for some reason:
