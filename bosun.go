@@ -48,6 +48,7 @@ func main() {
 	// Use a LAN config but add our delegate
 	config := memberlist.DefaultLANConfig()
 	config.Delegate = &delegate
+	config.Events   = &delegate
 
 	list, err := memberlist.Create(config)
 	exitWithError(err, "Failed to create memberlist")

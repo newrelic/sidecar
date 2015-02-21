@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/memberlist"
 	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/services_state"
 )
@@ -68,4 +69,16 @@ func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 	log.Printf("Merging state: %s", otherState.Format(nil))
 
 	d.state.Merge(otherState)
+}
+
+func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
+	log.Printf("NotifyJoin(): %s\n", node.Name)
+}
+
+func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
+	log.Printf("NotifyLeave(): %s\n", node.Name)
+}
+
+func (d *servicesDelegate) NotifyUpdate(node *memberlist.Node) {
+	log.Printf("NotifyUpdate(): %s\n", node.Name)
 }
