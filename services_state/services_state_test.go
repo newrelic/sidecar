@@ -254,6 +254,21 @@ func Test_Broadcasts(t *testing.T) {
 			So(state.Servers[hostname].Services[service1.ID], ShouldBeNil)
 		})
 
+		Convey("When the last tombstone is removed, so is the server", func() {
+			state := NewServicesState() // Totally empty
+			state.HostnameFn = func() (string, error) { return hostname, nil }
+			state.AddServiceEntry(service1)
+			state.Servers[hostname].Services[service1.ID].Tombstone()
+			state.Servers[hostname].Services[service1.ID].Updated =
+					service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
+			//Print(state.Format(nil))
+
+			So(state.Servers[hostname], ShouldNotBeNil)
+			state.TombstoneServices([]service.Service{})
+			//Print(state.Format(nil))
+			So(state.Servers[hostname], ShouldBeNil)
+		})
+
 		Reset(func() {
 			broadcasts = make(chan [][]byte)
 		})

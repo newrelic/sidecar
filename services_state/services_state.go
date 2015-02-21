@@ -94,7 +94,6 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 func (state *ServicesState) Merge(otherState *ServicesState) {
 	for _, server := range otherState.Servers {
 		for _, service := range server.Services {
-			fmt.Printf("ASDF: %#v\n", service)
 			state.AddServiceEntry(*service)
 		}
 	}
@@ -226,6 +225,10 @@ func (state *ServicesState) TombstoneServices(containerList []service.Service) [
 				svc.Updated.Before(time.Now().UTC().Add(0 - TOMBSTONE_LIFESPAN)) {
 			delete(state.Servers[hostname].Services, id)
 			delete(mapping, id)
+			// If this is the last service, remove the server
+			if len(state.Servers[hostname].Services) < 1 {
+				delete(state.Servers, hostname)
+			}
 		}
 
 		if mapping[id] == nil && svc.Status == service.ALIVE {
