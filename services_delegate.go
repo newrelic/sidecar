@@ -79,6 +79,8 @@ func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
 
 func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
 	log.Printf("NotifyLeave(): %s\n", node.Name)
+	quit := make(chan bool)
+	d.state.ExpireServer(node.Name, quit)
 }
 
 func (d *servicesDelegate) NotifyUpdate(node *memberlist.Node) {

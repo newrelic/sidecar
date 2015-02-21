@@ -73,19 +73,29 @@ func (state *ServicesState) HasServer(hostname string) bool {
 }
 
 // A server has left the cluster, so tombstone all of its records
-func (state *ServicesState) ExpireServer(hostname string) error {
+func (state *ServicesState) ExpireServer(hostname string, quit chan bool) {
 	if !state.HasServer(hostname) {
-		return nil
+		log.Printf("No records to expire for %s\n", hostname)
+		return
 	}
 
 	log.Printf("Expiring %s\n", hostname)
 
-	for id, svc := range state.Servers[hostname].Services {
-		println(id)
-		println(svc)
-	}
-	return nil
+	tombstones := make([][]byte, 0, len(state.Servers[hostname].Services))
 
+	for _, svc := range state.Servers[hostname].Services {
+		svc.Tombstone()
+
+		encoded, err := svc.Encode()
+		if err != nil {
+			log.Printf("ERROR encoding service: (%s)", err.Error())
+			continue
+		}
+
+		tombstones = append(tombstones, encoded)
+	}
+
+	state.SendTombstones(tombstones, quit)
 }
 
 // Take a service and merge it into our state. Correctly handle
@@ -190,22 +200,36 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 	}
 }
 
+func (state *ServicesState) SendTombstones(tombstones [][]byte, quit chan bool) {
+	state.Broadcasts <- tombstones // Put it on the wire
+
+	// Announce these every second for awhile
+	go func() {
+		for i := 0; i < TOMBSTONE_COUNT; i++ {
+			state.Broadcasts <- tombstones
+
+			select {
+			case <- quit:
+				return
+			default:
+			}
+
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
+
 func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, quit chan bool) {
+	hostname, _ := state.HostnameFn()
+	propagateQuit := make(chan bool)
+
 	for ;; {
 		containerList := fn()
 		// Tell people about our dead services
-		tombstones := state.TombstoneServices(containerList)
+		tombstones := state.TombstoneServices(hostname, containerList)
 
 		if tombstones != nil && len(tombstones) > 0 {
-			state.Broadcasts <- tombstones // Put it on the wire
-
-			// Announce these every second for awhile
-			go func() {
-				for i := 0; i < TOMBSTONE_COUNT; i++ {
-					state.Broadcasts <- tombstones
-					time.Sleep(1 * time.Second)
-				}
-			}()
+			state.SendTombstones(tombstones, propagateQuit)
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
@@ -215,6 +239,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, qui
 		// Now that we're finished, see if we're supposed to exit
 		select {
 			case <- quit:
+				propagateQuit <- true
 				return
 			default:
 		}
@@ -223,9 +248,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, qui
 	}
 }
 
-func (state *ServicesState) TombstoneServices(containerList []service.Service) [][]byte {
-	hostname, _ := state.HostnameFn()
-
+func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) [][]byte {
 	if !state.HasServer(hostname) {
 		println("TombstoneServices(): New host or not running services, skipping.")
 		return nil

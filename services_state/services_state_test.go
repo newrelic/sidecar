@@ -263,9 +263,41 @@ func Test_Broadcasts(t *testing.T) {
 					service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
 
 			So(state.Servers[hostname], ShouldNotBeNil)
-			state.TombstoneServices([]service.Service{})
+			state.TombstoneServices(hostname, []service.Service{})
 			So(state.Servers[hostname], ShouldBeNil)
 		})
+	})
+}
+
+func Test_ClusterMembershipManagement(t *testing.T) {
+
+	Convey("When managing cluster members", t, func() {
+		state := NewServicesState()
+		state.Servers[hostname] = NewServer(hostname)
+		svcId1     := "deadbeef123"
+		svcId2     := "deadbeef101"
+		baseTime   := time.Now().UTC().Round(time.Second)
+		quit       := make(chan bool)
+
+		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
+		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
+
+		state.HostnameFn = func() (string, error) { return hostname, nil }
+
+		Convey("Expire() tombstones all services for a server", func() {
+			state.AddServiceEntry(service1)
+			state.AddServiceEntry(service2)
+			go func() { quit <- true }()
+			go state.ExpireServer(hostname, quit)
+
+			expired := <-state.Broadcasts
+
+			So(len(expired), ShouldEqual, 2)
+			// Timestamps chagne when tombstoning, so regex match
+			So(expired[0], ShouldMatch, "^{\"ID\":\"deadbeef123\".*\"Status\":1}$")
+			So(expired[1], ShouldMatch, "^{\"ID\":\"deadbeef101\".*\"Status\":1}$")
+		})
+
 	})
 }
 
