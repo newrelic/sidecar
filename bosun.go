@@ -9,10 +9,6 @@ import (
 	"github.com/newrelic/bosun/services_state"
 )
 
-var (
-	broadcasts chan [][]byte
-)
-
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
 	for ;; {
 		list.LocalNode().Meta = <-metaUpdates // Blocking
@@ -43,8 +39,6 @@ func main() {
 	state    := services_state.NewServicesState()
 	delegate := servicesDelegate{state: state}
 
-	broadcasts = make(chan [][]byte)
-
 	// Use a LAN config but add our delegate
 	config := memberlist.DefaultLANConfig()
 	config.Delegate = &delegate
@@ -65,8 +59,8 @@ func main() {
 	quitBroadcastingTombstones := make(chan bool)
 
 	go announceMembers(list, state)
-	go state.BroadcastServices(broadcasts, containers, quitBroadcastingServices)
-	go state.BroadcastTombstones(broadcasts, containers, quitBroadcastingTombstones)
+	go state.BroadcastServices(containers, quitBroadcastingServices)
+	go state.BroadcastTombstones(containers, quitBroadcastingTombstones)
 	go updateMetaData(list, metaUpdates)
 
 	serveHttp(list, state)

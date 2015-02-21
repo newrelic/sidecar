@@ -39,13 +39,15 @@ func NewServer(name string) *Server {
 type ServicesState struct {
 	Servers map[string]*Server
 	HostnameFn func() (string, error)
+	Broadcasts chan [][]byte
 }
 
 // Returns a pointer to a properly configured ServicesState
 func NewServicesState() *ServicesState {
 	var state ServicesState
-	state.Servers = make(map[string]*Server, 5)
+	state.Servers    = make(map[string]*Server, 5)
 	state.HostnameFn = os.Hostname
+	state.Broadcasts = make(chan [][]byte)
 	return &state
 }
 
@@ -68,6 +70,22 @@ func (state *ServicesState) HasServer(hostname string) bool {
 	}
 
 	return false
+}
+
+// A server has left the cluster, so tombstone all of its records
+func (state *ServicesState) ExpireServer(hostname string) error {
+	if !state.HasServer(hostname) {
+		return nil
+	}
+
+	log.Printf("Expiring %s\n", hostname)
+
+	for id, svc := range state.Servers[hostname].Services {
+		println(id)
+		println(svc)
+	}
+	return nil
+
 }
 
 // Take a service and merge it into our state. Correctly handle
@@ -137,7 +155,7 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 
 // Loops forever, keeping transmitting info about our containers
 // on the broadcast channel. Intended to run as a background goroutine.
-func (state *ServicesState) BroadcastServices(broadcasts chan [][]byte, fn func() []service.Service, quit chan bool) {
+func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit chan bool) {
 	for ;; {
 		containerList := fn()
 		prepared := make([][]byte, 0, len(containerList))
@@ -154,11 +172,11 @@ func (state *ServicesState) BroadcastServices(broadcasts chan [][]byte, fn func(
 		}
 
 		if len(prepared) > 0 {
-			broadcasts <- prepared // Put it on the wire
+			state.Broadcasts <- prepared // Put it on the wire
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
-			broadcasts <- nil
+			state.Broadcasts <- nil
 		}
 
 		// Now that we're finished, see if we're supposed to exit
@@ -172,26 +190,26 @@ func (state *ServicesState) BroadcastServices(broadcasts chan [][]byte, fn func(
 	}
 }
 
-func (state *ServicesState) BroadcastTombstones(broadcasts chan [][]byte, fn func() []service.Service, quit chan bool) {
+func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, quit chan bool) {
 	for ;; {
 		containerList := fn()
 		// Tell people about our dead services
 		tombstones := state.TombstoneServices(containerList)
 
 		if tombstones != nil && len(tombstones) > 0 {
-			broadcasts <- tombstones // Put it on the wire
+			state.Broadcasts <- tombstones // Put it on the wire
 
 			// Announce these every second for awhile
 			go func() {
 				for i := 0; i < TOMBSTONE_COUNT; i++ {
-					broadcasts <- tombstones
+					state.Broadcasts <- tombstones
 					time.Sleep(1 * time.Second)
 				}
 			}()
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
-			broadcasts <- nil
+			state.Broadcasts <- nil
 		}
 
 		// Now that we're finished, see if we're supposed to exit

@@ -19,7 +19,7 @@ func (d *servicesDelegate) NodeMeta(limit int) []byte {
 }
 
 func (d *servicesDelegate) NotifyMsg(message []byte) {
-	if len(message) <  1 {
+	if len(message) < 1 {
 		log.Println("NotifyMsg(): empty")
 		return
 	}
@@ -40,15 +40,17 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	log.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
 
 	select {
-		case broadcast := <-broadcasts:
-			if len(broadcast) < 1 {
-				println("Got empty broadcast")
-				return nil
-			}
-			fmt.Printf("Sending broadcast %d msgs %d 1st length\n", len(broadcast), len(broadcast[0]))
-			return broadcast
-		default:
+	case broadcast := <-d.state.Broadcasts:
+		if len(broadcast) < 1 {
+			println("Got empty broadcast")
 			return nil
+		}
+		fmt.Printf("Sending broadcast %d msgs %d 1st length\n",
+			len(broadcast), len(broadcast[0]),
+		)
+		return broadcast
+	default:
+		return nil
 	}
 }
 

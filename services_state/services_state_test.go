@@ -35,6 +35,7 @@ func Test_NewServer(t *testing.T) {
 }
 
 func Test_NewServicesState(t *testing.T) {
+
 	Convey("Invoking NewServicesState()", t, func() {
 
 		Convey("Initializes the Servers map", func() {
@@ -157,7 +158,6 @@ func Test_Broadcasts(t *testing.T) {
 	Convey("When Broadcasting services", t, func() {
 		state := NewServicesState()
 		state.Servers[hostname] = NewServer(hostname)
-		broadcasts := make(chan [][]byte)
 		quit       := make(chan bool)
 		svcId1     := "deadbeef123"
 		svcId2     := "deadbeef101"
@@ -175,12 +175,12 @@ func Test_Broadcasts(t *testing.T) {
 
 		Convey("New services are serialized into the channel", func() {
 			go func() { quit <- true }()
-			go state.BroadcastServices(broadcasts, containerFn, quit)
+			go state.BroadcastServices(containerFn, quit)
 
 			json1, _ := json.Marshal(service1)
 			json2, _ := json.Marshal(service2)
 
-			readBroadcasts := <-broadcasts
+			readBroadcasts := <-state.Broadcasts
 			So(len(readBroadcasts), ShouldEqual, 2)
 			So(string(readBroadcasts[0]), ShouldEqual, string(json1))
 			So(string(readBroadcasts[1]), ShouldEqual, string(json2))
@@ -188,8 +188,8 @@ func Test_Broadcasts(t *testing.T) {
 
 		Convey("All of the services are added to state", func() {
 			go func() { quit <- true }()
-			go state.BroadcastServices(broadcasts, containerFn, quit)
-			<-broadcasts // Block until we get a result
+			go state.BroadcastServices(containerFn, quit)
+			<-state.Broadcasts // Block until we get a result
 
 			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
 			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)
@@ -200,8 +200,8 @@ func Test_Broadcasts(t *testing.T) {
 		Convey("Puts a nil into the broadcasts channel when no services", func() {
 			emptyList := func() []service.Service { return []service.Service{} }
 			go func() { quit <- true }()
-			go state.BroadcastServices(broadcasts, emptyList, quit)
-			broadcast := <-broadcasts
+			go state.BroadcastServices(emptyList, quit)
+			broadcast := <-state.Broadcasts
 
 			So(broadcast, ShouldBeNil)
 		})
@@ -212,9 +212,9 @@ func Test_Broadcasts(t *testing.T) {
 			state.AddServiceEntry(junk)
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
-			go state.BroadcastTombstones(broadcasts, containerFn, quit)
+			go state.BroadcastTombstones(containerFn, quit)
 
-			readBroadcasts := <-broadcasts
+			readBroadcasts := <-state.Broadcasts
 			So(len(readBroadcasts), ShouldEqual, 2) // 2 per service
 			// Match with regexes since the timestamp changes during tombstoning
 			So(readBroadcasts[0], ShouldMatch, "^{\"ID\":\"runs\".*\"Status\":1}$")
@@ -225,17 +225,17 @@ func Test_Broadcasts(t *testing.T) {
 			go func() { quit <- true }()
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
-			go state.BroadcastTombstones(broadcasts, containerFn, quit)
+			go state.BroadcastTombstones(containerFn, quit)
 
-			readBroadcasts := <-broadcasts
+			readBroadcasts := <-state.Broadcasts
 			So(len(readBroadcasts), ShouldEqual, 0)
 		})
 
 		Convey("Puts a nil into the broadcasts channel when no tombstones", func() {
 			emptyList := func() []service.Service { return []service.Service{} }
 			go func() { quit <- true }()
-			go state.BroadcastTombstones(broadcasts, emptyList, quit)
-			broadcast := <-broadcasts
+			go state.BroadcastTombstones(emptyList, quit)
+			broadcast := <-state.Broadcasts
 
 			So(broadcast, ShouldBeNil)
 		})
@@ -248,8 +248,8 @@ func Test_Broadcasts(t *testing.T) {
 			state.AddServiceEntry(service2)
 			So(state.Servers[hostname].Services[service1.ID], ShouldNotBeNil)
 
-			go state.BroadcastTombstones(broadcasts, containerFn, quit)
-			<-broadcasts
+			go state.BroadcastTombstones(containerFn, quit)
+			<-state.Broadcasts
 
 			So(state.Servers[hostname].Services[service1.ID], ShouldBeNil)
 		})
@@ -266,10 +266,6 @@ func Test_Broadcasts(t *testing.T) {
 			state.TombstoneServices([]service.Service{})
 			So(state.Servers[hostname], ShouldBeNil)
 		})
-
-		Reset(func() {
-			broadcasts = make(chan [][]byte)
-		})
 	})
 }
 
@@ -278,12 +274,11 @@ func Example_BroadcastTombstones() {
 	state.HostnameFn = func() (string, error) {
 		return "something", nil
 	}
-	broadcasts := make(chan [][]byte)
 	quit       := make(chan bool)
 
 	go func() { quit <- true }()
-	go func() { <-broadcasts }()
-	state.BroadcastTombstones(broadcasts, func() []service.Service { return []service.Service{} }, quit)
+	go func() { <-state.Broadcasts }()
+	state.BroadcastTombstones(func() []service.Service { return []service.Service{} }, quit)
 
 	// TODO go test seems broken. It should match this, but can't for some reason:
 	// TombstoneServices(): New host or not running services, skipping.
