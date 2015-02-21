@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/newrelic/bosun/service"
@@ -39,7 +40,11 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 	select {
 		case broadcast := <-broadcasts:
-			println("Sending broadcast")
+			if len(broadcast) < 1 {
+				println("Got empty broadcast")
+				return nil
+			}
+			fmt.Printf("Sending broadcast %d msgs %d 1st length\n", len(broadcast), len(broadcast[0]))
 			return broadcast
 		default:
 			return nil

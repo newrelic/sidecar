@@ -185,6 +185,15 @@ func Test_Broadcasts(t *testing.T) {
 			So(state.Servers[hostname].Services[svcId2].ID, ShouldEqual, svcId2)
 		})
 
+		Convey("Puts a nil into the broadcasts channel when no services", func() {
+			emptyList := func() []service.Service { return []service.Service{} }
+			go func() { quit <- true }()
+			go state.BroadcastServices(broadcasts, emptyList, quit)
+			broadcast := <-broadcasts
+
+			So(broadcast, ShouldBeNil)
+		})
+
 		Convey("All of the tombstones are serialized into the channel", func() {
 			go func() { quit <- true }()
 			junk := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
@@ -208,6 +217,15 @@ func Test_Broadcasts(t *testing.T) {
 
 			readBroadcasts := <-broadcasts
 			So(len(readBroadcasts), ShouldEqual, 0)
+		})
+
+		Convey("Puts a nil into the broadcasts channel when no tombstones", func() {
+			emptyList := func() []service.Service { return []service.Service{} }
+			go func() { quit <- true }()
+			go state.BroadcastTombstones(broadcasts, emptyList, quit)
+			broadcast := <-broadcasts
+
+			So(broadcast, ShouldBeNil)
 		})
 
 		Convey("Tombstones have a lifespan, then expire", func() {

@@ -150,12 +150,19 @@ func (state *ServicesState) BroadcastServices(broadcasts chan [][]byte, fn func(
 			prepared = append(prepared, encoded)
 		}
 
-		broadcasts <- prepared // Put it on the wire
+		if len(prepared) > 0 {
+			broadcasts <- prepared // Put it on the wire
+		} else {
+			// We expect there to always be _something_ in the channel
+			// once we've run.
+			broadcasts <- nil
+		}
 
 		// Now that we're finished, see if we're supposed to exit
 		select {
 			case <- quit:
 				return
+			default:
 		}
 
 		time.Sleep(2 * time.Second)
@@ -168,7 +175,7 @@ func (state *ServicesState) BroadcastTombstones(broadcasts chan [][]byte, fn fun
 		// Tell people about our dead services
 		tombstones := state.TombstoneServices(containerList)
 
-		if tombstones != nil {
+		if tombstones != nil && len(tombstones) > 0 {
 			broadcasts <- tombstones // Put it on the wire
 
 			// Announce these every second for awhile
@@ -178,12 +185,17 @@ func (state *ServicesState) BroadcastTombstones(broadcasts chan [][]byte, fn fun
 					time.Sleep(1 * time.Second)
 				}
 			}()
+		} else {
+			// We expect there to always be _something_ in the channel
+			// once we've run.
+			broadcasts <- nil
 		}
 
 		// Now that we're finished, see if we're supposed to exit
 		select {
 			case <- quit:
 				return
+			default:
 		}
 
 		time.Sleep(2 * time.Second)
