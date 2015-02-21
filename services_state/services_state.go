@@ -94,6 +94,7 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 func (state *ServicesState) Merge(otherState *ServicesState) {
 	for _, server := range otherState.Servers {
 		for _, service := range server.Services {
+			fmt.Printf("ASDF: %#v\n", service)
 			state.AddServiceEntry(*service)
 		}
 	}

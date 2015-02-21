@@ -53,8 +53,10 @@ func Test_ServicesStateWithData(t *testing.T) {
 
 		baseTime := time.Now().UTC()
 
+		svcId := "deadbeef123"
+
 		svc := service.Service{
-			ID: "deadbeef123",
+			ID: svcId,
 			Name: "radical_service",
 			Image: "101deadbeef",
 			Created: baseTime,
@@ -125,6 +127,16 @@ func Test_ServicesStateWithData(t *testing.T) {
 
 				So(state.Servers[anotherHostname].LastUpdated, ShouldBeTheSameTimeAs, newDate)
 			})
+		})
+
+		Convey("Merge() merges state we care about from other state structs", func() {
+			firstState  := NewServicesState()
+			secondState := NewServicesState()
+			firstState.AddServiceEntry(svc)
+			secondState.Merge(firstState)
+
+			So(len(secondState.Servers), ShouldEqual, len(firstState.Servers))
+			So(secondState.Servers[svcId], ShouldEqual, firstState.Servers[svcId])
 		})
 
 		Convey("Format() pretty-prints the state even without a Memberlist", func() {
