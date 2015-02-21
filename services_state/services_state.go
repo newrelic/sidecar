@@ -63,7 +63,8 @@ func (state *ServicesState) Encode() []byte {
 	return jsonData
 }
 
-// Do we even have an entry for this server?
+// Shortcut for checking if the Servers map has an entry for this
+// hostname.
 func (state *ServicesState) HasServer(hostname string) bool {
 	if state.Servers[hostname] != nil {
 		return true
@@ -249,21 +250,16 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, qui
 }
 
 func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) [][]byte {
-	if !state.HasServer(hostname) {
-		println("TombstoneServices(): New host or not running services, skipping.")
-		return nil
-	}
-
-	result := make([][]byte, 0, len(containerList))
-
 	// Build a map from the list first
 	mapping := makeServiceMapping(containerList)
 
 	// Copy this so we can change the real list in the loop
 	services := state.Servers[hostname].Services
 
+	// Manage tombstone life so we don't keep them forever. We have to do this
+	// even for hosts that aren't running services now, because they might have
+	// been.
 	for id, svc := range services {
-		// Manage tombstone life so we don't keep them forever
 		if svc.Status == service.TOMBSTONE &&
 				svc.Updated.Before(time.Now().UTC().Add(0 - TOMBSTONE_LIFESPAN)) {
 			delete(state.Servers[hostname].Services, id)
@@ -273,7 +269,16 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 				delete(state.Servers, hostname)
 			}
 		}
+	}
 
+	if !state.HasServer(hostname) {
+		println("TombstoneServices(): New host or not running services, skipping.")
+		return nil
+	}
+
+	result := make([][]byte, 0, len(containerList))
+
+	for id, svc := range services {
 		if mapping[id] == nil && svc.Status == service.ALIVE {
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
