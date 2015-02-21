@@ -24,6 +24,7 @@ type Server struct {
 	LastUpdated time.Time
 }
 
+// Returns a pointer to a properly configured Server
 func NewServer(name string) *Server {
 	var server Server
 	server.Name = name
@@ -40,6 +41,7 @@ type ServicesState struct {
 	HostnameFn func() (string, error)
 }
 
+// Returns a pointer to a properly configured ServicesState
 func NewServicesState() *ServicesState {
 	var state ServicesState
 	state.Servers = make(map[string]*Server, 5)
