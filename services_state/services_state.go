@@ -203,6 +203,9 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 	}
 }
 
+// Actually transmit an encoded tombstone record into the channel. Runs a
+// background goroutine that continues the broadcast for 10 seconds so we
+// have a pretty good idea that it was delivered.
 func (state *ServicesState) SendTombstones(tombstones [][]byte, quit chan bool) {
 	state.Broadcasts <- tombstones // Put it on the wire
 
@@ -301,13 +304,13 @@ func (state *ServicesState) TombstoneOthersServices() [][]byte {
 }
 
 func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) [][]byte {
-	// Build a map from the list first
-	mapping := makeServiceMapping(containerList)
 
 	if !state.HasServer(hostname) {
 		println("TombstoneServices(): New host or not running services, skipping.")
 		return nil
 	}
+	// Build a map from the list first
+	mapping := makeServiceMapping(containerList)
 
 	result := make([][]byte, 0, len(containerList))
 
@@ -320,7 +323,6 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
 			// Tombstone each record twice to help with receipt
-			// TODO do we need to do this now that we send them 10 times?
 			encoded, err := svc.Encode()
 			if err != nil {
 				log.Printf("ERROR encoding container: (%s)", err.Error())
