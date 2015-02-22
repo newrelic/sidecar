@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,11 +46,15 @@ func main() {
 	config.Delegate = &delegate
 	config.Events   = &delegate
 
+	log.Println("Bosun starting -------------------")
+	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
+	log.Println("----------------------------------")
+
 	list, err := memberlist.Create(config)
 	exitWithError(err, "Failed to create memberlist")
 
 	// Join an existing cluster by specifying at least one known member.
-	_, err = list.Join([]string{ opts.ClusterIP })
+	_, err = list.Join(*opts.ClusterIPs)
 	exitWithError(err, "Failed to join cluster")
 
 	metaUpdates := make(chan []byte)

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"errors"
-	"flag"
 	"log"
+
+	"gopkg.in/alecthomas/kingpin.v1"
 )
 
 type CliOpts struct {
-	ClusterIP	 string
+	ClusterIPs *[]string
 }
 
 func exitWithError(err error, message string) {
@@ -19,12 +19,8 @@ func exitWithError(err error, message string) {
 func parseCommandLine() *CliOpts {
 	var opts CliOpts
 
-	flag.StringVar(&opts.ClusterIP, "cluster-ip", "", "The initial cluster bootstrap IP")
-
-	flag.Parse()
-	if opts.ClusterIP == "" {
-		exitWithError(errors.New(""), "-cluster-ip is required!")
-	}
+	opts.ClusterIPs = kingpin.Flag("cluster-ip", "The cluster seed addresses").Required().Short('c').Strings()
+	kingpin.Parse()
 
 	return &opts
 }
