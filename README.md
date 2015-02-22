@@ -18,11 +18,11 @@ $ go build
 Or you can run it like this:
 
 ```bash
-$ go run bosun.go cli.go docker.go http.go services_delegate.go -cluster-ip <boostrap_host>
+$ go run *.go -cluster-ip <boostrap_host>
 ```
 
 You always need to supply at least one IP address or hostname with the
-`--cluster-ip` address. If are running solo, or are the first member, this can
+`--cluster-ip` argument. If are running solo, or are the first member, this can
 be your own hostname. You may specify the argument multiple times to have
 multiple hosts. It is recommended to use more than one when possible.
 
@@ -43,11 +43,17 @@ Theory
 ------
 
 Bosun is an eventually consistent service discovery platform where hosts learn
-about each others state and propagate messages about which services they are
-running and which have gone away. All messages are timestamped and the latest
-timestamp always wins.
+about each others' state via a gossip protocol. Hosts exchange messages about
+which services they are running and which have gone away. All messages are
+timestamped and the latest timestamp always wins. Each host maintains its own
+local state and continually merges changes in from others. Messaging is over
+UDP except when doing anti-entropy transfers.
 
-Bosun hosts are clustered by having a set of cluster seed hosts passed to them
+There is an anti-entropy mechanism where full state exchanges take place
+between peer nodes on an intermittent basis. This allows for any missed
+messages to propagate, and helps keep state consistent across the cluster.
+
+Bosun hosts join a cluster by having a set of cluster seed hosts passed to them
 on the command line at startup. Once in a cluster, the first thing a host does
 is merge the state directly from another host. This is a big JSON blob that is
 delivered over a TCP session directly between the hosts.
@@ -61,10 +67,6 @@ tombstone records for all of its services. These eventually converge and the
 latest records should propagate everywhere. If the host rejoins the cluster, it
 will announce new state every few seconds so the services will be picked back
 up.
-
-There is an anti-entropy mechanism where full state exchanges take place between
-peer nodes on an intermittent basis. This allows for any missed messages to
-propagate, both tombstone and alive.
 
 There are lifespans assigned to both tombstone and alive records so that:
 
