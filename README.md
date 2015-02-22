@@ -2,7 +2,7 @@ Bosun
 =====
 
 Bosun is a service discovery platform for Docker that uses a gossip protocol
-for all communication between hsots. It is intended to run on Docker hosts, but
+for all communication between hosts. It is intended to run on Docker hosts, but
 any host can join the cluster. Only Docker hosts will export services to the
 cluster.
 
