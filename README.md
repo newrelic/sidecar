@@ -22,8 +22,9 @@ $ go run bosun.go cli.go docker.go http.go services_delegate.go -cluster-ip <boo
 ```
 
 You always need to supply at least one IP address or hostname with the
-`-cluster-ip` address. If are running solo, or are the first member, this can
-be your own hostname.
+`--cluster-ip` address. If are running solo, or are the first member, this can
+be your own hostname. You may specify the argument multiple times to have
+multiple hosts. It is recommended to use more than one when possible.
 
 Monitoring It
 -------------
