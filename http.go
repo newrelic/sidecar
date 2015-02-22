@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -22,7 +23,8 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 
 	if params["extension"] == ".json" {
 		response.Header().Set("Content-Type", "application/json")
-		response.Write(state.Encode())
+		jsonStr, _ := json.MarshalIndent(state.ByService(), "", "  ")
+		response.Write(jsonStr)
 		return
 	}
 

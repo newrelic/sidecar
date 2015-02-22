@@ -263,8 +263,20 @@ func Test_Broadcasts(t *testing.T) {
 					service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
 
 			So(state.Servers[hostname], ShouldNotBeNil)
-			state.TombstoneServices(hostname, []service.Service{})
+			state.TombstoneOthersServices()
 			So(state.Servers[hostname], ShouldBeNil)
+		})
+
+		Convey("Alive services have a lifespan and then are tombstoned", func() {
+			state.AddServiceEntry(service1)
+			svc := state.Servers[hostname].Services[service1.ID]
+			stamp := service1.Updated.Add(0 - ALIVE_LIFESPAN - 5 * time.Second)
+			svc.Updated = stamp
+
+			state.TombstoneOthersServices()
+
+			So(svc.Status, ShouldEqual, service.TOMBSTONE)
+			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
 		})
 	})
 }
@@ -294,11 +306,33 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 
 			So(len(expired), ShouldEqual, 2)
 			// Timestamps chagne when tombstoning, so regex match
-			So(expired[0], ShouldMatch, "^{\"ID\":\"deadbeef123\".*\"Status\":1}$")
-			So(expired[1], ShouldMatch, "^{\"ID\":\"deadbeef101\".*\"Status\":1}$")
+			So(expired[0], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
+			So(expired[1], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
 		})
 
 	})
+}
+
+func Example_ByService() {
+	state := NewServicesState()
+	state.Servers[hostname] = NewServer(hostname)
+	svcId1     := "deadbeef123"
+	svcId2     := "deadbeef101"
+	baseTime   := time.Now().UTC().Round(time.Second)
+
+	service1 := service.Service{
+		ID: svcId1, Name: "service1", Hostname: hostname, Updated: baseTime,
+	}
+	service2 := service.Service{
+		ID: svcId2, Name: "service2", Hostname: hostname, Updated: baseTime,
+	}
+
+	state.AddServiceEntry(service1)
+	state.AddServiceEntry(service2)
+
+	json, _ := json.MarshalIndent(state.ByService(), "", "  ")
+	println(string(json))
+	// Output:
 }
 
 func Example_BroadcastTombstones() {

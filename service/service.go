@@ -36,6 +36,14 @@ func (svc *Service) AliveOrDead() string {
 	return "Tombstone"
 }
 
+func (svc *Service) IsAlive() bool {
+	return svc.Status == ALIVE
+}
+
+func (svc *Service) IsTombstone() bool {
+	return svc.Status == TOMBSTONE
+}
+
 func (svc *Service) Invalidates(otherSvc *Service) bool {
 	return otherSvc != nil && svc.Updated.After(otherSvc.Updated)
 }

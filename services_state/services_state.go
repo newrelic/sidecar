@@ -11,10 +11,15 @@ import (
 	"github.com/newrelic/bosun/service"
 )
 
+// services_state handles all of the eventual-consistency mechanisms for
+// service discovery state. The ServicesState struct has a mapping of
+// servers to Service lists and manages the lifecycle.
+
 const (
 	TOMBSTONE_LIFESPAN = 3 * time.Hour // How long we keep tombstones around
-	TOMBSTONE_COUNT = 10               // Send 1/second 10 times
-	SLEEP_INTERVAL = 2 * time.Second   // Sleep between checks
+	TOMBSTONE_COUNT = 10               // Send tombstones at 1 per second 10 times
+	ALIVE_LIFESPAN = 20 * time.Second  // Down if not heard from in 20 seconds
+	SLEEP_INTERVAL = 2 * time.Second   // Sleep between local service checks
 )
 
 // Holds the state about one server in our cluster
@@ -101,7 +106,7 @@ func (state *ServicesState) ExpireServer(hostname string, quit chan bool) {
 
 // Take a service and merge it into our state. Correctly handle
 // timestamps so we only add things newer than what we already
-// know.
+// know about.
 func (state *ServicesState) AddServiceEntry(entry service.Service) {
 
 	if !state.HasServer(entry.Hostname) {
@@ -113,9 +118,6 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 	if server.Services[entry.ID] == nil ||
 			entry.Invalidates(server.Services[entry.ID]) {
 		server.Services[entry.ID] = &entry
-	}
-
-	if entry.Updated.After(server.LastUpdated) {
 		server.LastUpdated = entry.Updated
 	}
 }
@@ -227,7 +229,10 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, qui
 	for ;; {
 		containerList := fn()
 		// Tell people about our dead services
-		tombstones := state.TombstoneServices(hostname, containerList)
+		otherTombstones := state.TombstoneOthersServices()
+		tombstones      := state.TombstoneServices(hostname, containerList)
+
+		tombstones = append(tombstones, otherTombstones...)
 
 		if tombstones != nil && len(tombstones) > 0 {
 			state.SendTombstones(tombstones, propagateQuit)
@@ -249,27 +254,55 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, qui
 	}
 }
 
-func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) [][]byte {
-	// Build a map from the list first
-	mapping := makeServiceMapping(containerList)
-
-	// Copy this so we can change the real list in the loop
-	services := state.Servers[hostname].Services
+func (state *ServicesState) TombstoneOthersServices() [][]byte {
+	result := make([][]byte, 0, 1)
 
 	// Manage tombstone life so we don't keep them forever. We have to do this
 	// even for hosts that aren't running services now, because they might have
-	// been.
-	for id, svc := range services {
-		if svc.Status == service.TOMBSTONE &&
+	// been. Make sure we don't keep alive services around for very much
+	// time at all.
+	state.EachService(func(hostname *string, id *string, svc *service.Service) {
+		if svc.IsTombstone() &&
 				svc.Updated.Before(time.Now().UTC().Add(0 - TOMBSTONE_LIFESPAN)) {
-			delete(state.Servers[hostname].Services, id)
-			delete(mapping, id)
+			delete(state.Servers[*hostname].Services, *id)
 			// If this is the last service, remove the server
-			if len(state.Servers[hostname].Services) < 1 {
-				delete(state.Servers, hostname)
+			if len(state.Servers[*hostname].Services) < 1 {
+				delete(state.Servers, *hostname)
 			}
 		}
-	}
+
+		if svc.IsAlive() &&
+				svc.Updated.Before(time.Now().UTC().Add(0 - ALIVE_LIFESPAN)) {
+
+			log.Printf("Found expired service %s from %s, tombstoning",
+				svc.Name, svc.Hostname,
+			)
+
+			// Because we don't know that other hosts haven't gotten a newer
+			// message that we missed, we'll tombstone them with the original
+			// timestamp + 1 second. This way we don't invalidate newer records
+			// we didn't see. This might happen when any node is removed from
+			// cluster and re-joins, for example. So we can't use svc.Tombstone()
+			// which updates the timestamp to Now().UTC()
+			svc.Status = service.TOMBSTONE
+			svc.Updated = svc.Updated.Add(time.Second)
+
+			encoded, err := svc.Encode()
+
+			if err != nil {
+				log.Printf("ERROR encoding container: (%s)", err.Error())
+			}
+
+			result = append(result, encoded)
+		}
+	})
+
+	return result
+}
+
+func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) [][]byte {
+	// Build a map from the list first
+	mapping := makeServiceMapping(containerList)
 
 	if !state.HasServer(hostname) {
 		println("TombstoneServices(): New host or not running services, skipping.")
@@ -278,6 +311,10 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 
 	result := make([][]byte, 0, len(containerList))
 
+	// Copy this so we can change the real list in the loop
+	services := state.Servers[hostname].Services
+
+	// Tombstone our own services that went away
 	for id, svc := range services {
 		if mapping[id] == nil && svc.Status == service.ALIVE {
 			log.Printf("Tombstoning %s\n", svc.ID)
@@ -296,6 +333,28 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 	}
 
 	return result
+}
+
+func (state *ServicesState) EachService(fn func(hostname *string, serviceId *string, svc *service.Service)) {
+	for hostname, _ := range state.Servers {
+		for id, svc := range state.Servers[hostname].Services {
+			fn(&hostname, &id, svc)
+		}
+	}
+}
+func (state *ServicesState) ByService() map[string]map[string]*service.Service {
+	serviceMap := make(map[string]map[string]*service.Service)
+
+	state.EachService(
+		func(hostname *string, serviceId *string, svc *service.Service) {
+			if _, ok := serviceMap[svc.Name]; !ok {
+				serviceMap[svc.Name] = make(map[string]*service.Service)
+			}
+			serviceMap[svc.Name][*serviceId] = svc
+		},
+	)
+
+	return serviceMap
 }
 
 func makeServiceMapping(containerList []service.Service) map[string]*service.Service {
