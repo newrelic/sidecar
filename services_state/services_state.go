@@ -16,10 +16,11 @@ import (
 // servers to Service lists and manages the lifecycle.
 
 const (
-	TOMBSTONE_LIFESPAN = 3 * time.Hour // How long we keep tombstones around
-	TOMBSTONE_COUNT = 10               // Send tombstones at 1 per second 10 times
-	ALIVE_LIFESPAN = 20 * time.Second  // Down if not heard from in 20 seconds
-	SLEEP_INTERVAL = 2 * time.Second   // Sleep between local service checks
+	TOMBSTONE_LIFESPAN = 3 * time.Hour          // How long we keep tombstones around
+	TOMBSTONE_COUNT = 10                        // Send tombstones at 1 per second 10 times
+	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
+	ALIVE_LIFESPAN = 20 * time.Second           // Down if not heard from in 20 seconds
+	ALIVE_SLEEP_INTERVAL = 2 * time.Second      // Sleep between local service checks
 )
 
 // Holds the state about one server in our cluster
@@ -199,7 +200,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 			default:
 		}
 
-		time.Sleep(SLEEP_INTERVAL)
+		time.Sleep(ALIVE_SLEEP_INTERVAL)
 	}
 }
 
@@ -253,7 +254,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, qui
 			default:
 		}
 
-		time.Sleep(SLEEP_INTERVAL)
+		time.Sleep(TOMBSTONE_SLEEP_INTERVAL)
 	}
 }
 
