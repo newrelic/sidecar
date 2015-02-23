@@ -72,11 +72,11 @@ func Decode(data []byte) *Service {
 
 // Format an APIContainers struct into a more compact struct we
 // can ship over the wire in a broadcast.
-func ToService(container docker.APIContainers) Service {
+func ToService(container *docker.APIContainers) Service {
 	var svcContainer Service
 	hostname, _ := os.Hostname()
 
-	svcContainer.ID       = container.ID[0:7]  // Use short IDs
+	svcContainer.ID       = container.ID[0:12]  // Use short IDs
 	svcContainer.Name     = container.Names[0] // Use the first name
 	svcContainer.Image    = container.Image
 	svcContainer.Created  = time.Unix(container.Created, 0).UTC()

@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/docker_discovery"
 )
 
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
@@ -63,10 +64,14 @@ func main() {
 
 	quitBroadcastingServices   := make(chan bool)
 	quitBroadcastingTombstones := make(chan bool)
+	quitDiscovery              := make(chan bool)
+
+	docker := docker_discovery.New("tcp://localhost:2375")
+	docker.Run(quitDiscovery)
 
 	go announceMembers(list, state)
-	go state.BroadcastServices(containers, quitBroadcastingServices)
-	go state.BroadcastTombstones(containers, quitBroadcastingTombstones)
+	go state.BroadcastServices(docker.Services, quitBroadcastingServices)
+	go state.BroadcastTombstones(docker.Services, quitBroadcastingTombstones)
 	go updateMetaData(list, metaUpdates)
 
 	serveHttp(list, state)
