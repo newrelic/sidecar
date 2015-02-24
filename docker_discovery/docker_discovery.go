@@ -100,8 +100,12 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 			log.Println("Lost connection to Docker, re-connecting")
 			client.RemoveEventListener(d.events)
 			d.events  = make(chan *docker.APIEvents) // RemoveEventListener closes it
-			client, _ = docker.NewClient(d.endpoint)
-			client.AddEventListener(d.events)
+			client, err = docker.NewClient(d.endpoint)
+			if err == nil {
+				client.AddEventListener(d.events)
+			} else {
+				log.Println("Can't reconnect to Docker!")
+			}
 		}
 		select {
 		case <- quit:
@@ -112,22 +116,24 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 	}
 }
 
-func (d *DockerDiscovery) handleEvent(event *docker.APIEvents) {
+func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 	// We're only worried about stopping containers
 	if event.Status == "die" || event.Status == "stop" {
-		d.containersLock.Lock()
-		defer d.containersLock.Unlock()
+		go func() {
+			d.containersLock.Lock()
+			defer d.containersLock.Unlock()
 
-		for i, container := range d.containers {
-			if event.ID[:12] == container.ID {
-				log.Printf("Deleting %s based on event\n", container.ID)
-				// Delete the entry in the slice
-				d.containers[i] = nil
-				d.containers = append(d.containers[:i], d.containers[i+1:]...)
-				// Once we found a match, return
-				return
+			for i, container := range d.containers {
+				if event.ID[:12] == container.ID {
+					log.Printf("Deleting %s based on event\n", container.ID)
+					// Delete the entry in the slice
+					d.containers[i] = nil
+					d.containers = append(d.containers[:i], d.containers[i+1:]...)
+					// Once we found a match, return
+					return
+				}
 			}
-		}
+		}()
 	}
 }
 
@@ -140,10 +146,13 @@ func (d *DockerDiscovery) processEvents(quit chan bool) {
 		}
 
 		event := <-d.events
-		fmt.Printf("Event: %#v\n", event)
 		if event == nil {
+			// This usually happens because of a Docker restart.
+			// Sleep, let us reconnect in the background, then loop.
+			time.Sleep(SLEEP_INTERVAL)
 			continue
 		}
-		go d.handleEvent(event)
+		fmt.Printf("Event: %#v\n", event)
+		d.handleEvent(*event)
 	}
 }
