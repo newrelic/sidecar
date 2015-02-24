@@ -141,9 +141,9 @@ func (d *DockerDiscovery) processEvents(quit chan bool) {
 
 		event := <-d.events
 		fmt.Printf("Event: %#v\n", event)
-		go d.handleEvent(event)
 		if event == nil {
 			continue
 		}
+		go d.handleEvent(event)
 	}
 }
