@@ -95,11 +95,13 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 
 	// Health check the connection and set it back up when it goes away.
 	for ;; {
+
 		err := client.Ping()
 		if err != nil {
 			log.Println("Lost connection to Docker, re-connecting")
 			client.RemoveEventListener(d.events)
 			d.events  = make(chan *docker.APIEvents) // RemoveEventListener closes it
+
 			client, err = docker.NewClient(d.endpoint)
 			if err == nil {
 				client.AddEventListener(d.events)
@@ -107,11 +109,13 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 				log.Println("Can't reconnect to Docker!")
 			}
 		}
+
 		select {
 		case <- quit:
 			return
 		default:
 		}
+
 		time.Sleep(SLEEP_INTERVAL)
 	}
 }

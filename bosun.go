@@ -47,8 +47,13 @@ func main() {
 	config.Delegate = &delegate
 	config.Events   = &delegate
 
+	publishedIP, err := getPublishedIP(map[string]bool{"192.168.168.168": true})
+	exitWithError(err, "Failed to find private IP address")
+	config.AdvertiseAddr = publishedIP
+
 	log.Println("Bosun starting -------------------")
 	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
+	log.Printf("Advertised address: %s\n", publishedIP)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(config)
