@@ -51,14 +51,14 @@ func statusStr(status int) string {
 
 func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
 	funcMap := template.FuncMap{"statusStr": statusStr}
-	t := template.Must(template.New("view").Funcs(funcMap).ParseFiles("views/view.html"))
+	t := template.Must(template.New("services").Funcs(funcMap).ParseFiles("views/services.html"))
 	services := state.ByService()
 
 	for _, tmpl := range t.Templates() {
 		println(tmpl.Name())
 	}
 
-	t.ExecuteTemplate(response, "view.html", services)
+	t.ExecuteTemplate(response, "services.html", services)
 }
 
 
@@ -70,11 +70,11 @@ func serveHttp(list *memberlist.Memberlist, state *services_state.ServicesState)
 	).Methods("GET")
 
 	router.HandleFunc(
-		"/services", makeHandler(servicesHandler, list, state),
+		"/servers", makeHandler(servicesHandler, list, state),
 	).Methods("GET")
 
 	router.HandleFunc(
-		"/view", makeHandler(viewHandler, list, state),
+		"/services", makeHandler(viewHandler, list, state),
 	).Methods("GET")
 
 	http.Handle("/", router)
