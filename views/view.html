@@ -1,0 +1,57 @@
+<html>
+<head>
+	<meta http-equiv="refresh" content="4">
+    <link rel="stylesheet" type="text/css" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+	<style>
+		.panel-heading {
+			padding: 5px 15px;
+		}
+		h4 {
+			margin-top: 5px;
+			margin-bottom: 5px;
+		}
+		.table {
+			margin-bottom: 5px;
+		}
+	</style>
+</head>
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <div class="navbar-header">
+        <h1>Bosun</h1>
+    </div>
+  </div>
+</nav>
+
+{{ range $image, $services := . }}
+<div class="row">
+  <div class="col-md-7 col-md-offset-2">
+    <div class="panel panel-default">
+      <div class="panel-heading"><h4>{{ $image }}<h4></div>
+      <div class="panel-body">
+        <table class="table table-striped">
+		<tr>
+        	<th>Hostname</th><th>ID</th><th>Name</th><th>Created</th><th>Updated</th><th>Status</th>
+		</tr>
+        {{ range $name, $fields := $services }}
+          {{ if eq .Status 0 }}
+          <tr>
+          {{ else }}
+          <tr class="danger">
+          {{ end }}
+            <td>{{ .Hostname }}</td>
+			<td>{{ .ID }}</td>
+            <td>{{ .Name }}</td>
+            <td>{{ .Created.Format "Jan 2 15:04:05" }}</td>
+            <td>{{ .Updated.Format "Jan 2 15:04:05" }}</td>
+            <td>{{ .Status | statusStr }}</td>
+          </tr>
+        {{ end }}
+		</table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}
+</html>
