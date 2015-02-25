@@ -318,17 +318,24 @@ func Example_ByService() {
 	state.Servers[hostname] = NewServer(hostname)
 	svcId1     := "deadbeef123"
 	svcId2     := "deadbeef101"
+	svcId3     := "deadbeef105"
 	baseTime   := time.Now().UTC().Round(time.Second)
 
 	service1 := service.Service{
-		ID: svcId1, Name: "service1", Hostname: hostname, Updated: baseTime,
+		ID: svcId1, Name: "service1", Image: "img1",
+		Hostname: hostname, Updated: baseTime,
 	}
 	service2 := service.Service{
-		ID: svcId2, Name: "service2", Hostname: hostname, Updated: baseTime,
+		ID: svcId2, Name: "service2", Image: "img1",
+		Hostname: hostname, Updated: baseTime,
 	}
-
+	service3 := service.Service{
+		ID: svcId3, Name: "service3", Image: "img2",
+		Hostname: hostname, Updated: baseTime,
+	}
 	state.AddServiceEntry(service1)
 	state.AddServiceEntry(service2)
+	state.AddServiceEntry(service3)
 
 	json, _ := json.MarshalIndent(state.ByService(), "", "  ")
 	println(string(json))

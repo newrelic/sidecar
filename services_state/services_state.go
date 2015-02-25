@@ -350,10 +350,10 @@ func (state *ServicesState) ByService() map[string]map[string]*service.Service {
 
 	state.EachService(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			if _, ok := serviceMap[svc.Name]; !ok {
-				serviceMap[svc.Name] = make(map[string]*service.Service)
+			if _, ok := serviceMap[svc.Image]; !ok {
+				serviceMap[svc.Image] = make(map[string]*service.Service)
 			}
-			serviceMap[svc.Name][*serviceId] = svc
+			serviceMap[svc.Image][*serviceId] = svc
 		},
 	)
 

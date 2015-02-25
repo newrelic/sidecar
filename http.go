@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"html/template"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -37,6 +38,30 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 	    	<pre>` + state.Format(list) + "</pre>"))
 }
 
+func statusStr(status int) string {
+	switch status {
+	case 0:
+		return "Alive"
+	case 1:
+		return "Tombstone"
+	default:
+		return ""
+	}
+}
+
+func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
+	funcMap := template.FuncMap{"statusStr": statusStr}
+	t := template.Must(template.New("view").Funcs(funcMap).ParseFiles("views/view.html"))
+	services := state.ByService()
+
+	for _, tmpl := range t.Templates() {
+		println(tmpl.Name())
+	}
+
+	t.ExecuteTemplate(response, "view.html", services)
+}
+
+
 func serveHttp(list *memberlist.Memberlist, state *services_state.ServicesState) {
 	router := mux.NewRouter()
 
@@ -46,6 +71,10 @@ func serveHttp(list *memberlist.Memberlist, state *services_state.ServicesState)
 
 	router.HandleFunc(
 		"/services", makeHandler(servicesHandler, list, state),
+	).Methods("GET")
+
+	router.HandleFunc(
+		"/view", makeHandler(viewHandler, list, state),
 	).Methods("GET")
 
 	http.Handle("/", router)
