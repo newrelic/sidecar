@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"net/http"
+	"sort"
 
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/memberlist"
@@ -49,6 +50,10 @@ func statusStr(status int) string {
 	}
 }
 
+type listByName []*memberlist.Node
+func (a listByName) Len() int           { return len(a) }
+func (a listByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a listByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
 	funcMap := template.FuncMap{"statusStr": statusStr}
@@ -57,9 +62,12 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 		println("Error parsing template: " + err.Error())
 	}
 
+	members := list.Members()
+	sort.Sort(listByName(members))
+
 	viewData := map[string]interface{}{
 		"Services": state.ByService(),
-		"Members":  list.Members(),
+		"Members":  members,
 	}
 
 	t.ExecuteTemplate(response, "services.html", viewData)
