@@ -80,7 +80,6 @@ func Test_ServerSorting(t *testing.T) {
 			services := make([]string, 0, 10)
 
 			state.EachServiceSorted(func(hostname *string, serviceId *string, svc *service.Service) {
-				Printf("%#v\n", svc)
 				services = append(services, svc.ID)
 			})
 
