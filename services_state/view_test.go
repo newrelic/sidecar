@@ -41,9 +41,10 @@ func Test_ServerSorting(t *testing.T) {
 				names = append(names, server.Name)
 			}
 
-			So(names[0], ShouldEqual, "bocaccio")
-			So(names[1], ShouldEqual, "chaucer")
-			So(names[2], ShouldEqual, "shakespeare")
+			should := []string{ "bocaccio", "chaucer", "shakespeare" }
+			for i, id := range should {
+				So(names[i], ShouldEqual, id)
+			}
 		})
 
 		Convey("Returns a list of Services sorted by Updates", func() {
@@ -65,6 +66,28 @@ func Test_ServerSorting(t *testing.T) {
 			So(ids[0], ShouldEqual, svcId2)
 			So(ids[1], ShouldEqual, svcId1)
 			So(ids[2], ShouldEqual, svcId3)
+		})
+
+		Convey("Returs a list of Services sorted on sorted Servers", func() {
+			service4 := service.Service{ ID: svcId1, Hostname: hostname3, Updated: baseTime.Add(5 * time.Second) }
+			service5 := service.Service{ ID: svcId2, Hostname: hostname3, Updated: baseTime }
+			service6 := service.Service{ ID: svcId3, Hostname: hostname3, Updated: baseTime.Add(10 * time.Second) }
+
+			state.AddServiceEntry(service4)
+			state.AddServiceEntry(service5)
+			state.AddServiceEntry(service6)
+
+			services := make([]string, 0, 10)
+
+			state.EachServiceSorted(func(hostname *string, serviceId *string, svc *service.Service) {
+				Printf("%#v\n", svc)
+				services = append(services, svc.ID)
+			})
+
+			should := []string{ "deadbeef101", "deadbeef123", "deadbeef105", "deadbeef101", "deadbeef123" }
+			for i, id := range should {
+				So(services[i], ShouldEqual, id)
+			}
 		})
 
 	})

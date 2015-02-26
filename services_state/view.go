@@ -8,6 +8,16 @@ import (
 
 // These are functions useful in viewing the contents of the state
 
+// ServicesState -------------------------
+
+func (state *ServicesState) EachServiceSorted(fn func(hostname *string, serviceId *string, svc *service.Service)) {
+	for _, server := range state.SortedServers() {
+		for _, svc := range server.SortedServices() {
+			fn(&server.Name, &svc.ID, svc)
+		}
+	}
+}
+
 // Services -------------------------------
 type ServicesByAge []*service.Service
 

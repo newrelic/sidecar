@@ -32,7 +32,7 @@
     <div class="panel panel-default">
       <div class="panel-heading"><h4>Cluster<h4></div>
 	  <div class="panel-body">
-        <table class="table">
+        <table class="table table-condensed">
 		<tr>
 	    {{ range .Members }}
 	      <td>{{ .Name }}</td>
@@ -49,7 +49,7 @@
     <div class="panel panel-default">
       <div class="panel-heading"><h4>{{ $image }}<h4></div>
 	  <div class="panel-body">
-        <table class="table table-striped">
+        <table class="table table-striped table-condensed">
 	    <tr>
         	<th>Hostname</th><th>ID</th><th>Name</th><th>Created</th><th>Updated</th><th>Status</th>
 	    </tr>
