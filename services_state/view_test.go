@@ -83,7 +83,7 @@ func Test_ServerSorting(t *testing.T) {
 				services = append(services, svc.ID)
 			})
 
-			should := []string{ "deadbeef101", "deadbeef123", "deadbeef105", "deadbeef101", "deadbeef123" }
+			should := []string{ "deadbeef101", "deadbeef101", "deadbeef123", "deadbeef123", "deadbeef105" }
 			for i, id := range should {
 				So(services[i], ShouldEqual, id)
 			}

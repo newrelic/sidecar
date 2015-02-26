@@ -346,15 +346,15 @@ func (state *ServicesState) EachService(fn func(hostname *string, serviceId *str
 	}
 }
 
-func (state *ServicesState) ByService() map[string]map[string]*service.Service {
-	serviceMap := make(map[string]map[string]*service.Service)
+func (state *ServicesState) ByService() map[string][]*service.Service {
+	serviceMap := make(map[string][]*service.Service)
 
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
 			if _, ok := serviceMap[svc.Image]; !ok {
-				serviceMap[svc.Image] = make(map[string]*service.Service)
+				serviceMap[svc.Image] = make([]*service.Service, 0, 3)
 			}
-			serviceMap[svc.Image][*serviceId] = svc
+			serviceMap[svc.Image] = append(serviceMap[svc.Image], svc)
 		},
 	)
 

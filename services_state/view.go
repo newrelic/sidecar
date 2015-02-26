@@ -11,10 +11,15 @@ import (
 // ServicesState -------------------------
 
 func (state *ServicesState) EachServiceSorted(fn func(hostname *string, serviceId *string, svc *service.Service)) {
-	for _, server := range state.SortedServers() {
-		for _, svc := range server.SortedServices() {
-			fn(&server.Name, &svc.ID, svc)
-		}
+	var services []*service.Service
+	state.EachService(func(hostname *string, serviceId *string, svc *service.Service) {
+		services = append(services, svc)
+	})
+
+	sort.Sort(ServicesByAge(services))
+
+	for _, svc := range services {
+		fn(&svc.Hostname, &svc.ID, svc)
 	}
 }
 

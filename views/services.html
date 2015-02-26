@@ -53,7 +53,7 @@
 	    <tr>
         	<th>Hostname</th><th>ID</th><th>Name</th><th>Created</th><th>Updated</th><th>Status</th>
 	    </tr>
-        {{ range $name, $fields := $services }}
+        {{ range $services }}
           {{ if eq .Status 0 }}
           <tr>
           {{ else }}
