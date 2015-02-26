@@ -49,16 +49,20 @@ func statusStr(status int) string {
 	}
 }
 
+
 func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
 	funcMap := template.FuncMap{"statusStr": statusStr}
-	t := template.Must(template.New("services").Funcs(funcMap).ParseFiles("views/services.html"))
-	services := state.ByService()
-
-	for _, tmpl := range t.Templates() {
-		println(tmpl.Name())
+	t, err := template.New("services").Funcs(funcMap).ParseFiles("views/services.html")
+	if err != nil {
+		println("Error parsing template: " + err.Error())
 	}
 
-	t.ExecuteTemplate(response, "services.html", services)
+	viewData := map[string]interface{}{
+		"Services": state.ByService(),
+		"Members":  list.Members(),
+	}
+
+	t.ExecuteTemplate(response, "services.html", viewData)
 }
 
 

@@ -345,6 +345,7 @@ func (state *ServicesState) EachService(fn func(hostname *string, serviceId *str
 		}
 	}
 }
+
 func (state *ServicesState) ByService() map[string]map[string]*service.Service {
 	serviceMap := make(map[string]map[string]*service.Service)
 

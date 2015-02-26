@@ -4,17 +4,21 @@
     <link rel="stylesheet" type="text/css" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
 	<style>
 		.panel-heading {
-			padding: 5px 15px;
+           padding: 5px 15px;
 		}
 		h4 {
-			margin-top: 5px;
-			margin-bottom: 5px;
+           margin-top: 5px;
+           margin-bottom: 5px;
 		}
 		.table {
-			margin-bottom: 5px;
+           margin-bottom: 5px;
+		}
+		body {
+			font-size: 10px;
 		}
 	</style>
 </head>
+<body>
 <nav class="navbar navbar-default">
   <div class="container-fluid">
     <div class="navbar-header">
@@ -23,16 +27,32 @@
   </div>
 </nav>
 
-{{ range $image, $services := . }}
+<div class="row">
+  <div class="col-md-7 col-md-offset-2">
+    <div class="panel panel-default">
+      <div class="panel-heading"><h4>Cluster<h4></div>
+	  <div class="panel-body">
+        <table class="table">
+		<tr>
+	    {{ range .Members }}
+	      <td>{{ .Name }}</td>
+        {{ end }}
+		</tr>
+        </table>
+	  </div>
+	</div>
+  </div>
+</div>
+{{ range $image, $services := .Services }}
 <div class="row">
   <div class="col-md-7 col-md-offset-2">
     <div class="panel panel-default">
       <div class="panel-heading"><h4>{{ $image }}<h4></div>
-      <div class="panel-body">
+	  <div class="panel-body">
         <table class="table table-striped">
-		<tr>
+	    <tr>
         	<th>Hostname</th><th>ID</th><th>Name</th><th>Created</th><th>Updated</th><th>Status</th>
-		</tr>
+	    </tr>
         {{ range $name, $fields := $services }}
           {{ if eq .Status 0 }}
           <tr>
@@ -40,18 +60,18 @@
           <tr class="danger">
           {{ end }}
             <td>{{ .Hostname }}</td>
-			<td>{{ .ID }}</td>
+	    	<td>{{ .ID }}</td>
             <td>{{ .Name }}</td>
             <td>{{ .Created.Format "Jan 2 15:04:05" }}</td>
             <td>{{ .Updated.Format "Jan 2 15:04:05" }}</td>
             <td>{{ .Status | statusStr }}</td>
           </tr>
         {{ end }}
-		</table>
-        </div>
+	    </table>
       </div>
     </div>
   </div>
 </div>
 {{ end }}
+</body>
 </html>
