@@ -51,7 +51,7 @@
 	  <div class="panel-body">
         <table class="table table-striped table-condensed">
 	    <tr>
-        	<th>Hostname</th><th>ID</th><th>Name</th><th>Created</th><th>Updated</th><th>Status</th>
+          <th>Hostname</th><th>ID</th><th>Name</th><th>Created</th><th>Updated</th><th>Status</th>
 	    </tr>
         {{ range $services }}
           {{ if eq .Status 0 }}
@@ -62,8 +62,8 @@
             <td>{{ .Hostname }}</td>
 	    	<td>{{ .ID }}</td>
             <td>{{ .Name }}</td>
-            <td>{{ .Created.Format "Jan 2 15:04:05" }}</td>
-            <td>{{ .Updated.Format "Jan 2 15:04:05" }}</td>
+            <td>{{ .Created | timeAgo }}</td>
+            <td>{{ .Updated | timeAgo }}</td>
             <td>{{ .Status | statusStr }}</td>
           </tr>
         {{ end }}
