@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -136,30 +137,32 @@ func (state *ServicesState) Merge(otherState *ServicesState) {
 // Pretty-print(ish) a services state struct so a human can read
 // it on the terminal. Makes for awesome web apps.
 func (state *ServicesState) Format(list *memberlist.Memberlist) string {
-	var output string
+	var outStr string
 
-	output += "Services ------------------------------\n"
+	refTime := time.Now().UTC()
+
+	outStr += "Services ------------------------------\n"
 	for hostname, server := range state.Servers {
-		output += fmt.Sprintf("  %s: (%s)\n", hostname, server.LastUpdated.String())
+		outStr += fmt.Sprintf("  %s: (%s)\n", hostname, output.TimeAgo(server.LastUpdated, refTime))
 		for _, service := range server.Services {
-			output += service.Format()
+			outStr += service.Format()
 		}
-		output += "\n"
+		outStr += "\n"
 	}
 
 	// Don't show member list
 	if list == nil {
-		return output
+		return outStr
 	}
 
-	output += "\nCluster Hosts -------------------------\n"
+	outStr += "\nCluster Hosts -------------------------\n"
 	for _, host := range list.Members() {
-		output += fmt.Sprintf("    %s\n", host.Name)
+		outStr += fmt.Sprintf("    %s\n", host.Name)
 	}
 
-	output += "---------------------------------------"
+	outStr += "---------------------------------------"
 
-	return output
+	return outStr
 }
 
 // Print the formatted struct

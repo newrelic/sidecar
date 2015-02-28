@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/newrelic/bosun/output"
 	"github.com/fsouza/go-dockerclient"
 )
 
@@ -49,11 +50,11 @@ func (svc *Service) Invalidates(otherSvc *Service) bool {
 }
 
 func (svc *Service) Format() string {
-	return fmt.Sprintf("      %s %-20s %-30s %20s %-9s\n",
+	return fmt.Sprintf("      %s %-30s %-45s %15s  %-9s\n",
 				svc.ID,
 				svc.Name,
 				svc.Image,
-				svc.Updated,
+				output.TimeAgo(svc.Updated, time.Now().UTC()),
 				svc.AliveOrDead(),
 	)
 }

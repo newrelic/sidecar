@@ -5,13 +5,13 @@ import (
 	"html/template"
 	"net/http"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/memberlist"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/bosun/services_state"
 )
 
 
@@ -53,38 +53,13 @@ func statusStr(status int) string {
 	}
 }
 
-func TimeAgo(when time.Time, ref time.Time) string {
-	diff := ref.Round(time.Second).Sub(when.Round(time.Second))
-
-	switch {
-	case when.IsZero():
-		return "never"
-	case diff > time.Hour * 24 * 7:
-	    result := diff.Hours() / 24 / 7
-		return strconv.FormatFloat(result, 'f', 1, 64) + " weeks ago"
-	case diff > time.Hour * 24:
-	    result := diff.Hours() / 24
-		return strconv.FormatFloat(result, 'f', 1, 64) + " days ago"
-	case diff > time.Hour:
-	    result := diff.Hours()
-		return strconv.FormatFloat(result, 'f', 1, 64) + " hours ago"
-	case diff > time.Minute:
-		result := diff.Minutes()
-		return strconv.FormatFloat(result, 'f', 1, 64) + " mins ago"
-	case diff > time.Second:
-		return strconv.FormatFloat(diff.Seconds(), 'f', 1, 64) + " secs ago"
-	default:
-		return "1.0 sec ago"
-	}
-}
-
 type listByName []*memberlist.Node
 func (a listByName) Len() int           { return len(a) }
 func (a listByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a listByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
-	timeAgo := func(when time.Time) string { return TimeAgo(when, time.Now().UTC()) }
+	timeAgo := func(when time.Time) string { return output.TimeAgo(when, time.Now().UTC()) }
 
 	funcMap := template.FuncMap{"statusStr": statusStr, "timeAgo": timeAgo}
 	t, err := template.New("services").Funcs(funcMap).ParseFiles("views/services.html")
