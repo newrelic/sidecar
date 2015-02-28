@@ -170,9 +170,11 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 // Loops forever, keeping transmitting info about our containers
 // on the broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit chan bool) {
+	lastTime := time.Now().UTC()
+
 	for ;; {
 		containerList := fn()
-		prepared := make([][]byte, 0, len(containerList))
+		var prepared [][]byte
 
 		for _, container := range containerList {
 			state.AddServiceEntry(container)
@@ -182,9 +184,11 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 				continue
 			}
 
+			lastTime = container.Updated
 			prepared = append(prepared, encoded)
 		}
 
+		log.Printf("Starting to broadcast")
 		if len(prepared) > 0 {
 			state.Broadcasts <- prepared // Put it on the wire
 		} else {
@@ -192,6 +196,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 			// once we've run.
 			state.Broadcasts <- nil
 		}
+		log.Printf("Completing broadcast")
 
 		// Now that we're finished, see if we're supposed to exit
 		select {
@@ -200,7 +205,12 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 			default:
 		}
 
-		time.Sleep(ALIVE_SLEEP_INTERVAL)
+		timeDiff := time.Now().UTC().Sub(lastTime)
+
+		if timeDiff < ALIVE_SLEEP_INTERVAL {
+			log.Printf("Sleeping %v", timeDiff)
+			time.Sleep(ALIVE_SLEEP_INTERVAL - timeDiff)
+		}
 	}
 }
 

@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	SLEEP_INTERVAL = 2 * time.Second
+	SLEEP_INTERVAL = 1 * time.Second
 )
 
 type DockerDiscovery struct {
 	events chan *docker.APIEvents  // Where events are announced to us
 	endpoint string                // The Docker endpoint to talk to
 	containers []*service.Service  // The list of containers we know about
-	containersLock sync.RWMutex    // Reader/Writer lock controlling .containers
+	sync.RWMutex                   // Reader/Writer lock controlling .containers
 }
 
 func New(endpoint string) *DockerDiscovery {
@@ -58,13 +58,13 @@ func (d *DockerDiscovery) Run(quit chan bool) {
 }
 
 func (d *DockerDiscovery) Services() []service.Service {
-	d.containersLock.RLock()
-	defer d.containersLock.RUnlock()
+	d.RLock()
+	defer d.RUnlock()
 
-	containerList := make([]service.Service, 0, len(d.containers))
+	containerList := make([]service.Service, len(d.containers))
 
-	for _, container := range d.containers {
-		containerList = append(containerList, *container)
+	for i, container := range d.containers {
+		containerList[i] = *container
 	}
 
 	return containerList
@@ -78,8 +78,8 @@ func (d *DockerDiscovery) getContainers() {
 		return
 	}
 
-	d.containersLock.Lock()
-	defer d.containersLock.Unlock()
+	d.Lock()
+	defer d.Unlock()
 
 	d.containers = make([]*service.Service, 0, len(containers))
 
@@ -124,8 +124,8 @@ func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 	// We're only worried about stopping containers
 	if event.Status == "die" || event.Status == "stop" {
 		go func() {
-			d.containersLock.Lock()
-			defer d.containersLock.Unlock()
+			d.Lock()
+			defer d.Unlock()
 
 			for i, container := range d.containers {
 				if event.ID[:12] == container.ID {
