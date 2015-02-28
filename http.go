@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/memberlist"
 	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/service"
 )
 
 
@@ -56,6 +57,8 @@ func TimeAgo(when time.Time, ref time.Time) string {
 	diff := ref.Round(time.Second).Sub(when.Round(time.Second))
 
 	switch {
+	case when.IsZero():
+		return "never"
 	case diff > time.Hour * 24 * 7:
 	    result := diff.Hours() / 24 / 7
 		return strconv.FormatFloat(result, 'f', 1, 64) + " weeks ago"
@@ -92,9 +95,23 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 	members := list.Members()
 	sort.Sort(listByName(members))
 
-	viewData := map[string]interface{}{
-		"Services": state.ByService(),
-		"Members":  members,
+	updatedTimes := make([]time.Time, len(members))
+	for i, member := range members {
+		if _, ok := state.Servers[member.Name]; ok {
+			updatedTimes[i] = state.Servers[member.Name].LastUpdated
+		} else {
+			println("No updated time for " + member.Name)
+		}
+	}
+
+	viewData := struct {
+		Services map[string][]*service.Service
+		Members []*memberlist.Node
+		UpdatedTimes []time.Time
+	}{
+		Services: state.ByService(),
+		Members:  members,
+		UpdatedTimes:  updatedTimes,
 	}
 
 	t.ExecuteTemplate(response, "services.html", viewData)

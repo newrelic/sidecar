@@ -35,7 +35,12 @@
         <table class="table table-condensed">
 		<tr>
 	    {{ range .Members }}
-	      <td>{{ .Name }}</td>
+	      <th>{{ .Name }}</th>
+        {{ end }}
+		</tr>
+		<tr>
+	    {{ range .UpdatedTimes }}
+	      <td>{{ . | timeAgo }}</td>
         {{ end }}
 		</tr>
         </table>
