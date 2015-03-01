@@ -313,7 +313,7 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 	})
 }
 
-func Example_ByService() {
+func Example_ByServiceWithoutMatcher() {
 	state := NewServicesState()
 	state.Servers[hostname] = NewServer(hostname)
 	svcId1     := "deadbeef123"
@@ -327,6 +327,36 @@ func Example_ByService() {
 	}
 	service2 := service.Service{
 		ID: svcId2, Name: "service2", Image: "img1",
+		Hostname: hostname, Updated: baseTime,
+	}
+	service3 := service.Service{
+		ID: svcId3, Name: "service3", Image: "img2",
+		Hostname: hostname, Updated: baseTime,
+	}
+	state.AddServiceEntry(service1)
+	state.AddServiceEntry(service2)
+	state.AddServiceEntry(service3)
+
+	json, _ := json.MarshalIndent(state.ByService(), "", "  ")
+	println(string(json))
+	// Output:
+}
+
+func Example_ByServiceWithMatcher() {
+	state := NewServicesState()
+	state.Servers[hostname] = NewServer(hostname)
+	state.ServiceNameMatch  = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
+	svcId1     := "deadbeef123"
+	svcId2     := "deadbeef101"
+	svcId3     := "deadbeef105"
+	baseTime   := time.Now().UTC().Round(time.Second)
+
+	service1 := service.Service{
+		ID: svcId1, Name: "service1-deadabba999", Image: "img1",
+		Hostname: hostname, Updated: baseTime,
+	}
+	service2 := service.Service{
+		ID: svcId2, Name: "service1-abba1231234", Image: "img1",
 		Hostname: hostname, Updated: baseTime,
 	}
 	service3 := service.Service{

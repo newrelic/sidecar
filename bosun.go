@@ -42,21 +42,24 @@ func main() {
 	state    := services_state.NewServicesState()
 	delegate := servicesDelegate{state: state}
 
+	config := parseConfig("bosun.toml")
+	state.ServiceNameMatch = config.Services.NameRegexp
+
 	// Use a LAN config but add our delegate
-	config := memberlist.DefaultLANConfig()
-	config.Delegate = &delegate
-	config.Events   = &delegate
+	mlConfig := memberlist.DefaultLANConfig()
+	mlConfig.Delegate = &delegate
+	mlConfig.Events   = &delegate
 
 	publishedIP, err := getPublishedIP(map[string]bool{"192.168.168.168": true})
 	exitWithError(err, "Failed to find private IP address")
-	config.AdvertiseAddr = publishedIP
+	mlConfig.AdvertiseAddr = publishedIP
 
 	log.Println("Bosun starting -------------------")
 	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
 	log.Printf("Advertised address: %s\n", publishedIP)
 	log.Println("----------------------------------")
 
-	list, err := memberlist.Create(config)
+	list, err := memberlist.Create(mlConfig)
 	exitWithError(err, "Failed to create memberlist")
 
 	// Join an existing cluster by specifying at least one known member.

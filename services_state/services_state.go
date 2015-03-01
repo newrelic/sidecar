@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/hashicorp/memberlist"
@@ -47,6 +48,7 @@ type ServicesState struct {
 	Servers map[string]*Server
 	HostnameFn func() (string, error)
 	Broadcasts chan [][]byte
+	ServiceNameMatch *regexp.Regexp // How we match service names
 }
 
 // Returns a pointer to a properly configured ServicesState
@@ -359,15 +361,34 @@ func (state *ServicesState) EachService(fn func(hostname *string, serviceId *str
 	}
 }
 
+func (state *ServicesState) serviceName(svc *service.Service) string {
+	var svcName string
+
+	if state.ServiceNameMatch != nil {
+		toMatch := []byte(svc.Name)
+		matches := state.ServiceNameMatch.FindSubmatch(toMatch)
+		if len(matches) < 1 {
+			svcName = svc.Image
+		} else {
+			svcName = string(matches[1])
+		}
+	} else {
+		svcName = svc.Image
+	}
+
+	return svcName
+}
+
 func (state *ServicesState) ByService() map[string][]*service.Service {
 	serviceMap := make(map[string][]*service.Service)
 
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			if _, ok := serviceMap[svc.Image]; !ok {
-				serviceMap[svc.Image] = make([]*service.Service, 0, 3)
+			svcName := state.serviceName(svc)
+			if _, ok := serviceMap[svcName]; !ok {
+				serviceMap[svcName] = make([]*service.Service, 0, 3)
 			}
-			serviceMap[svc.Image] = append(serviceMap[svc.Image], svc)
+			serviceMap[svcName] = append(serviceMap[svcName], svc)
 		},
 	)
 

@@ -22,8 +22,10 @@ type DockerDiscovery struct {
 }
 
 func New(endpoint string) *DockerDiscovery {
-	discovery := DockerDiscovery{endpoint: endpoint}
-	discovery.events = make(chan *docker.APIEvents)
+	discovery := DockerDiscovery{
+		endpoint: endpoint,
+		events: make(chan *docker.APIEvents),
+	}
 	return &discovery
 }
 
