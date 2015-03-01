@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"net/http"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -53,6 +55,16 @@ func statusStr(status int) string {
 	}
 }
 
+func portsStr(svcPorts []service.Port) string {
+	var ports []string
+
+	for _, port := range svcPorts {
+		ports = append(ports, strconv.FormatInt(port.Port, 10))
+	}
+
+	return strings.Join(ports, ", ")
+}
+
 type listByName []*memberlist.Node
 func (a listByName) Len() int           { return len(a) }
 func (a listByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
@@ -61,7 +73,12 @@ func (a listByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
 	timeAgo := func(when time.Time) string { return output.TimeAgo(when, time.Now().UTC()) }
 
-	funcMap := template.FuncMap{"statusStr": statusStr, "timeAgo": timeAgo}
+	funcMap := template.FuncMap{
+		"statusStr": statusStr,
+		"timeAgo": timeAgo,
+		"portsStr": portsStr,
+	}
+
 	t, err := template.New("services").Funcs(funcMap).ParseFiles("views/services.html")
 	if err != nil {
 		println("Error parsing template: " + err.Error())
