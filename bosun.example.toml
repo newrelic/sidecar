@@ -1,0 +1,5 @@
+[bosun]
+exclude_ips = [ "192.168.168.168" ]
+
+[services]
+name_match = "^/(.+)(-[0-9a-z]{7,14})$"
