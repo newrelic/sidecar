@@ -11,7 +11,12 @@ type ServicesConfig struct {
 	NameRegexp *regexp.Regexp
 }
 
+type BosunConfig struct {
+	ExcludeIPs []string `toml:"exclude_ips"`
+}
+
 type Config struct {
+	Bosun BosunConfig
 	Services ServicesConfig
 }
 

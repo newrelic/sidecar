@@ -78,12 +78,14 @@ func findPrivateAddresses() ([]*net.IP, error) {
 	return result, err
 }
 
-func getPublishedIP(excluded map[string]bool) (string, error) {
+func getPublishedIP(excluded []string) (string, error) {
 	addresses, _ := findPrivateAddresses()
 
 	for _, address := range addresses {
-		if excluded[address.String()] {
-			continue
+		for _, excludeIP := range excluded {
+			if address.String() == excludeIP {
+				continue
+			}
 		}
 		return address.String(), nil
 	}

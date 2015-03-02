@@ -50,7 +50,7 @@ func main() {
 	mlConfig.Delegate = &delegate
 	mlConfig.Events   = &delegate
 
-	publishedIP, err := getPublishedIP(map[string]bool{"192.168.168.168": true})
+	publishedIP, err := getPublishedIP(config.Bosun.ExcludeIPs)
 	exitWithError(err, "Failed to find private IP address")
 	mlConfig.AdvertiseAddr = publishedIP
 
@@ -58,6 +58,7 @@ func main() {
 	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
 	log.Printf("Advertised address: %s\n", publishedIP)
 	log.Printf("Service Name Match: %s\n", config.Services.NameMatch)
+	log.Printf("Excluded IPs: %v\n", config.Bosun.ExcludeIPs)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
