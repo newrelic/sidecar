@@ -57,6 +57,7 @@ func main() {
 	log.Println("Bosun starting -------------------")
 	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
 	log.Printf("Advertised address: %s\n", publishedIP)
+	log.Printf("Service Name Match: %s\n", config.Services.NameMatch)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)

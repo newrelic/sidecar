@@ -31,6 +31,11 @@ func Test_NewServer(t *testing.T) {
 			server := NewServer(hostname)
 			So(server.LastUpdated, ShouldBeTheSameTimeAs, time.Unix(0, 0))
 		})
+
+		Convey("Initializes the LastChanged", func() {
+			server := NewServer(hostname)
+			So(server.LastChanged, ShouldBeTheSameTimeAs, time.Unix(0, 0))
+		})
 	})
 }
 
@@ -41,6 +46,11 @@ func Test_NewServicesState(t *testing.T) {
 		Convey("Initializes the Servers map", func() {
 			state := NewServicesState()
 			So(state.Servers, ShouldNotBeNil)
+		})
+
+		Convey("Initializes LastChanged", func() {
+			state := NewServicesState()
+			So(state.LastChanged, ShouldBeTheSameTimeAs, time.Unix(0, 0))
 		})
 
 	})
@@ -127,6 +137,35 @@ func Test_ServicesStateWithData(t *testing.T) {
 				state.AddServiceEntry(svc)
 
 				So(state.Servers[anotherHostname].LastUpdated, ShouldBeTheSameTimeAs, newDate)
+			})
+
+			Convey("Updates the LastChanged time for a service when new", func() {
+				lastChanged := state.LastChanged
+				state.AddServiceEntry(svc)
+
+				So(state.LastChanged.After(lastChanged), ShouldBeTrue)
+				So(
+					state.Servers[anotherHostname].LastChanged.After(lastChanged),
+					ShouldBeTrue,
+				)
+			})
+
+			Convey("Updates the LastChanged time for a service when changing", func() {
+				state.AddServiceEntry(svc)
+				lastChanged := state.LastChanged
+				svc.Tombstone()
+				state.AddServiceEntry(svc)
+
+				So(state.LastChanged.After(lastChanged), ShouldBeTrue)
+			})
+
+			Convey("Skips LastChanged time for a service that didn't change", func() {
+				state.AddServiceEntry(svc)
+				lastChanged := state.LastChanged
+				svc.Updated = time.Now().UTC()
+				state.AddServiceEntry(svc)
+
+				So(state.LastChanged.After(lastChanged), ShouldBeFalse)
 			})
 		})
 
@@ -221,6 +260,18 @@ func Test_Broadcasts(t *testing.T) {
 			So(readBroadcasts[1], ShouldMatch, "^{\"ID\":\"runs\".*\"Status\":1}$")
 		})
 
+		Convey("The LastChanged time is changed when a service is Tombstoned", func() {
+			lastChanged := state.LastChanged
+			go func() { quit <- true }()
+			junk := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
+			state.AddServiceEntry(junk)
+			go state.BroadcastTombstones(containerFn, quit)
+
+			<-state.Broadcasts
+			So(state.LastChanged.After(lastChanged), ShouldBeTrue)
+			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
+		})
+
 		Convey("Services that are still alive are not tombstoned", func() {
 			go func() { quit <- true }()
 			state.AddServiceEntry(service1)
@@ -268,6 +319,7 @@ func Test_Broadcasts(t *testing.T) {
 		})
 
 		Convey("Alive services have a lifespan and then are tombstoned", func() {
+			lastChanged := state.Servers[hostname].LastChanged
 			state.AddServiceEntry(service1)
 			svc := state.Servers[hostname].Services[service1.ID]
 			stamp := service1.Updated.Add(0 - ALIVE_LIFESPAN - 5 * time.Second)
@@ -277,6 +329,7 @@ func Test_Broadcasts(t *testing.T) {
 
 			So(svc.Status, ShouldEqual, service.TOMBSTONE)
 			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
+			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
 		})
 	})
 }
@@ -308,6 +361,17 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 			// Timestamps chagne when tombstoning, so regex match
 			So(expired[0], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
 			So(expired[1], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
+		})
+
+		Convey("The state LastChanged is updated", func() {
+			lastChanged := state.LastChanged
+			state.AddServiceEntry(service1)
+			state.AddServiceEntry(service2)
+			go func() { quit <- true }()
+			go state.ExpireServer(hostname, quit)
+
+			<-state.Broadcasts
+			So(lastChanged.Before(state.LastChanged), ShouldBeTrue)
 		})
 
 	})

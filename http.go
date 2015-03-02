@@ -23,6 +23,29 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request, *memberlist.Member
 	}
 }
 
+func watchHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
+	defer req.Body.Close()
+
+	response.Header().Set("Content-Type", "application/json")
+
+	lastChange := time.Unix(0, 0)
+
+	for {
+		if state.LastChanged.After(lastChange) {
+			lastChange = state.LastChanged
+			jsonStr, _ := json.Marshal(state.ByService())
+			response.Write(jsonStr)
+			// In order to flush immediately, we have to cast to a Flusher.
+			// The normal HTTP library supports this but not all do, so we
+			// check just in case.
+			if f, ok := response.(http.Flusher); ok {
+				f.Flush()
+			}
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+}
+
 func servicesHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
 	params := mux.Vars(req)
 
@@ -34,6 +57,10 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 		response.Write(jsonStr)
 		return
 	}
+}
+
+func serversHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
+	defer req.Body.Close()
 
 	response.Header().Set("Content-Type", "text/html")
 	response.Write(
@@ -118,11 +145,15 @@ func serveHttp(list *memberlist.Memberlist, state *services_state.ServicesState)
 	).Methods("GET")
 
 	router.HandleFunc(
-		"/servers", makeHandler(servicesHandler, list, state),
+		"/servers", makeHandler(serversHandler, list, state),
 	).Methods("GET")
 
 	router.HandleFunc(
 		"/services", makeHandler(viewHandler, list, state),
+	).Methods("GET")
+
+	router.HandleFunc(
+		"/watch", makeHandler(watchHandler, list, state),
 	).Methods("GET")
 
 	http.Handle("/", router)

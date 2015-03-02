@@ -30,6 +30,7 @@ type Server struct {
 	Name string
 	Services map[string]*service.Service
 	LastUpdated time.Time
+	LastChanged time.Time
 }
 
 // Returns a pointer to a properly configured Server
@@ -39,6 +40,7 @@ func NewServer(name string) *Server {
 	// Pre-create for 5 services per host
 	server.Services = make(map[string]*service.Service, 5)
 	server.LastUpdated = time.Unix(0, 0)
+	server.LastChanged = time.Unix(0, 0)
 
 	return &server
 }
@@ -49,14 +51,16 @@ type ServicesState struct {
 	HostnameFn func() (string, error)
 	Broadcasts chan [][]byte
 	ServiceNameMatch *regexp.Regexp // How we match service names
+	LastChanged time.Time
 }
 
 // Returns a pointer to a properly configured ServicesState
 func NewServicesState() *ServicesState {
 	var state ServicesState
-	state.Servers    = make(map[string]*Server, 5)
-	state.HostnameFn = os.Hostname
-	state.Broadcasts = make(chan [][]byte)
+	state.Servers     = make(map[string]*Server, 5)
+	state.HostnameFn  = os.Hostname
+	state.Broadcasts  = make(chan [][]byte)
+	state.LastChanged = time.Unix(0, 0)
 	return &state
 }
 
@@ -106,6 +110,16 @@ func (state *ServicesState) ExpireServer(hostname string, quit chan bool) {
 	}
 
 	state.SendTombstones(tombstones, quit)
+	state.ServerChanged(hostname)
+}
+
+func (state *ServicesState) ServerChanged(hostname string) {
+	if !state.HasServer(hostname) {
+		log.Printf("Attempt to change a server we don't have! (%s)", hostname)
+		return
+	}
+	state.Servers[hostname].LastChanged = state.Servers[hostname].LastUpdated
+	state.LastChanged = state.Servers[hostname].LastChanged
 }
 
 // Take a service and merge it into our state. Correctly handle
@@ -118,11 +132,17 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 	}
 
 	server := state.Servers[entry.Hostname]
-	// Only apply changes that are newer
-	if server.Services[entry.ID] == nil ||
-			entry.Invalidates(server.Services[entry.ID]) {
+	// Only apply changes that are newer or services are missing
+	if server.Services[entry.ID] == nil {
 		server.Services[entry.ID] = &entry
 		server.LastUpdated = entry.Updated
+		state.ServerChanged(entry.Hostname)
+	} else if entry.Invalidates(server.Services[entry.ID]) {
+		server.LastUpdated = entry.Updated // ServerChanged() relies on this
+		if server.Services[entry.ID].Status != entry.Status {
+			state.ServerChanged(entry.Hostname)
+		}
+		server.Services[entry.ID] = &entry
 	}
 }
 
@@ -305,6 +325,7 @@ func (state *ServicesState) TombstoneOthersServices() [][]byte {
 			// which updates the timestamp to Now().UTC()
 			svc.Status = service.TOMBSTONE
 			svc.Updated = svc.Updated.Add(time.Second)
+			state.ServerChanged(svc.Hostname)
 
 			encoded, err := svc.Encode()
 
@@ -335,9 +356,10 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 
 	// Tombstone our own services that went away
 	for id, svc := range services {
-		if mapping[id] == nil && svc.Status == service.ALIVE {
+		if mapping[id] == nil && svc.Status != service.TOMBSTONE {
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
+			state.ServerChanged(hostname)
 			// Tombstone each record twice to help with receipt
 			encoded, err := svc.Encode()
 			if err != nil {
@@ -353,12 +375,18 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 	return result
 }
 
-func (state *ServicesState) EachService(fn func(hostname *string, serviceId *string, svc *service.Service)) {
-	for hostname, _ := range state.Servers {
-		for id, svc := range state.Servers[hostname].Services {
-			fn(&hostname, &id, svc)
-		}
+func (state *ServicesState) EachServer(fn func(hostname *string, server *Server)) {
+	for hostname, server := range state.Servers {
+		fn(&hostname, server)
 	}
+}
+
+func (state *ServicesState) EachService(fn func(hostname *string, serviceId *string, svc *service.Service)) {
+	state.EachServer(func(hostname *string, server *Server) {
+		for id, svc := range server.Services {
+			fn(hostname, &id, svc)
+		}
+	})
 }
 
 func (state *ServicesState) serviceName(svc *service.Service) string {
