@@ -113,6 +113,9 @@ func (state *ServicesState) ExpireServer(hostname string, quit chan bool) {
 	state.ServerChanged(hostname)
 }
 
+// Tell the state that something changed on a particular server so that it
+// can keep the timestamps up to date. This is how we know something has
+// transitioned state.
 func (state *ServicesState) ServerChanged(hostname string) {
 	if !state.HasServer(hostname) {
 		log.Printf("Attempt to change a server we don't have! (%s)", hostname)

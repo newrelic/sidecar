@@ -195,12 +195,12 @@ func Test_ServicesStateWithData(t *testing.T) {
 func Test_Broadcasts(t *testing.T) {
 
 	Convey("When Broadcasting services", t, func() {
-		state := NewServicesState()
+		state    := NewServicesState()
 		state.Servers[hostname] = NewServer(hostname)
-		quit       := make(chan bool)
-		svcId1     := "deadbeef123"
-		svcId2     := "deadbeef101"
-		baseTime   := time.Now().UTC().Round(time.Second)
+		quit     := make(chan bool)
+		svcId1   := "deadbeef123"
+		svcId2   := "deadbeef101"
+		baseTime := time.Now().UTC().Round(time.Second)
 
 		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
 		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }

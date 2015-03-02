@@ -125,21 +125,22 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 	// We're only worried about stopping containers
 	if event.Status == "die" || event.Status == "stop" {
-		go func() {
-			d.Lock()
-			defer d.Unlock()
+		d.Lock()
+		defer d.Unlock()
 
-			for i, container := range d.containers {
-				if event.ID[:12] == container.ID {
-					log.Printf("Deleting %s based on event\n", container.ID)
-					// Delete the entry in the slice
-					d.containers[i] = nil
-					d.containers = append(d.containers[:i], d.containers[i+1:]...)
-					// Once we found a match, return
-					return
-				}
+		for i, container := range d.containers {
+			if len(event.ID) < 12 {
+				continue
 			}
-		}()
+			if event.ID[:12] == container.ID {
+				log.Printf("Deleting %s based on event\n", container.ID)
+				// Delete the entry in the slice
+				d.containers[i] = nil
+				d.containers = append(d.containers[:i], d.containers[i+1:]...)
+				// Once we found a match, return
+				return
+			}
+		}
 	}
 }
 
