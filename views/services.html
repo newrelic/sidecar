@@ -33,16 +33,18 @@
       <div class="panel-heading"><h4>Cluster<h4></div>
 	  <div class="panel-body">
         <table class="table table-condensed">
-		<tr>
-	    {{ range .Members }}
-	      <th>{{ .Name }}</th>
-        {{ end }}
-		</tr>
-		<tr>
-	    {{ range .UpdatedTimes }}
-	      <td>{{ . | timeAgo }}</td>
-        {{ end }}
-		</tr>
+		{{ range $row := .Members }}
+		  <tr>
+		  {{ range $row }}
+	        <th>{{ .Node.Name }}</th>
+		  {{ end }}
+		  </tr>
+		  <tr>
+		  {{ range $row }}
+	        <td>{{ .Updated | timeAgo }}</td>
+		  {{ end }}
+		  </tr>
+		{{ end }}
         </table>
 	  </div>
 	</div>

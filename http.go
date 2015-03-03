@@ -97,6 +97,25 @@ func (a listByName) Len() int           { return len(a) }
 func (a listByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a listByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
+type Member struct {
+	Node *memberlist.Node
+	Updated time.Time
+}
+
+func lineWrapMembers(cols int, fields []*Member) [][]*Member {
+	if len(fields) < cols {
+		return [][]*Member{fields}
+	}
+
+	retval := make([][]*Member, len(fields) / cols + 1)
+	for i := 0; i < len(fields); i++ {
+		row := i / cols
+		retval[row] = append(retval[row], fields[i])
+	}
+
+	return retval
+}
+
 func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
 	timeAgo := func(when time.Time) string { return output.TimeAgo(when, time.Now().UTC()) }
 
@@ -114,23 +133,24 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 	members := list.Members()
 	sort.Sort(listByName(members))
 
-	updatedTimes := make([]time.Time, len(members))
+	compiledMembers := make([]*Member, len(members))
 	for i, member := range members {
 		if _, ok := state.Servers[member.Name]; ok {
-			updatedTimes[i] = state.Servers[member.Name].LastUpdated
+			compiledMembers[i] = &Member{member, state.Servers[member.Name].LastUpdated}
 		} else {
+			compiledMembers[i] = &Member{Node: member}
 			println("No updated time for " + member.Name)
 		}
 	}
 
+	wrappedMembers := lineWrapMembers(5, compiledMembers)
+
 	viewData := struct {
 		Services map[string][]*service.Service
-		Members []*memberlist.Node
-		UpdatedTimes []time.Time
+		Members [][]*Member
 	}{
 		Services: state.ByService(),
-		Members:  members,
-		UpdatedTimes:  updatedTimes,
+		Members:  wrappedMembers,
 	}
 
 	t.ExecuteTemplate(response, "services.html", viewData)
