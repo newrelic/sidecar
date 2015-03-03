@@ -81,11 +81,17 @@ func findPrivateAddresses() ([]*net.IP, error) {
 func getPublishedIP(excluded []string) (string, error) {
 	addresses, _ := findPrivateAddresses()
 
+	skip := false
 	for _, address := range addresses {
 		for _, excludeIP := range excluded {
 			if address.String() == excludeIP {
-				continue
+				skip = true
+				break
 			}
+		}
+		if skip {
+			skip = false
+			continue
 		}
 		return address.String(), nil
 	}
