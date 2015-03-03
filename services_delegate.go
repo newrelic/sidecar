@@ -11,6 +11,7 @@ import (
 
 type servicesDelegate struct {
 	state *services_state.ServicesState
+	pendingBroadcasts [][]byte
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
@@ -39,19 +40,22 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	log.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
 
+	var broadcast [][]byte
+
 	select {
-	case broadcast := <-d.state.Broadcasts:
-		if len(broadcast) < 1 {
-			println("Got empty broadcast")
-			return nil
-		}
-		fmt.Printf("Sending broadcast %d msgs %d 1st length\n",
-			len(broadcast), len(broadcast[0]),
-		)
-		return broadcast
+	case broadcast = <-d.state.Broadcasts:
+		break
 	default:
 		return nil
 	}
+	if len(broadcast) < 1 {
+		println("Got empty broadcast")
+		return nil
+	}
+	fmt.Printf("Sending broadcast %d msgs %d 1st length\n",
+		len(broadcast), len(broadcast[0]),
+	)
+	return broadcast
 }
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
