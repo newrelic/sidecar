@@ -40,15 +40,15 @@ func announceMembers(list *memberlist.Memberlist, state *services_state.Services
 func main() {
 	opts     := parseCommandLine()
 	state    := services_state.NewServicesState()
-	delegate := servicesDelegate{state: state}
+	delegate := NewServicesDelegate(state)
 
 	config := parseConfig("bosun.toml")
 	state.ServiceNameMatch = config.Services.NameRegexp
 
 	// Use a LAN config but add our delegate
 	mlConfig := memberlist.DefaultLANConfig()
-	mlConfig.Delegate = &delegate
-	mlConfig.Events   = &delegate
+	mlConfig.Delegate = delegate
+	mlConfig.Events   = delegate
 
 	publishedIP, err := getPublishedIP(config.Bosun.ExcludeIPs)
 	exitWithError(err, "Failed to find private IP address")
