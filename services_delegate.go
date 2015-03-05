@@ -52,7 +52,6 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 	select {
 	case broadcast = <-d.state.Broadcasts:
-		break
 	default:
 		if len(d.pendingBroadcasts) < 1 {
 			return nil
