@@ -144,6 +144,9 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 		server.LastUpdated = entry.Updated // ServerChanged() relies on this
 		if server.Services[entry.ID].Status != entry.Status {
 			state.ServerChanged(entry.Hostname)
+			// We tell our gossip peers about the state change
+			// by sending them the record.
+			state.retransmit(entry)
 		}
 		server.Services[entry.ID] = &entry
 	}
@@ -157,6 +160,17 @@ func (state *ServicesState) Merge(otherState *ServicesState) {
 			state.AddServiceEntry(*service)
 		}
 	}
+}
+
+func (state *ServicesState) retransmit(svc service.Service) {
+	go func() {
+		encoded, err := svc.Encode()
+		if err != nil {
+			log.Printf("ERROR encoding message to forward: (%s)", err.Error())
+			return
+		}
+		state.Broadcasts <-[][]byte{encoded}
+	}()
 }
 
 // Pretty-print(ish) a services state struct so a human can read

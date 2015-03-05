@@ -167,6 +167,32 @@ func Test_ServicesStateWithData(t *testing.T) {
 
 				So(state.LastChanged.After(lastChanged), ShouldBeFalse)
 			})
+
+			Convey("Retransmits a packet when the state changes", func() {
+				state.AddServiceEntry(svc)
+				svc.Tombstone()
+				state.AddServiceEntry(svc)
+
+				packet := <-state.Broadcasts
+				encoded, _ := svc.Encode()
+				So(len(packet), ShouldEqual, 1)
+				So(string(packet[0]), ShouldEqual, string(encoded))
+			})
+
+			Convey("Doesn't retransmit when the state is the same", func() {
+				state.AddServiceEntry(svc)
+				svc.Updated = svc.Updated.Add(1 * time.Second)
+				state.AddServiceEntry(svc)
+				time.Sleep(2 * time.Millisecond)
+
+				pendingBroadcast := false
+				select {
+					case <-state.Broadcasts:
+						pendingBroadcast = true
+					default:
+				}
+				So(pendingBroadcast, ShouldBeFalse)
+			})
 		})
 
 		Convey("Merge() merges state we care about from other state structs", func() {
