@@ -23,6 +23,7 @@ const (
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
 	ALIVE_LIFESPAN = 20 * time.Second           // Down if not heard from in 20 seconds
 	ALIVE_SLEEP_INTERVAL = 2 * time.Second      // Sleep between local service checks
+	RETRANSMIT_MODULO = 3                       // 1/RETRANSMIT_MODULO services is retransmitted
 )
 
 // Holds the state about one server in our cluster
@@ -52,6 +53,7 @@ type ServicesState struct {
 	Broadcasts chan [][]byte
 	ServiceNameMatch *regexp.Regexp // How we match service names
 	LastChanged time.Time
+	retransmitCounter int
 }
 
 // Returns a pointer to a properly configured ServicesState
@@ -145,11 +147,16 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 		if server.Services[entry.ID].Status != entry.Status {
 			state.ServerChanged(entry.Hostname)
 			// We tell our gossip peers about the state change
-			// by sending them the record.
+			// by sending them the record. We're saved from an endless
+			// retransmit loop by the Invalidates() call above.
+			state.retransmit(entry)
+		} else if state.shouldRetransmit() {
 			state.retransmit(entry)
 		}
 		server.Services[entry.ID] = &entry
+		return // So we don't re-retransmit
 	}
+
 }
 
 // Merge a complete state struct into this one. Usually used on
@@ -162,6 +169,8 @@ func (state *ServicesState) Merge(otherState *ServicesState) {
 	}
 }
 
+// Take a service we already handled, and drop it back into the
+// channel. Backgrounded to not block the caller.
 func (state *ServicesState) retransmit(svc service.Service) {
 	go func() {
 		encoded, err := svc.Encode()
@@ -171,6 +180,13 @@ func (state *ServicesState) retransmit(svc service.Service) {
 		}
 		state.Broadcasts <-[][]byte{encoded}
 	}()
+}
+
+// Determines if we'll retransmit any arbitrary message. This does not
+// only happen for state transitions, it's any new message at all.
+func (state *ServicesState) shouldRetransmit() bool {
+	state.retransmitCounter += 1
+	return (state.retransmitCounter % RETRANSMIT_MODULO == 0)
 }
 
 // Pretty-print(ish) a services state struct so a human can read
