@@ -68,7 +68,7 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	}
 
 	if broadcast == nil || len(broadcast) < 1 {
-		log.Println("Not enough space to fit any messages")
+		log.Println("Not enough space to fit any messages or message was nil")
 		return nil
 	}
 
