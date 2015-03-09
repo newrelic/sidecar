@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"text/template"
@@ -21,12 +22,16 @@ type HAproxy struct {
 	ReloadCmd string
 	VerifyCmd string
 	BindIP string
+	Template string
+	ConfigFile string
 }
 
+// Constructs a properly configure HAProxy and returns a pointer to it
 func New() *HAproxy {
 	proxy := HAproxy{
 		ReloadCmd: "haproxy -f /etc/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)",
 		VerifyCmd: "haproxy -c /etc/haproxy.cfg",
+		Template:  "views/haproxy.cfg",
 	}
 
 	return &proxy
@@ -54,12 +59,14 @@ func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 	return ports
 }
 
+// Clean up image names for writing as HAproxy frontend and backend entries
 func sanitizeName(image string) string {
 	replace := regexp.MustCompile("[^a-z0-9-]")
-
 	return replace.ReplaceAllString(image, "-")
 }
 
+// Create an HAproxy config from the supplied ServicesState. Write it out to the
+// supplied io.Writer interface.
 func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Writer) {
 	services := state.ByService()
 	ports    := h.makePortmap(services)
@@ -83,12 +90,12 @@ func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Wri
 		"sanitizeName": sanitizeName,
     }
 
-	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles("../views/haproxy.cfg")
+	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles(h.Template)
 	if err != nil {
-		log.Printf("Error Parsing template hapxroxy.cfg: %s\n", err.Error())
+		log.Printf("Error Parsing template '%s': %s\n", h.Template, err.Error())
 		return
 	}
-	t.ExecuteTemplate(output, "haproxy.cfg", data)
+	t.ExecuteTemplate(output, path.Base(h.Template), data)
 }
 
 func (h *HAproxy) run(command string) error {

@@ -67,7 +67,7 @@ func Test_HAproxy(t * testing.T) {
 		state.AddServiceEntry(svc)
 	}
 
-	proxy := HAproxy{BindIP: "192.168.168.168"}
+	proxy := HAproxy{BindIP: "192.168.168.168", Template: "../views/haproxy.cfg"}
 
 	Convey("makePortmap() generates a properly formatted list", t, func() {
 		result := proxy.makePortmap(state.ByService())
