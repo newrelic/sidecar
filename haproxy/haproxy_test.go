@@ -89,7 +89,7 @@ func Test_HAproxy(t * testing.T) {
 		So(output, ShouldMatch, "bind 192.168.168.168:10020")
 		So(output, ShouldMatch, "frontend some-svc-9999")
 		So(output, ShouldMatch, "backend some-svc-9999")
-		So(output, ShouldMatch, "server deadbeef105 indefatigable:9999 cookie deadbeef105-9999")
+		So(output, ShouldMatch, "server deadbeef105 indefatigable:9999 cookie indefatigable-9999")
 	})
 
 	Convey("Reload() doesn't return an error when it works", t, func() {
