@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/newrelic/bosun/haproxy"
 	"github.com/newrelic/bosun/services_state"
 	"github.com/newrelic/bosun/docker_discovery"
 )
@@ -83,6 +84,9 @@ func main() {
 	go state.BroadcastServices(docker.Services, quitBroadcastingServices)
 	go state.BroadcastTombstones(docker.Services, quitBroadcastingTombstones)
 	go updateMetaData(list, metaUpdates)
+
+	proxy := haproxy.New()
+	go proxy.Watch(state)
 
 	serveHttp(list, state)
 

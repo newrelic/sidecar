@@ -3,7 +3,9 @@ package haproxy
 import (
 	"io"
 	"log"
+	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"text/template"
 	"time"
@@ -52,6 +54,12 @@ func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 	return ports
 }
 
+func sanitizeName(image string) string {
+	replace := regexp.MustCompile("[^a-z0-9-]")
+
+	return replace.ReplaceAllString(image, "-")
+}
+
 func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Writer) {
 	services := state.ByService()
 	ports    := h.makePortmap(services)
@@ -72,6 +80,7 @@ func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Wri
 			return keys
 		},
 		"bindIP": func() string { return h.BindIP },
+		"sanitizeName": sanitizeName,
     }
 
 	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles("../views/haproxy.cfg")
@@ -98,4 +107,20 @@ func (h *HAproxy) Reload() error {
 
 func (h *HAproxy) Verify() error {
 	return h.run(h.VerifyCmd)
+}
+
+func (h *HAproxy) Watch(state *services_state.ServicesState) {
+	lastChange := time.Unix(0, 0)
+
+	for {
+		if state.LastChanged.After(lastChange) {
+			lastChange = state.LastChanged
+			outfile, err := os.Create("/tmp/haproxy.cfg2")
+			if err != nil {
+				log.Printf("Error: unable to write to haproxy.cfg! (%s)", err.Error())
+			}
+			h.WriteConfig(state, outfile)
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
 }

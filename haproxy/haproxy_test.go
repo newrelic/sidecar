@@ -89,7 +89,7 @@ func Test_HAproxy(t * testing.T) {
 		So(output, ShouldMatch, "bind 192.168.168.168:10020")
 		So(output, ShouldMatch, "frontend some-svc-9999")
 		So(output, ShouldMatch, "backend some-svc-9999")
-		So(output, ShouldMatch, "server some-svc-0123456789a indefatigable:9999 cookie some-svc-0123456789a-9999")
+		So(output, ShouldMatch, "server deadbeef105 indefatigable:9999 cookie deadbeef105-9999")
 	})
 
 	Convey("Reload() doesn't return an error when it works", t, func() {
@@ -106,6 +106,11 @@ func Test_HAproxy(t * testing.T) {
 		proxy.ReloadCmd = "yomomma"
 		err = proxy.Reload()
 		So(err.Error(), ShouldEqual, "exit status 127")
+	})
+
+	Convey("sanitizeName() fixes crazy image names", t, func() {
+		image := "public/something-longish:latest"
+		So(sanitizeName(image), ShouldEqual, "public-something-longish-latest")
 	})
 }
 
