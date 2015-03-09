@@ -91,6 +91,22 @@ func Test_HAproxy(t * testing.T) {
 		So(output, ShouldMatch, "backend some-svc-9999")
 		So(output, ShouldMatch, "server some-svc-0123456789a indefatigable:9999 cookie some-svc-0123456789a-9999")
 	})
+
+	Convey("Reload() doesn't return an error when it works", t, func() {
+		proxy.ReloadCmd = "/usr/bin/true"
+		err := proxy.Reload()
+		So(err, ShouldBeNil)
+	})
+
+	Convey("Reload() returns an error when it fails", t, func() {
+		proxy.ReloadCmd = "/usr/bin/false"
+		err := proxy.Reload()
+		So(err.Error(), ShouldEqual, "exit status 1")
+
+		proxy.ReloadCmd = "yomomma"
+		err = proxy.Reload()
+		So(err.Error(), ShouldEqual, "exit status 127")
+	})
 }
 
 func ShouldMatch(actual interface{}, expected ...interface{}) string {

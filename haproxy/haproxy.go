@@ -24,12 +24,14 @@ type HAproxy struct {
 func New() *HAproxy {
 	proxy := HAproxy{
 		ReloadCmd: "haproxy -f /etc/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)",
-		VerifyCmd: "",
+		VerifyCmd: "haproxy -c /etc/haproxy.cfg",
 	}
 
 	return &proxy
 }
 
+// Returns a map of sets where each set is a list of ports bound
+// by that service.
 func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 	ports := make(portmap)
 
@@ -80,12 +82,20 @@ func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Wri
 	t.ExecuteTemplate(output, "haproxy.cfg", data)
 }
 
+func (h *HAproxy) run(command string) error {
+	cmd := exec.Command("/bin/bash", "-c", command)
+	err := cmd.Run()
+	if err != nil {
+		log.Printf("Error running '%s': %s", command, err.Error())
+	}
+
+	return err
+}
+
 func (h *HAproxy) Reload() error {
-	cmd := exec.Command("/bin/bash", "-c", h.ReloadCmd)
-	return cmd.Run()
+	return h.run(h.ReloadCmd)
 }
 
 func (h *HAproxy) Verify() error {
-	cmd := exec.Command("/bin/bash", "-c", h.VerifyCmd)
-	return cmd.Run()
+	return h.run(h.VerifyCmd)
 }
