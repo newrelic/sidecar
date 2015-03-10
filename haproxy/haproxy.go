@@ -18,6 +18,7 @@ import (
 type portset map[string]struct{}
 type portmap map[string]portset
 
+// Configuration and state for the HAproxy management module
 type HAproxy struct {
 	ReloadCmd string
 	VerifyCmd string
@@ -68,7 +69,7 @@ func sanitizeName(image string) string {
 // Create an HAproxy config from the supplied ServicesState. Write it out to the
 // supplied io.Writer interface.
 func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Writer) {
-	services := state.ByService()
+	services := servicesWithPorts(state)
 	ports    := h.makePortmap(services)
 
 	data := struct {
@@ -98,6 +99,7 @@ func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Wri
 	t.ExecuteTemplate(output, path.Base(h.Template), data)
 }
 
+// Execute a command and log the error, but bubble it up as well
 func (h *HAproxy) run(command string) error {
 	cmd := exec.Command("/bin/bash", "-c", command)
 	err := cmd.Run()
@@ -108,14 +110,23 @@ func (h *HAproxy) run(command string) error {
 	return err
 }
 
+// Run the HAproxy reload command to load the new config and restart.
+// Best to use a command with -sf specified to keep the connections up.
 func (h *HAproxy) Reload() error {
 	return h.run(h.ReloadCmd)
 }
 
+// Run HAproxy with the verify command that will check the validity of
+// the current config. Used to gate a Reload() so we don't load a bad
+// config and tear everything down.
 func (h *HAproxy) Verify() error {
 	return h.run(h.VerifyCmd)
 }
 
+// Watch the state of a ServicesState struct and generate a new proxy
+// config file (haproxy.ConfigFile) when the state changes. Also notifies
+// the service that it needs to reload once the new file has been written
+// and verified.
 func (h *HAproxy) Watch(state *services_state.ServicesState) {
 	lastChange := time.Unix(0, 0)
 
@@ -130,4 +141,25 @@ func (h *HAproxy) Watch(state *services_state.ServicesState) {
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
+}
+
+// Like state.ByService() but only stores information for services which
+// actually have public ports.
+func servicesWithPorts(state *services_state.ServicesState) map[string][]*service.Service {
+	serviceMap := make(map[string][]*service.Service)
+
+	state.EachServiceSorted(
+		func(hostname *string, serviceId *string, svc *service.Service) {
+			if len(svc.Ports) < 1 {
+				return
+			}
+			svcName := state.ServiceName(svc)
+			if _, ok := serviceMap[svcName]; !ok {
+				serviceMap[svcName] = make([]*service.Service, 0, 3)
+			}
+			serviceMap[svcName] = append(serviceMap[svcName], svc)
+		},
+	)
+
+	return serviceMap
 }

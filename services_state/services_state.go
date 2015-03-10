@@ -230,7 +230,7 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit chan bool) {
 	lastTime := time.Now().UTC()
 
-	for ;; {
+	for {
 		containerList := fn()
 		var prepared [][]byte
 
@@ -422,7 +422,9 @@ func (state *ServicesState) EachService(fn func(hostname *string, serviceId *str
 	})
 }
 
-func (state *ServicesState) serviceName(svc *service.Service) string {
+// Return a properly regex-matched name for the service, or failing that,
+// the Image ID which we use to stand in for the name of the service.
+func (state *ServicesState) ServiceName(svc *service.Service) string {
 	var svcName string
 
 	if state.ServiceNameMatch != nil {
@@ -440,12 +442,14 @@ func (state *ServicesState) serviceName(svc *service.Service) string {
 	return svcName
 }
 
+// Group the services into a map by service name rather than by the
+// hosts they run on.
 func (state *ServicesState) ByService() map[string][]*service.Service {
 	serviceMap := make(map[string][]*service.Service)
 
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			svcName := state.serviceName(svc)
+			svcName := state.ServiceName(svc)
 			if _, ok := serviceMap[svcName]; !ok {
 				serviceMap[svcName] = make([]*service.Service, 0, 3)
 			}
