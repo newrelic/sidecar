@@ -122,9 +122,9 @@ func (h *HAproxy) Watch(state *services_state.ServicesState) {
 	for {
 		if state.LastChanged.After(lastChange) {
 			lastChange = state.LastChanged
-			outfile, err := os.Create("/tmp/haproxy.cfg2")
+			outfile, err := os.Create(h.ConfigFile)
 			if err != nil {
-				log.Printf("Error: unable to write to haproxy.cfg! (%s)", err.Error())
+				log.Printf("Error: unable to write to %s! (%s)", h.ConfigFile, err.Error())
 			}
 			h.WriteConfig(state, outfile)
 		}

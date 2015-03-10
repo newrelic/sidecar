@@ -6,6 +6,14 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+type HAproxyConfig struct {
+	ReloadCmd string `toml:"reload_command"`
+	VerifyCmd string `toml:"verify_command"`
+	BindIP string `toml:"bind_ip"`
+	TemplateFile string `toml:"template_file"`
+	ConfigFile string `toml:"config_file"`
+}
+
 type ServicesConfig struct {
 	NameMatch string `toml:"name_match"`
 	NameRegexp *regexp.Regexp
@@ -18,6 +26,7 @@ type BosunConfig struct {
 type Config struct {
 	Bosun BosunConfig
 	Services ServicesConfig
+	HAproxy HAproxyConfig
 }
 
 func parseConfig(path string) Config {

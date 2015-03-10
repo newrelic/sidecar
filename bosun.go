@@ -38,6 +38,31 @@ func announceMembers(list *memberlist.Memberlist, state *services_state.Services
 	}
 }
 
+func configureHAproxy(config Config) *haproxy.HAproxy {
+	proxy := haproxy.New()
+	if len(config.HAproxy.BindIP) > 0 {
+		proxy.BindIP = config.HAproxy.BindIP
+	}
+
+	if len(config.HAproxy.ReloadCmd) > 0 {
+		proxy.ReloadCmd = config.HAproxy.ReloadCmd
+	}
+
+	if len(config.HAproxy.VerifyCmd) > 0 {
+		proxy.VerifyCmd = config.HAproxy.VerifyCmd
+	}
+
+	if len(config.HAproxy.TemplateFile) > 0 {
+		proxy.Template = config.HAproxy.TemplateFile
+	}
+
+	if len(config.HAproxy.ConfigFile) > 0 {
+		proxy.ConfigFile = config.HAproxy.ConfigFile
+	}
+
+	return proxy
+}
+
 func main() {
 	opts     := parseCommandLine()
 	state    := services_state.NewServicesState()
@@ -85,7 +110,7 @@ func main() {
 	go state.BroadcastTombstones(docker.Services, quitBroadcastingTombstones)
 	go updateMetaData(list, metaUpdates)
 
-	proxy := haproxy.New()
+	proxy := configureHAproxy(config)
 	go proxy.Watch(state)
 
 	serveHttp(list, state)
