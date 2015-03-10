@@ -96,7 +96,7 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 	client.AddEventListener(d.events)
 
 	// Health check the connection and set it back up when it goes away.
-	for ;; {
+	for {
 
 		err := client.Ping()
 		if err != nil {
@@ -145,7 +145,7 @@ func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 }
 
 func (d *DockerDiscovery) processEvents(quit chan bool) {
-	for ;; {
+	for {
 		select {
 		case <- quit:
 			return
