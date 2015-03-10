@@ -110,8 +110,10 @@ func main() {
 	go state.BroadcastTombstones(docker.Services, quitBroadcastingTombstones)
 	go updateMetaData(list, metaUpdates)
 
-	proxy := configureHAproxy(config)
-	go proxy.Watch(state)
+	if !config.HAproxy.Disable {
+		proxy := configureHAproxy(config)
+		go proxy.Watch(state)
+	}
 
 	serveHttp(list, state)
 

@@ -31,7 +31,7 @@ type HAproxy struct {
 func New() *HAproxy {
 	proxy := HAproxy{
 		ReloadCmd: "haproxy -f /etc/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)",
-		VerifyCmd: "haproxy -c /etc/haproxy.cfg",
+		VerifyCmd: "haproxy -c -f /etc/haproxy.cfg",
 		Template:  "views/haproxy.cfg",
 	}
 
@@ -136,8 +136,16 @@ func (h *HAproxy) Watch(state *services_state.ServicesState) {
 			outfile, err := os.Create(h.ConfigFile)
 			if err != nil {
 				log.Printf("Error: unable to write to %s! (%s)", h.ConfigFile, err.Error())
+				continue
 			}
+
 			h.WriteConfig(state, outfile)
+			if err := h.Verify(); err != nil {
+				log.Printf("Error: failed to verify HAproxy config! (%s)", err.Error())
+				continue
+			}
+
+			h.Reload()
 		}
 		time.Sleep(250 * time.Millisecond)
 	}

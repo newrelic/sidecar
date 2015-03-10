@@ -12,6 +12,7 @@ type HAproxyConfig struct {
 	BindIP string `toml:"bind_ip"`
 	TemplateFile string `toml:"template_file"`
 	ConfigFile string `toml:"config_file"`
+	Disable bool
 }
 
 type ServicesConfig struct {
