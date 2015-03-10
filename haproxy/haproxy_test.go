@@ -3,6 +3,8 @@ package haproxy
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"regexp"
 	"testing"
 	"time"
@@ -120,6 +122,32 @@ func Test_HAproxy(t * testing.T) {
 	Convey("sanitizeName() fixes crazy image names", t, func() {
 		image := "public/something-longish:latest"
 		So(sanitizeName(image), ShouldEqual, "public-something-longish-latest")
+	})
+
+	Convey("Watch() writes out a config when the state changes", t, func() {
+		tmpDir, _ := ioutil.TempDir("/tmp", "bosun-test")
+		config :=  fmt.Sprintf("%s/haproxy.cfg", tmpDir)
+		proxy.ConfigFile = config
+
+		go proxy.Watch(state)
+		newTime := time.Now().UTC()
+
+		svc := service.Service{
+			ID: "abcdef123123123",
+			Name: "some-svc-befede6789a",
+			Image: "some-svc",
+			Hostname: hostname2,
+			Updated: newTime,
+			Ports:  []service.Port{service.Port{"tcp", 1337}},
+		}
+		time.Sleep(5 * time.Millisecond)
+		state.AddServiceEntry(svc)
+		time.Sleep(5 * time.Millisecond)
+
+		result, _ := ioutil.ReadFile(config)
+		So(result, ShouldMatch, "port 1337")
+
+		os.Remove(config)
 	})
 }
 

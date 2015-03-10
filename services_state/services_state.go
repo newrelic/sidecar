@@ -26,6 +26,11 @@ const (
 	RETRANSMIT_MODULO = 3                       // 1/RETRANSMIT_MODULO services is retransmitted
 )
 
+type ChangeEvent struct {
+	Hostname string
+	Time time.Time
+}
+
 // Holds the state about one server in our cluster
 type Server struct {
 	Name string
@@ -54,6 +59,7 @@ type ServicesState struct {
 	ServiceNameMatch *regexp.Regexp // How we match service names
 	LastChanged time.Time
 	retransmitCounter int
+	listeners []chan ChangeEvent
 }
 
 // Returns a pointer to a properly configured ServicesState
@@ -125,6 +131,36 @@ func (state *ServicesState) ServerChanged(hostname string) {
 	}
 	state.Servers[hostname].LastChanged = state.Servers[hostname].LastUpdated
 	state.LastChanged = state.Servers[hostname].LastChanged
+	state.NotifyListeners(hostname, state.LastChanged)
+}
+
+// Tell all of our listeners that something changed for a host at
+// set timestamp. See AddListener() for information about how channels
+// must be configured.
+func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Time) {
+	if len(state.listeners) < 1 {
+		log.Printf("Skipping listeners, there are none")
+		return
+	}
+	event := ChangeEvent{ Hostname: hostname, Time: changedTime }
+	println(len(state.listeners))
+	for _, listener := range state.listeners {
+	log.Println("trying listener")
+		select {
+			case listener <-event:
+				continue
+			default:
+				log.Println("ServerChanged(): Can't send to listener!")
+		}
+	}
+}
+
+// Add an event listener channel to the list that will be notified on
+// major state change events. Channels must be buffered by at least 1
+// or they will block. Channels must be ready to receive input.
+func (state *ServicesState) AddListener(listener chan ChangeEvent) {
+	state.listeners = append(state.listeners, listener)
+	log.Printf("AddListener(): new count %d\n", len(state.listeners))
 }
 
 // Take a service and merge it into our state. Correctly handle

@@ -128,26 +128,25 @@ func (h *HAproxy) Verify() error {
 // the service that it needs to reload once the new file has been written
 // and verified.
 func (h *HAproxy) Watch(state *services_state.ServicesState) {
-	lastChange := time.Unix(0, 0)
+	eventChannel := make(chan services_state.ChangeEvent)
+	state.AddListener(eventChannel)
 
 	for {
-		if state.LastChanged.After(lastChange) {
-			lastChange = state.LastChanged
-			outfile, err := os.Create(h.ConfigFile)
-			if err != nil {
-				log.Printf("Error: unable to write to %s! (%s)", h.ConfigFile, err.Error())
-				continue
-			}
-
-			h.WriteConfig(state, outfile)
-			if err := h.Verify(); err != nil {
-				log.Printf("Error: failed to verify HAproxy config! (%s)", err.Error())
-				continue
-			}
-
-			h.Reload()
+		event := <-eventChannel
+		println("Event from " + event.Hostname)
+		outfile, err := os.Create(h.ConfigFile)
+		if err != nil {
+			log.Printf("Error: unable to write to %s! (%s)", h.ConfigFile, err.Error())
+			continue
 		}
-		time.Sleep(250 * time.Millisecond)
+
+		h.WriteConfig(state, outfile)
+		if err := h.Verify(); err != nil {
+			log.Printf("Error: failed to verify HAproxy config! (%s)", err.Error())
+			continue
+		}
+
+		h.Reload()
 	}
 }
 

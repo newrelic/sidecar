@@ -3,6 +3,7 @@ package services_state
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"testing"
 	"regexp"
 	"time"
@@ -356,6 +357,47 @@ func Test_Broadcasts(t *testing.T) {
 			So(svc.Status, ShouldEqual, service.TOMBSTONE)
 			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
 			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
+		})
+	})
+}
+
+func Test_Listeners(t *testing.T) {
+	Convey("Working with state Listeners", t, func() {
+		state     := NewServicesState()
+		listener  := make(chan ChangeEvent, 1)
+		listener2 := make(chan ChangeEvent, 1)
+		svcId1    := "deadbeef123"
+		baseTime  := time.Now().UTC().Round(time.Second)
+		svc1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
+
+		Convey("Adding listeners results in new entries in the listeners list", func() {
+			So(len(state.listeners), ShouldEqual, 0)
+			state.AddListener(listener)
+			So(len(state.listeners), ShouldEqual, 1)
+		})
+
+		Convey("A major state change event notifies all listeners", func() {
+			var result ChangeEvent
+			var result2 ChangeEvent
+			var wg sync.WaitGroup
+			wg.Add(2)
+			go func() { result = <-listener; wg.Done() }()
+			go func() { result2 = <-listener2; wg.Done() }()
+			state.AddListener(listener)
+			state.AddListener(listener2)
+
+			state.AddServiceEntry(svc1)
+
+			svc1.Updated = svc1.Updated.Add(1 * time.Second)
+			state.AddServiceEntry(svc1)
+
+			wg.Wait()
+			So(result.Hostname, ShouldEqual, hostname)
+			So(result2.Hostname, ShouldEqual, hostname)
+		})
+
+		Reset(func() {
+			state = NewServicesState()
 		})
 	})
 }
