@@ -16,8 +16,7 @@ import (
 	"github.com/newrelic/bosun/services_state"
 )
 
-
-func makeHandler(fn func (http.ResponseWriter, *http.Request, *memberlist.Memberlist, *services_state.ServicesState), list *memberlist.Memberlist, state *services_state.ServicesState) http.HandlerFunc {
+func makeHandler(fn func(http.ResponseWriter, *http.Request, *memberlist.Memberlist, *services_state.ServicesState), list *memberlist.Memberlist, state *services_state.ServicesState) http.HandlerFunc {
 	return func(response http.ResponseWriter, req *http.Request) {
 		fn(response, req, list, state)
 	}
@@ -93,12 +92,13 @@ func portsStr(svcPorts []service.Port) string {
 }
 
 type listByName []*memberlist.Node
+
 func (a listByName) Len() int           { return len(a) }
 func (a listByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a listByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 type Member struct {
-	Node *memberlist.Node
+	Node    *memberlist.Node
 	Updated time.Time
 }
 
@@ -107,7 +107,7 @@ func lineWrapMembers(cols int, fields []*Member) [][]*Member {
 		return [][]*Member{fields}
 	}
 
-	retval := make([][]*Member, len(fields) / cols + 1)
+	retval := make([][]*Member, len(fields)/cols+1)
 	for i := 0; i < len(fields); i++ {
 		row := i / cols
 		retval[row] = append(retval[row], fields[i])
@@ -121,8 +121,8 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 
 	funcMap := template.FuncMap{
 		"statusStr": statusStr,
-		"timeAgo": timeAgo,
-		"portsStr": portsStr,
+		"timeAgo":   timeAgo,
+		"portsStr":  portsStr,
 	}
 
 	t, err := template.New("services").Funcs(funcMap).ParseFiles("views/services.html")
@@ -147,7 +147,7 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 
 	viewData := struct {
 		Services map[string][]*service.Service
-		Members [][]*Member
+		Members  [][]*Member
 	}{
 		Services: state.ByService(),
 		Members:  wrappedMembers,
@@ -155,7 +155,6 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 
 	t.ExecuteTemplate(response, "services.html", viewData)
 }
-
 
 func serveHttp(list *memberlist.Memberlist, state *services_state.ServicesState) {
 	router := mux.NewRouter()
