@@ -68,7 +68,9 @@ func sanitizeName(image string) string {
 }
 
 // Create an HAproxy config from the supplied ServicesState. Write it out to the
-// supplied io.Writer interface.
+// supplied io.Writer interface. This gets a list from servicesWithPorts() and
+// builds a list of unique ports for all services, then passes these to the
+// template. Ports are looked up by the func getPorts().
 func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Writer) {
 	services := servicesWithPorts(state)
 	ports    := h.makePortmap(services)
