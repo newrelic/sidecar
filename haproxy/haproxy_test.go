@@ -172,6 +172,7 @@ func Test_HAproxy(t * testing.T) {
 		So(result, ShouldMatch, "port 1337")
 
 		os.Remove(config)
+		os.Remove(tmpDir)
 	})
 }
 
