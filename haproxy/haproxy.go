@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"reflect"
 	"regexp"
 	"strconv"
 	"text/template"
@@ -151,7 +152,8 @@ func (h *HAproxy) Watch(state *services_state.ServicesState) {
 }
 
 // Like state.ByService() but only stores information for services which
-// actually have public ports.
+// actually have public ports. Only matches services that have the same name
+// and the same ports. Otherwise log an error.
 func servicesWithPorts(state *services_state.ServicesState) map[string][]*service.Service {
 	serviceMap := make(map[string][]*service.Service)
 
@@ -160,11 +162,27 @@ func servicesWithPorts(state *services_state.ServicesState) map[string][]*servic
 			if len(svc.Ports) < 1 {
 				return
 			}
+
 			svcName := state.ServiceName(svc)
 			if _, ok := serviceMap[svcName]; !ok {
 				serviceMap[svcName] = make([]*service.Service, 0, 3)
 			}
-			serviceMap[svcName] = append(serviceMap[svcName], svc)
+
+			if len(serviceMap[svcName]) < 1 {
+				serviceMap[svcName] = append(serviceMap[svcName], svc)
+				return
+			}
+
+			match := serviceMap[svcName][0]
+			// DeepEqual is slow, so we only do it when we have to
+			if match != nil && reflect.DeepEqual(match.Ports, svc.Ports) {
+				serviceMap[svcName] = append(serviceMap[svcName], svc)
+			} else {
+				// TODO should we just add another service this this port added
+				// to the name? We have to find out which port.
+				log.Printf("%s service from %s not added: non-matching ports!",
+					state.ServiceName(svc), svc.Hostname)
+			}
 		},
 	)
 

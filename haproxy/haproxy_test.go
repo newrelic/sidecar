@@ -24,6 +24,7 @@ func Test_HAproxy(t * testing.T) {
     svcId1   := "deadbeef123"
     svcId2   := "deadbeef101"
     svcId3   := "deadbeef105"
+    svcId4   := "deadbeef999"
     baseTime := time.Now().UTC().Round(time.Second)
 
 	ports1   := []service.Port{service.Port{"tcp", 10450}, service.Port{"tcp", 10020}}
@@ -55,11 +56,12 @@ func Test_HAproxy(t * testing.T) {
 			Ports: ports2,
 		},
 		service.Service{
-			ID: svcId3,
+			ID: svcId4,
 			Name: "some-svc-befede6789a",
 			Image: "some-svc",
 			Hostname: hostname2,
 			Updated: baseTime.Add(5 * time.Second),
+			// No ports!
 		},
 	}
 
@@ -86,6 +88,28 @@ func Test_HAproxy(t * testing.T) {
 		So(len(result), ShouldEqual, 2)
 		So(len(result[services[0].Image]), ShouldEqual, 2)
 		So(len(result[services[2].Image]), ShouldEqual, 1)
+	})
+
+	Convey("servicesWithPorts() groups services by name and port", t, func() {
+		badSvc   := service.Service{
+			ID: "0000bad00000",
+			Name: "some-svc-0155555789a",
+			Image: "some-svc",
+			Hostname: "titanic",
+			Updated: baseTime.Add(5 * time.Second),
+			Ports: []service.Port{ service.Port{"tcp", 666} },
+		}
+
+		svcName := state.ServiceName(&badSvc)
+		// It had 1 before
+		svcList := servicesWithPorts(state)
+		So(len(svcList[svcName]), ShouldEqual, 1)
+
+		// We add an entry with mismatching ports and should get no more added
+		state.AddServiceEntry(badSvc)
+
+		svcList = servicesWithPorts(state)
+		So(len(svcList[svcName]), ShouldEqual, 1)
 	})
 
 	Convey("WriteConfig() writes a template from a file", t, func() {
