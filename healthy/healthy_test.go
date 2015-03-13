@@ -15,6 +15,7 @@ func Test_NewCheck(t *testing.T) {
 
 		So(check.Count, ShouldEqual, 0)
 		So(check.Type, ShouldEqual, "http")
+		So(check.MaxCount, ShouldEqual, 1)
 		So(reflect.DeepEqual(check.Command, &HttpCheck{}), ShouldBeTrue)
 	})
 }
@@ -101,17 +102,18 @@ func Test_RunningChecks(t *testing.T) {
 		})
 
 		Convey("Unhealthy Checks are marked unhealthy", func() {
-			fail := mockCommand{DesiredResult: FAILED}
+			fail := mockCommand{DesiredResult: SICKLY}
 			badCheck := &Check{
 				Type: "mock",
 				Args: "testing123",
 				Command: &fail,
+				MaxCount: 1,
 			}
 			monitor.AddCheck(badCheck)
 			monitor.Run(1)
 
 			So(fail.CallCount, ShouldEqual, 1)
-			So(badCheck.Status, ShouldEqual, FAILED)
+			So(badCheck.Status, ShouldEqual, SICKLY)
 		})
 
 		Convey("Erroring checks are marked UNKNOWN", func() {
@@ -120,6 +122,7 @@ func Test_RunningChecks(t *testing.T) {
 				Type: "mock",
 				Args: "testing123",
 				Command: &fail,
+				MaxCount: 1,
 			}
 			monitor.AddCheck(badCheck)
 			monitor.Run(1)

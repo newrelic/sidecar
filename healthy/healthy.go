@@ -29,10 +29,22 @@ type Monitor struct {
 }
 
 type Check struct {
+	// The most recent status of this check
 	Status int
+
+	// The number of runs it has been in failed state
 	Count int
+
+	// The maximum number before we declare that it failed
+	MaxCount int
+
+	// String describing the kind of check
 	Type string
+
+	// The arguments to pass to the Checker
 	Args string
+
+	// The Checker to run to validate this
 	Command Checker
 }
 
@@ -45,8 +57,29 @@ func NewCheck() *Check {
 		Count: 0,
 		Type: "http",
 		Command: &HttpCheck{},
+		MaxCount: 1,
 	}
 	return &check
+}
+
+func (check *Check) UpdateStatus(status int, err error) {
+	if err != nil {
+		log.Printf("Error executing check, status UNKNOWN")
+		check.Status = UNKNOWN
+	} else {
+		check.Status = status
+	}
+
+	if status == HEALTHY {
+		check.Count = 0
+		return
+	}
+
+	check.Count = check.Count + 1
+
+	if check.Count > check.MaxCount {
+		check.Status = FAILED
+	}
 }
 
 func NewMonitor() *Monitor {
@@ -112,12 +145,7 @@ func (m *Monitor) Run(count int) {
 			go func(check *Check) {
 				// TODO add timeout around this call
 				result, err := check.Command.Run(check.Args)
-				if err != nil {
-					log.Printf("Error executing check, status UNKNOWN")
-					check.Status = UNKNOWN
-				} else {
-					check.Status = result
-				}
+				check.UpdateStatus(result, err)
 				wg.Done()
 			}(check) // copy check ptr for the goroutine
 		}
