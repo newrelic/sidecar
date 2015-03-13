@@ -77,7 +77,7 @@ func (check *Check) UpdateStatus(status int, err error) {
 
 	check.Count = check.Count + 1
 
-	if check.Count > check.MaxCount {
+	if check.Count >= check.MaxCount {
 		check.Status = FAILED
 	}
 }
@@ -136,9 +136,6 @@ func (m *Monitor) Run(count int) {
 
 		var wg sync.WaitGroup
 
-		m.Lock()
-		defer m.Unlock()
-
 		wg.Add(len(m.Checks))
 		for _, check := range m.Checks {
 			// Run all checks in parallel in goroutines
@@ -156,7 +153,7 @@ func (m *Monitor) Run(count int) {
 		// our check loop if something doesn't time out properly.
 		wg.Wait()
 		// Don't increment in this case or we'll stop on maxint rollover
-		if count != - 1 {
+		if count != -1 {
 			i = i + 1
 			if i >= count {
 				return

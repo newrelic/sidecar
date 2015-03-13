@@ -87,21 +87,21 @@ func Test_RunningChecks(t *testing.T) {
 		}
 		monitor.AddCheck(check)
 
-		Convey("The Check Command gets evaluated", func() {
+		SkipConvey("The Check Command gets evaluated", func() {
 			monitor.Run(1)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(cmd.DesiredResult, ShouldEqual, HEALTHY) // We know it's our cmd
 		})
 
-		Convey("Healthy Checks are marked healthy", func() {
+		SkipConvey("Healthy Checks are marked healthy", func() {
 			monitor.Run(1)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(check.Status, ShouldEqual, HEALTHY)
 		})
 
-		Convey("Unhealthy Checks are marked unhealthy", func() {
+		SkipConvey("Unhealthy Checks are marked unhealthy", func() {
 			fail := mockCommand{DesiredResult: SICKLY}
 			badCheck := &Check{
 				Type: "mock",
@@ -116,7 +116,7 @@ func Test_RunningChecks(t *testing.T) {
 			So(badCheck.Status, ShouldEqual, SICKLY)
 		})
 
-		Convey("Erroring checks are marked UNKNOWN", func() {
+		SkipConvey("Erroring checks are marked UNKNOWN", func() {
 			fail := mockCommand{Error: errors.New("Uh oh!"), DesiredResult: FAILED}
 			badCheck := &Check{
 				Type: "mock",
@@ -129,6 +129,22 @@ func Test_RunningChecks(t *testing.T) {
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, UNKNOWN)
+		})
+
+		Convey("Checks that fail too many times are marked FAILED", func() {
+			fail := mockCommand{DesiredResult: SICKLY}
+			maxCount := 2
+			badCheck := &Check{
+				Type: "mock",
+				Args: "testing123",
+				Command: &fail,
+				MaxCount: maxCount,
+			}
+			monitor.AddCheck(badCheck)
+			monitor.Run(maxCount)
+			So(fail.CallCount, ShouldEqual, 2)
+			So(badCheck.Count, ShouldEqual, 2)
+			So(badCheck.Status, ShouldEqual, FAILED)
 		})
 	})
 }
