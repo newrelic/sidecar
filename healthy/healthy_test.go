@@ -162,5 +162,13 @@ func Test_RunningChecks(t *testing.T) {
 			So(badCheck.Status, ShouldEqual, HEALTHY)
 
 		})
+
+		Convey("Checks that had an error become UNKNOWN on first pass", func() {
+			check := NewCheck()
+			check.MaxCount = 3
+			check.UpdateStatus(1, errors.New("Borked!"))
+
+			So(check.Status, ShouldEqual, UNKNOWN)
+		})
 	})
 }
