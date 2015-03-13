@@ -146,5 +146,21 @@ func Test_RunningChecks(t *testing.T) {
 			So(badCheck.Count, ShouldEqual, 2)
 			So(badCheck.Status, ShouldEqual, FAILED)
 		})
+
+		Convey("Checks that were failed return to health", func() {
+			healthy := mockCommand{DesiredResult: HEALTHY}
+			badCheck := &Check{
+				Type: "mock",
+				Status: FAILED,
+				Args: "testing123",
+				Command: &healthy,
+				Count: 2,
+			}
+			monitor.AddCheck(badCheck)
+			monitor.Run(1)
+			So(badCheck.Count, ShouldEqual, 0)
+			So(badCheck.Status, ShouldEqual, HEALTHY)
+
+		})
 	})
 }
