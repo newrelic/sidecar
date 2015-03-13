@@ -1,6 +1,7 @@
 package healthy
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -64,12 +65,13 @@ type mockCommand struct {
 	CallCount int
 	LastArgs string
 	DesiredResult int
+	Error error
 }
 
 func (m *mockCommand) Run(args string) (int, error) {
 	m.CallCount = m.CallCount + 1
 	m.LastArgs = args
-	return m.DesiredResult, nil
+	return m.DesiredResult, m.Error
 }
 
 func Test_RunningChecks(t *testing.T) {
@@ -84,7 +86,7 @@ func Test_RunningChecks(t *testing.T) {
 		}
 		monitor.AddCheck(check)
 
-/*		Convey("The Check Command gets evaluated", func() {
+		Convey("The Check Command gets evaluated", func() {
 			monitor.Run(1)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
@@ -97,7 +99,7 @@ func Test_RunningChecks(t *testing.T) {
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(check.Status, ShouldEqual, HEALTHY)
 		})
-*/
+
 		Convey("Unhealthy Checks are marked unhealthy", func() {
 			fail := mockCommand{DesiredResult: FAILED}
 			badCheck := &Check{
@@ -105,11 +107,25 @@ func Test_RunningChecks(t *testing.T) {
 				Args: "testing123",
 				Command: &fail,
 			}
-			monitor.Checks = []*Check{check, badCheck}
+			monitor.AddCheck(badCheck)
 			monitor.Run(1)
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, FAILED)
+		})
+
+		Convey("Erroring checks are marked UNKNOWN", func() {
+			fail := mockCommand{Error: errors.New("Uh oh!"), DesiredResult: FAILED}
+			badCheck := &Check{
+				Type: "mock",
+				Args: "testing123",
+				Command: &fail,
+			}
+			monitor.AddCheck(badCheck)
+			monitor.Run(1)
+
+			So(fail.CallCount, ShouldEqual, 1)
+			So(badCheck.Status, ShouldEqual, UNKNOWN)
 		})
 	})
 }

@@ -15,6 +15,7 @@ const (
 	HEALTHY = 0
 	SICKLY  = iota
 	FAILED  = iota
+	UNKNOWN = iota
 )
 
 const (
@@ -106,16 +107,17 @@ func (m *Monitor) Run(count int) {
 		defer m.Unlock()
 
 		wg.Add(len(m.Checks))
-log.Printf("Len: %d\n", len(m.Checks))
 		for _, check := range m.Checks {
 			// Run all checks in parallel in goroutines
 			go func(check *Check) {
 				// TODO add timeout around this call
 				result, err := check.Command.Run(check.Args)
-				log.Printf("res: %#v\n", result)
-				log.Printf("err: %#v\n", err)
-	log.Printf("%#v\n", check)
-				check.Status = result
+				if err != nil {
+					log.Printf("Error executing check, status UNKNOWN")
+					check.Status = UNKNOWN
+				} else {
+					check.Status = result
+				}
 				wg.Done()
 			}(check) // copy check ptr for the goroutine
 		}
