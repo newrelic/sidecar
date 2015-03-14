@@ -20,7 +20,7 @@ const (
 )
 
 const (
-	FOREVER = 0
+	FOREVER = -1
 )
 
 type Monitor struct {
@@ -148,7 +148,7 @@ func (m *Monitor) RemoveCheck(name string) {
 }
 
 // Run the monitoring loop. Takes an argument of how many
-// times to run. -1 means to run forever.
+// times to run. FOREVER means to run forever.
 func (m *Monitor) Run(count int) {
 	interval := time.Tick(m.CheckInterval)
 	i := 0
@@ -186,7 +186,7 @@ func (m *Monitor) Run(count int) {
 		// our check loop if something doesn't time out properly.
 		wg.Wait()
 		// Don't increment in this case or we'll stop on maxint rollover
-		if count != -1 {
+		if count != FOREVER {
 			i = i + 1
 			if i >= count {
 				return
