@@ -6,9 +6,8 @@
 package healthy
 
 import (
-	"os/exec"
+	"errors"
 	"log"
-	"net/http"
 	"sync"
 	"time"
 )
@@ -57,6 +56,9 @@ type Check struct {
 
 	// The Checker to run to validate this
 	Command Checker
+
+	// The last recorded error on this check
+	LastError error
 }
 
 type Checker interface {
@@ -78,6 +80,7 @@ func (check *Check) UpdateStatus(status int, err error) {
 	if err != nil {
 		log.Printf("Error executing check, status UNKNOWN")
 		check.Status = UNKNOWN
+		check.LastError = err
 	} else {
 		check.Status = status
 	}
@@ -147,9 +150,9 @@ func (m *Monitor) RemoveCheck(name string) {
 // Run the monitoring loop. Takes an argument of how many
 // times to run. -1 means to run forever.
 func (m *Monitor) Run(count int) {
-	c := time.Tick(m.CheckInterval)
+	interval := time.Tick(m.CheckInterval)
 	i := 0
-	for range c {
+	for range interval {
 		log.Printf("Running checks")
 
 		var wg sync.WaitGroup
@@ -157,10 +160,22 @@ func (m *Monitor) Run(count int) {
 		wg.Add(len(m.Checks))
 		for _, check := range m.Checks {
 			// Run all checks in parallel in goroutines
-			go func(check *Check) {
-				// TODO add timeout around this call
+			resultChan := make(chan checkResult, 1)
+			go func() {
 				result, err := check.Command.Run(check.Args)
-				check.UpdateStatus(result, err)
+				resultChan <-checkResult{result, err}
+			}()
+
+			go func(check *Check) {
+				// We make the call but we time out if it gets too close to the
+				// Monitor's CheckInterval.
+				select {
+				case result := <-resultChan:
+					check.UpdateStatus(result.status, result.err)
+				case <-time.After(m.CheckInterval - 1 * time.Millisecond):
+					log.Printf("Error, check %s timed out!", check.ID)
+					check.UpdateStatus(UNKNOWN, errors.New("Timed out!"))
+				}
 				wg.Done()
 			}(check) // copy check ptr for the goroutine
 		}
@@ -180,38 +195,7 @@ func (m *Monitor) Run(count int) {
 	}
 }
 
-// A Checker that makes an HTTP get call and expects to get
-// a 200-299 back as success. Anything else is considered
-// a failure. The URL to hit is passed ass the args to the
-// Run method.
-type HttpGetCmd struct {}
-
-func (h *HttpGetCmd) Run(args string) (int, error) {
-	resp, err := http.Get(args)
-	defer resp.Body.Close()
-
-	if resp.StatusCode > 200 && resp.StatusCode < 300 {
-		return HEALTHY, nil
-	}
-
-	return SICKLY, err
-}
-
-// A Checker that works with Nagios checks or other simple
-// external tools. It expects a 0 exit code from the command
-// that was run. Anything else is considered to be SICKLY.
-// The command is passed as the args to the Run method. The
-// command will be executed without a shell wrapper to keep
-// the call as lean as possible in the majority case. If you
-// need a shell you must invoke it yourself.
-type ExternalCmd struct{}
-
-func (e *ExternalCmd) Run(args string) (int, error) {
-    cmd := exec.Command(args)
-    err := cmd.Run()
-	if err == nil {
-		return HEALTHY, nil
-	}
-
-	return SICKLY, err
+type checkResult struct {
+	status int
+	err error
 }

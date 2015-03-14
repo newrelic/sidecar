@@ -86,6 +86,13 @@ func (m *mockCommand) Run(args string) (int, error) {
 	return m.DesiredResult, m.Error
 }
 
+type slowCommand struct {}
+
+func (s *slowCommand) Run(args string) (int, error) {
+	time.Sleep(5 * time.Millisecond)
+	return HEALTHY, nil
+}
+
 func Test_RunningChecks(t *testing.T) {
 	Convey("Working with health checks", t, func() {
 		monitor := NewMonitor()
@@ -174,8 +181,26 @@ func Test_RunningChecks(t *testing.T) {
 
 		})
 
+		Convey("Checks that take too long time out", func() {
+			check := &Check{
+				ID: "test",
+				Type: "mock",
+				Status: FAILED,
+				Args: "testing123",
+				Command: &slowCommand{},
+				MaxCount: 3,
+			}
+			monitor.AddCheck(check)
+			monitor.Run(1)
+
+			So(check.Status, ShouldEqual, UNKNOWN)
+			So(check.LastError.Error(), ShouldEqual, "Timed out!")
+		})
+
 		Convey("Checks that had an error become UNKNOWN on first pass", func() {
 			check := NewCheck("test")
+			check.Command = &slowCommand{}
+			monitor.CheckInterval = 2 * time.Millisecond
 			check.MaxCount = 3
 			check.UpdateStatus(1, errors.New("Borked!"))
 
