@@ -7,6 +7,7 @@ package healthy
 
 import (
 	"log"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -55,11 +56,12 @@ type Checker interface {
 	Run(args string) (int, error)
 }
 
-func NewCheck() *Check {
+func NewCheck(id string) *Check {
 	check := Check{
+		ID: id,
 		Count: 0,
 		Type: "http",
-		Command: &HttpCheck{},
+		Command: &HttpGetCheck{},
 		MaxCount: 1,
 	}
 	return &check
@@ -171,8 +173,15 @@ func (m *Monitor) Run(count int) {
 	}
 }
 
-type HttpCheck struct {}
+type HttpGetCheck struct {}
 
-func (h *HttpCheck) Run(args string) (int, error) {
-	return HEALTHY, nil
+func (h *HttpGetCheck) Run(args string) (int, error) {
+	resp, err := http.Get(args)
+	defer resp.Body.Close()
+
+	if resp.StatusCode > 200 && resp.StatusCode < 300 {
+		return HEALTHY, nil
+	}
+
+	return SICKLY, err
 }

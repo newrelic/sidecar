@@ -11,12 +11,13 @@ import (
 
 func Test_NewCheck(t *testing.T) {
 	Convey("Returns a properly configured Check", t, func() {
-		check := NewCheck()
+		check := NewCheck("testing")
 
 		So(check.Count, ShouldEqual, 0)
 		So(check.Type, ShouldEqual, "http")
 		So(check.MaxCount, ShouldEqual, 1)
-		So(reflect.DeepEqual(check.Command, &HttpCheck{}), ShouldBeTrue)
+		So(check.ID, ShouldEqual, "testing")
+		So(reflect.DeepEqual(check.Command, &HttpGetCheck{}), ShouldBeTrue)
 	})
 }
 
@@ -174,7 +175,7 @@ func Test_RunningChecks(t *testing.T) {
 		})
 
 		Convey("Checks that had an error become UNKNOWN on first pass", func() {
-			check := NewCheck()
+			check := NewCheck("test")
 			check.MaxCount = 3
 			check.UpdateStatus(1, errors.New("Borked!"))
 
