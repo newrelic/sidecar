@@ -24,11 +24,14 @@ const (
 
 type Monitor struct {
 	CheckInterval time.Duration
-	Checks []*Check
+	Checks map[string]*Check
 	sync.RWMutex
 }
 
 type Check struct {
+	// The ID of this check
+	ID string
+
 	// The most recent status of this check
 	Status int
 
@@ -85,7 +88,7 @@ func (check *Check) UpdateStatus(status int, err error) {
 func NewMonitor() *Monitor {
 	monitor := Monitor{
 		CheckInterval: 3 * time.Second,
-		Checks: make([]*Check, 0),
+		Checks: make(map[string]*Check, 5),
 	}
 	return &monitor
 }
@@ -123,7 +126,13 @@ func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.Checks = append(m.Checks, check)
+	m.Checks[check.ID] = check
+}
+
+func (m *Monitor) RemoveCheck(name string) {
+	m.Lock()
+	defer m.Unlock()
+	delete(m.Checks, name)
 }
 
 // Run the monitoring loop. Takes an argument of how many

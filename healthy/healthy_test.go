@@ -32,11 +32,11 @@ func Test_NewMonitor(t *testing.T) {
 func Test_Status(t *testing.T) {
 	Convey("Testing Status", t, func() {
 		monitor := NewMonitor()
-		monitor.Checks = []*Check{
-			&Check{Status: HEALTHY},
-			&Check{Status: HEALTHY},
-			&Check{Status: SICKLY},
-			&Check{Status: FAILED},
+		monitor.Checks = map[string]*Check{
+			"12345a": &Check{Status: HEALTHY},
+			"23456b": &Check{Status: HEALTHY},
+			"34567c": &Check{Status: SICKLY},
+			"45678d": &Check{Status: FAILED},
 		}
 
 		Convey("Healthy() returns a list of only healthy checks", func() {
@@ -55,10 +55,20 @@ func Test_AddCheck(t *testing.T) {
 	Convey("Adds a check to the list", t, func() {
 		monitor := NewMonitor()
 		So(len(monitor.Checks), ShouldEqual, 0)
-		monitor.AddCheck(&Check{})
+		monitor.AddCheck(&Check{ID: "123"})
 		So(len(monitor.Checks), ShouldEqual, 1)
-		monitor.AddCheck(&Check{})
+		monitor.AddCheck(&Check{ID: "234"})
 		So(len(monitor.Checks), ShouldEqual, 2)
+	})
+}
+
+func Test_RemoveCheck(t *testing.T) {
+	Convey("Removes a check from the list", t, func() {
+		monitor := NewMonitor()
+		monitor.AddCheck(&Check{ID: "123"})
+		So(len(monitor.Checks), ShouldEqual, 1)
+		monitor.RemoveCheck("123")
+		So(len(monitor.Checks), ShouldEqual, 0)
 	})
 }
 
