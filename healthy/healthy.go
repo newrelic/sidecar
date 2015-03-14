@@ -6,6 +6,7 @@
 package healthy
 
 import (
+	"os/exec"
 	"log"
 	"net/http"
 	"sync"
@@ -29,6 +30,12 @@ type Monitor struct {
 	sync.RWMutex
 }
 
+// A Check defines some information about how to talk to the
+// service to determine health. Each Check has a Command that
+// is used to actually do the work. The command is invoked each
+// interval and passed the arguments stored in the Check. The
+// default Check type is an HttpGetCheck and the Args must be
+// the URL to pass to the check.
 type Check struct {
 	// The ID of this check
 	ID string
@@ -61,7 +68,7 @@ func NewCheck(id string) *Check {
 		ID: id,
 		Count: 0,
 		Type: "http",
-		Command: &HttpGetCheck{},
+		Command: &HttpGetCmd{},
 		MaxCount: 1,
 	}
 	return &check
@@ -173,13 +180,36 @@ func (m *Monitor) Run(count int) {
 	}
 }
 
-type HttpGetCheck struct {}
+// A Checker that makes an HTTP get call and expects to get
+// a 200-299 back as success. Anything else is considered
+// a failure. The URL to hit is passed ass the args to the
+// Run method.
+type HttpGetCmd struct {}
 
-func (h *HttpGetCheck) Run(args string) (int, error) {
+func (h *HttpGetCmd) Run(args string) (int, error) {
 	resp, err := http.Get(args)
 	defer resp.Body.Close()
 
 	if resp.StatusCode > 200 && resp.StatusCode < 300 {
+		return HEALTHY, nil
+	}
+
+	return SICKLY, err
+}
+
+// A Checker that works with Nagios checks or other simple
+// external tools. It expects a 0 exit code from the command
+// that was run. Anything else is considered to be SICKLY.
+// The command is passed as the args to the Run method. The
+// command will be executed without a shell wrapper to keep
+// the call as lean as possible in the majority case. If you
+// need a shell you must invoke it yourself.
+type ExternalCmd struct{}
+
+func (e *ExternalCmd) Run(args string) (int, error) {
+    cmd := exec.Command(args)
+    err := cmd.Run()
+	if err == nil {
 		return HEALTHY, nil
 	}
 

@@ -17,7 +17,7 @@ func Test_NewCheck(t *testing.T) {
 		So(check.Type, ShouldEqual, "http")
 		So(check.MaxCount, ShouldEqual, 1)
 		So(check.ID, ShouldEqual, "testing")
-		So(reflect.DeepEqual(check.Command, &HttpGetCheck{}), ShouldBeTrue)
+		So(reflect.DeepEqual(check.Command, &HttpGetCmd{}), ShouldBeTrue)
 	})
 }
 
