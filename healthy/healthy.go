@@ -23,6 +23,10 @@ const (
 	FOREVER = -1
 )
 
+// The Monitor is responsible for managing and running Checks.
+// It has a fixed check interval that is used for all checks.
+// Access must be synchronized so direct access to struct
+// members is possible but requires use of the RWMutex.
 type Monitor struct {
 	CheckInterval time.Duration
 	Checks map[string]*Check

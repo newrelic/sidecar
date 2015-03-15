@@ -3,6 +3,7 @@ package services_state
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"regexp"
@@ -98,6 +99,13 @@ func Test_ServicesStateWithData(t *testing.T) {
 
 		Convey("HasServer() is false when a server is missing", func() {
 			So(state.HasServer("junk"), ShouldBeFalse)
+		})
+
+		Convey("GetLocalService() returns a service when we have it", func() {
+			state.HostnameFn = func() (string, error) { return anotherHostname, nil }
+			state.AddServiceEntry(svc)
+
+			So(reflect.DeepEqual(state.GetLocalService(svcId), &svc), ShouldBeTrue)
 		})
 
 		Convey("AddServiceEntry()", func() {
