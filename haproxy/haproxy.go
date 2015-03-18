@@ -136,7 +136,7 @@ func (h *HAproxy) Watch(state *services_state.ServicesState) {
 
 	for {
 		event := <-eventChannel
-		println("Event from " + event.Hostname)
+		log.Println("State change event from " + event.Hostname)
 		outfile, err := os.Create(h.ConfigFile)
 		if err != nil {
 			log.Printf("Error: unable to write to %s! (%s)", h.ConfigFile, err.Error())
