@@ -30,6 +30,7 @@ const (
 type Monitor struct {
 	CheckInterval time.Duration
 	Checks map[string]*Check
+	ServiceChecks map[string]*Check
 	sync.RWMutex
 }
 
@@ -37,7 +38,7 @@ type Monitor struct {
 // service to determine health. Each Check has a Command that
 // is used to actually do the work. The command is invoked each
 // interval and passed the arguments stored in the Check. The
-// default Check type is an HttpGetCheck and the Args must be
+// default Check type is an HttpGetCmd and the Args must be
 // the URL to pass to the check.
 type Check struct {
 	// The ID of this check
@@ -76,6 +77,7 @@ func NewCheck(id string) *Check {
 		Type: "http",
 		Command: &HttpGetCmd{},
 		MaxCount: 1,
+		Status: UNKNOWN,
 	}
 	return &check
 }
@@ -105,6 +107,7 @@ func NewMonitor() *Monitor {
 	monitor := Monitor{
 		CheckInterval: 3 * time.Second,
 		Checks: make(map[string]*Check, 5),
+		ServiceChecks: make(map[string]*Check, 5),
 	}
 	return &monitor
 }
@@ -141,7 +144,6 @@ func (m *Monitor) Healthy() []*Check {
 func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
-
 	m.Checks[check.ID] = check
 }
 

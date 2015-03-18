@@ -1,14 +1,11 @@
 package healthy
 
 import (
+	"log"
 	"time"
 
 	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/services_state"
-)
-
-const (
-	SERVICE_DISCO_INTERVAL = 100 * time.Millisecond
 )
 
 func (m *Monitor) Services(state *services_state.ServicesState) []service.Service {
@@ -26,19 +23,40 @@ func (m *Monitor) Services(state *services_state.ServicesState) []service.Servic
 	return svcList
 }
 
-func (m *Monitor) Watch(fn func() []service.Service, count int) {
-	interval := time.Tick(SERVICE_DISCO_INTERVAL)
+func (m *Monitor) CheckForService(name string) Check {
+	if _, ok := m.ServiceChecks[name]; !ok {
+		return Check{}
+	}
+
+	return *m.ServiceChecks[name]
+}
+
+func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.Service) string,
+		count int, interval time.Duration) {
+	ticks := time.Tick(interval)
 	i := 0
-	for range interval {
-		services := fn()
+	for range ticks {
+		services := svcFun()
 
 		// Add checks when new services are found
 		for _, svc := range services {
-			m.Lock()
-			if m.Checks[svc.ID] == nil {
-				// Add a check
+			if nameFun(&svc) == "" {
+				continue
 			}
-			m.Unlock()
+
+			if m.Checks[svc.ID] == nil {
+				check := m.CheckForService(nameFun(&svc))
+				if check.Command == nil {
+					log.Printf(
+						"Error: Attempted to add %s (id: %s) but no check configured!",
+						svc.Name, svc.ID,
+					)
+				} else {
+					log.Printf("%#v\n", check)
+					println("Adding")
+					m.AddCheck(&check)
+				}
+			}
 		}
 
 		m.Lock()

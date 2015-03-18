@@ -89,7 +89,7 @@ func (m *mockCommand) Run(args string) (int, error) {
 type slowCommand struct {}
 
 func (s *slowCommand) Run(args string) (int, error) {
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 	return HEALTHY, nil
 }
 
