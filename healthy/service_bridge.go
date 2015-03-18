@@ -52,8 +52,6 @@ func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.S
 						svc.Name, svc.ID,
 					)
 				} else {
-					log.Printf("%#v\n", check)
-					println("Adding")
 					m.AddCheck(&check)
 				}
 			}

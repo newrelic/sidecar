@@ -64,7 +64,6 @@ func Test_ServicesBridge(t *testing.T) {
 			svcList = append(svcList, svc)
 			time.Sleep(10 * time.Millisecond) // two loops
 
-			fmt.Printf("%#v\n", monitor.Checks)
 			So(len(monitor.Checks), ShouldEqual, 1)
 			So(reflect.DeepEqual(monitor.Checks[svc.ID], check), ShouldBeTrue)
 		})
