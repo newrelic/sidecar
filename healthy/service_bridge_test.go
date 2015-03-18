@@ -1,7 +1,6 @@
 package healthy
 
 import (
-	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
