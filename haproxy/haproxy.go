@@ -180,7 +180,7 @@ func servicesWithPorts(state *services_state.ServicesState) map[string][]*servic
 			if match != nil && reflect.DeepEqual(match.Ports, svc.Ports) {
 				serviceMap[svcName] = append(serviceMap[svcName], svc)
 			} else {
-				// TODO should we just add another service this this port added
+				// TODO should we just add another service with this port added
 				// to the name? We have to find out which port.
 				log.Printf("%s service from %s not added: non-matching ports!",
 					state.ServiceName(svc), svc.Hostname)

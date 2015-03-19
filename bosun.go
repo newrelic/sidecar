@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/newrelic/bosun/director"
 	"github.com/newrelic/bosun/docker_discovery"
 	"github.com/newrelic/bosun/haproxy"
 	"github.com/newrelic/bosun/services_state"
@@ -98,15 +99,17 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	quitBroadcastingServices := make(chan bool)
 	quitBroadcastingTombstones := make(chan bool)
 	quitDiscovery := make(chan bool)
+	servicesLooper := &director.TimedLooper{
+		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil, nil,
+	}
 
 	docker := docker_discovery.New("tcp://localhost:2375")
 	docker.Run(quitDiscovery)
 
 	go announceMembers(list, state)
-	go state.BroadcastServices(docker.Services, quitBroadcastingServices)
+	go state.BroadcastServices(docker.Services, servicesLooper)
 	go state.BroadcastTombstones(docker.Services, quitBroadcastingTombstones)
 	go updateMetaData(list, metaUpdates)
 

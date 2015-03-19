@@ -10,6 +10,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/newrelic/bosun/director"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -247,9 +248,15 @@ func Test_Broadcasts(t *testing.T) {
 
 		state.HostnameFn = func() (string, error) { return hostname, nil }
 
+		looper := &director.TimedLooper{
+			Count: 1,
+			Interval: 1 * time.Nanosecond,
+			DoneChan: nil,
+			QuitChan: nil,
+		}
+
 		Convey("New services are serialized into the channel", func() {
-			go func() { quit <- true }()
-			go state.BroadcastServices(containerFn, quit)
+			go state.BroadcastServices(containerFn, looper)
 
 			json1, _ := json.Marshal(service1)
 			json2, _ := json.Marshal(service2)
@@ -261,8 +268,7 @@ func Test_Broadcasts(t *testing.T) {
 		})
 
 		Convey("All of the services are added to state", func() {
-			go func() { quit <- true }()
-			go state.BroadcastServices(containerFn, quit)
+			go state.BroadcastServices(containerFn, looper)
 			<-state.Broadcasts // Block until we get a result
 
 			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
@@ -273,8 +279,7 @@ func Test_Broadcasts(t *testing.T) {
 
 		Convey("Puts a nil into the broadcasts channel when no services", func() {
 			emptyList := func() []service.Service { return []service.Service{} }
-			go func() { quit <- true }()
-			go state.BroadcastServices(emptyList, quit)
+			go state.BroadcastServices(emptyList, looper)
 			broadcast := <-state.Broadcasts
 
 			So(broadcast, ShouldBeNil)

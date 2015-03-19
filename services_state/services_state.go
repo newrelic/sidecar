@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/newrelic/bosun/director"
 	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"
 )
@@ -279,10 +280,8 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 
 // Loops forever, keeping transmitting info about our containers
 // on the broadcast channel. Intended to run as a background goroutine.
-func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit chan bool) {
-	lastTime := time.Now().UTC()
-
-	for {
+func (state *ServicesState) BroadcastServices(fn func() []service.Service, looper director.Looper) {
+	looper.Loop(func() error {
 		containerList := fn()
 		var prepared [][]byte
 
@@ -294,7 +293,6 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 				continue
 			}
 
-			lastTime = container.Updated
 			prepared = append(prepared, encoded)
 		}
 
@@ -308,20 +306,8 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, quit 
 		}
 		log.Printf("Completing broadcast")
 
-		// Now that we're finished, see if we're supposed to exit
-		select {
-			case <- quit:
-				return
-			default:
-		}
-
-		timeDiff := time.Now().UTC().Sub(lastTime)
-
-		if timeDiff < ALIVE_SLEEP_INTERVAL {
-			log.Printf("Sleeping %v", timeDiff)
-			time.Sleep(ALIVE_SLEEP_INTERVAL - timeDiff)
-		}
-	}
+		return nil
+	})
 }
 
 // Actually transmit an encoded tombstone record into the channel. Runs a
