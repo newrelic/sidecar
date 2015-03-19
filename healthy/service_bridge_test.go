@@ -15,7 +15,7 @@ import (
 var hostname string = "indefatigable"
 
 func Test_ServicesBridge(t *testing.T) {
-	Convey("When working with the services bridge", t, func() {
+	Convey("The services bridge", t, func() {
 		svcId1   := "deadbeef123"
 		svcId2   := "deadbeef101"
 		baseTime := time.Now().UTC().Round(time.Second)
@@ -42,14 +42,14 @@ func Test_ServicesBridge(t *testing.T) {
 		state.AddServiceEntry(service1)
 		state.AddServiceEntry(service2)
 
-		Convey("It returns the services for each healthy check", func() {
+		Convey("Returns the services for each healthy check", func() {
 			svcList := monitor.Services(state)
 
 			So(len(svcList), ShouldEqual, 1)
 			So(svcList[0].ID, ShouldEqual, svcId1)
 		})
 
-		Convey("It responds to changes in a list of services", func() {
+		Convey("Responds to changes in a list of services", func() {
 			So(len(monitor.Checks), ShouldEqual, 2)
 			svcList := []service.Service{}
 			listFn  := func() []service.Service { return svcList }
@@ -60,7 +60,7 @@ func Test_ServicesBridge(t *testing.T) {
 			monitor.ServiceChecks[state.ServiceName(&svc)] = check
 
 			waitChan := make(chan error)
-			looper := director.TimedLooper{5, 5 * time.Nanosecond, waitChan}
+			looper := director.TimedLooper{5, 5 * time.Nanosecond, waitChan, nil}
 			go monitor.Watch(listFn, state.ServiceName, &looper)
 
 			svcList = append(svcList, svc)
