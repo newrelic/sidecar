@@ -7,6 +7,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/newrelic/bosun/director"
 	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/services_state"
 )
@@ -58,10 +59,12 @@ func Test_ServicesBridge(t *testing.T) {
 			check := &Check{ID: svc.ID, Command: &cmd}
 			monitor.ServiceChecks[state.ServiceName(&svc)] = check
 
-			go monitor.Watch(listFn, state.ServiceName, 5, 500 * time.Nanosecond)
+			waitChan := make(chan error)
+			looper := director.TimedLooper{5, 5 * time.Nanosecond, waitChan}
+			go monitor.Watch(listFn, state.ServiceName, &looper)
 
 			svcList = append(svcList, svc)
-			time.Sleep(10 * time.Millisecond) // two loops
+			<-waitChan
 
 			So(len(monitor.Checks), ShouldEqual, 1)
 			So(reflect.DeepEqual(monitor.Checks[svc.ID], check), ShouldBeTrue)

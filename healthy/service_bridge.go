@@ -2,8 +2,8 @@ package healthy
 
 import (
 	"log"
-	"time"
 
+	"github.com/newrelic/bosun/director"
 	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/services_state"
 )
@@ -31,11 +31,9 @@ func (m *Monitor) CheckForService(name string) Check {
 	return *m.ServiceChecks[name]
 }
 
-func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.Service) string,
-		count int, interval time.Duration) {
-	ticks := time.Tick(interval)
-	i := 0
-	for range ticks {
+func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.Service) string, looper director.Looper) {
+
+	looper.Loop(func() error {
 		services := svcFun()
 
 		// Add checks when new services are found
@@ -73,11 +71,7 @@ OUTER:
 			}
 		}
 		m.Unlock()
-	}
-	if count != FOREVER {
-		i = i + 1
-		if i >= count {
-			return
-		}
-	}
+
+		return nil
+	})
 }
