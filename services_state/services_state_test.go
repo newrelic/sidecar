@@ -190,10 +190,10 @@ func Test_ServicesStateWithData(t *testing.T) {
 			})
 
 			Convey("Doesn't retransmit when the state is the same", func() {
+				state.Broadcasts = make(chan [][]byte, 1)
 				state.AddServiceEntry(svc)
 				svc.Updated = svc.Updated.Add(1 * time.Second)
 				state.AddServiceEntry(svc)
-				time.Sleep(2 * time.Millisecond)
 
 				pendingBroadcast := false
 				select {
