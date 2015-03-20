@@ -2,7 +2,6 @@ package main
 
 import (
 	"testing"
-	"time"
 
 	"github.com/newrelic/bosun/services_state"
 	. "github.com/smartystreets/goconvey/convey"
@@ -36,14 +35,10 @@ func Test_GetBroadcasts(t *testing.T) {
 			})
 
 			Convey("Returns what's in the channel", func() {
-				go func() {
-					state.Broadcasts <-bCast
-				}()
-				// There has got to be a better way to do this than to sleep here
-				// TODO figure that out
-				time.Sleep(2 * time.Millisecond)
-
+				state.Broadcasts = make(chan [][]byte, 1)
+				state.Broadcasts <-bCast
 				result := delegate.GetBroadcasts(3, 1398)
+
 				So(len(result), ShouldEqual, 2)
 				So(string(result[0]), ShouldEqual, string(bCast[0]))
 				So(string(result[1]), ShouldEqual, string(bCast[1]))
@@ -61,13 +56,9 @@ func Test_GetBroadcasts(t *testing.T) {
 			})
 
 			Convey("Returns what's left and what's new when it fits", func() {
+				state.Broadcasts = make(chan [][]byte, 1)
 				delegate.pendingBroadcasts = bCast
-				go func() {
-					state.Broadcasts <-bCast2
-				}()
-				// There has got to be a better way to do this than to sleep here
-				// TODO figure that out
-				time.Sleep(2 * time.Millisecond)
+				state.Broadcasts <-bCast2
 
 				result := delegate.GetBroadcasts(3, 1398)
 				So(len(result), ShouldEqual, 4)
@@ -78,13 +69,9 @@ func Test_GetBroadcasts(t *testing.T) {
 			})
 
 			Convey("Many runs with leftovers don't leave junk or bad buffers", func() {
+				state.Broadcasts = make(chan [][]byte, 1)
 				delegate.pendingBroadcasts = bCast
-				go func() {
-					state.Broadcasts <-append(bCast2, bCast...)
-				}()
-				// There has got to be a better way to do this than to sleep here
-				// TODO figure that out
-				time.Sleep(2 * time.Millisecond)
+				state.Broadcasts <-append(bCast2, bCast...)
 
 				delegate.GetBroadcasts(3, 100)
 				delegate.GetBroadcasts(3, 300) // 1 message fits here
