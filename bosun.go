@@ -99,10 +99,12 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	quitBroadcastingTombstones := make(chan bool)
 	quitDiscovery := make(chan bool)
 	servicesLooper := &director.TimedLooper{
 		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil, nil,
+	}
+	tombstoneLooper := &director.TimedLooper{
+		director.FOREVER, services_state.TOMBSTONE_SLEEP_INTERVAL, nil, nil,
 	}
 
 	docker := docker_discovery.New("tcp://localhost:2375")
@@ -110,7 +112,7 @@ func main() {
 
 	go announceMembers(list, state)
 	go state.BroadcastServices(docker.Services, servicesLooper)
-	go state.BroadcastTombstones(docker.Services, quitBroadcastingTombstones)
+	go state.BroadcastTombstones(docker.Services, tombstoneLooper)
 	go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {

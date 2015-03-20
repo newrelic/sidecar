@@ -233,7 +233,6 @@ func Test_Broadcasts(t *testing.T) {
 	Convey("When Broadcasting services", t, func() {
 		state    := NewServicesState()
 		state.Servers[hostname] = NewServer(hostname)
-		quit     := make(chan bool)
 		svcId1   := "deadbeef123"
 		svcId2   := "deadbeef101"
 		baseTime := time.Now().UTC().Round(time.Second)
@@ -286,12 +285,11 @@ func Test_Broadcasts(t *testing.T) {
 		})
 
 		Convey("All of the tombstones are serialized into the channel", func() {
-			go func() { quit <- true }()
 			junk := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
 			state.AddServiceEntry(junk)
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
-			go state.BroadcastTombstones(containerFn, quit)
+			go state.BroadcastTombstones(containerFn, looper)
 
 			readBroadcasts := <-state.Broadcasts
 			So(len(readBroadcasts), ShouldEqual, 2) // 2 per service
@@ -302,10 +300,9 @@ func Test_Broadcasts(t *testing.T) {
 
 		Convey("The LastChanged time is changed when a service is Tombstoned", func() {
 			lastChanged := state.LastChanged
-			go func() { quit <- true }()
 			junk := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
 			state.AddServiceEntry(junk)
-			go state.BroadcastTombstones(containerFn, quit)
+			go state.BroadcastTombstones(containerFn, looper)
 
 			<-state.Broadcasts
 			So(state.LastChanged.After(lastChanged), ShouldBeTrue)
@@ -313,10 +310,9 @@ func Test_Broadcasts(t *testing.T) {
 		})
 
 		Convey("Services that are still alive are not tombstoned", func() {
-			go func() { quit <- true }()
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
-			go state.BroadcastTombstones(containerFn, quit)
+			go state.BroadcastTombstones(containerFn, looper)
 
 			readBroadcasts := <-state.Broadcasts
 			So(len(readBroadcasts), ShouldEqual, 0)
@@ -324,22 +320,20 @@ func Test_Broadcasts(t *testing.T) {
 
 		Convey("Puts a nil into the broadcasts channel when no tombstones", func() {
 			emptyList := func() []service.Service { return []service.Service{} }
-			go func() { quit <- true }()
-			go state.BroadcastTombstones(emptyList, quit)
+			go state.BroadcastTombstones(emptyList, looper)
 			broadcast := <-state.Broadcasts
 
 			So(broadcast, ShouldBeNil)
 		})
 
 		Convey("Tombstones have a lifespan, then expire", func() {
-			go func() { quit <- true }()
 			service1.Tombstone()
 			service1.Updated = service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
 			So(state.Servers[hostname].Services[service1.ID], ShouldNotBeNil)
 
-			go state.BroadcastTombstones(containerFn, quit)
+			go state.BroadcastTombstones(containerFn, looper)
 			<-state.Broadcasts
 
 			So(state.Servers[hostname].Services[service1.ID], ShouldBeNil)
@@ -423,7 +417,6 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 		svcId1     := "deadbeef123"
 		svcId2     := "deadbeef101"
 		baseTime   := time.Now().UTC().Round(time.Second)
-		quit       := make(chan bool)
 
 		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
 		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
@@ -433,8 +426,7 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 		Convey("Expire() tombstones all services for a server", func() {
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
-			go func() { quit <- true }()
-			go state.ExpireServer(hostname, quit)
+			go state.ExpireServer(hostname)
 
 			expired := <-state.Broadcasts
 
@@ -448,8 +440,7 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 			lastChanged := state.LastChanged
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
-			go func() { quit <- true }()
-			go state.ExpireServer(hostname, quit)
+			go state.ExpireServer(hostname)
 
 			<-state.Broadcasts
 			So(lastChanged.Before(state.LastChanged), ShouldBeTrue)
@@ -522,11 +513,15 @@ func Example_BroadcastTombstones() {
 	state.HostnameFn = func() (string, error) {
 		return "something", nil
 	}
-	quit       := make(chan bool)
 
-	go func() { quit <- true }()
+	looper := &director.TimedLooper{
+		Count: 1,
+		Interval: 1 * time.Nanosecond,
+		DoneChan: nil,
+		QuitChan: nil,
+	}
 	go func() { <-state.Broadcasts }()
-	state.BroadcastTombstones(func() []service.Service { return []service.Service{} }, quit)
+	state.BroadcastTombstones(func() []service.Service { return []service.Service{} }, looper)
 
 	// TODO go test seems broken. It should match this, but can't for some reason:
 	// TombstoneServices(): New host or not running services, skipping.

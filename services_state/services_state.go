@@ -112,7 +112,7 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 }
 
 // A server has left the cluster, so tombstone all of its records
-func (state *ServicesState) ExpireServer(hostname string, quit chan bool) {
+func (state *ServicesState) ExpireServer(hostname string) {
 	if !state.HasServer(hostname) {
 		log.Printf("No records to expire for %s\n", hostname)
 		return
@@ -134,7 +134,7 @@ func (state *ServicesState) ExpireServer(hostname string, quit chan bool) {
 		tombstones = append(tombstones, encoded)
 	}
 
-	state.SendTombstones(tombstones, quit)
+	state.SendTombstones(tombstones)
 	state.ServerChanged(hostname)
 }
 
@@ -313,30 +313,22 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 // Actually transmit an encoded tombstone record into the channel. Runs a
 // background goroutine that continues the broadcast for 10 seconds so we
 // have a pretty good idea that it was delivered.
-func (state *ServicesState) SendTombstones(tombstones [][]byte, quit chan bool) {
+func (state *ServicesState) SendTombstones(tombstones [][]byte) {
 	state.Broadcasts <- tombstones // Put it on the wire
 
 	// Announce these every second for awhile
 	go func() {
 		for i := 0; i < TOMBSTONE_COUNT; i++ {
 			state.Broadcasts <- tombstones
-
-			select {
-			case <- quit:
-				return
-			default:
-			}
-
 			time.Sleep(1 * time.Second)
 		}
 	}()
 }
 
-func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, quit chan bool) {
+func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, looper director.Looper) {
 	hostname, _ := state.HostnameFn()
-	propagateQuit := make(chan bool)
 
-	for ;; {
+	looper.Loop(func() error {
 		containerList := fn()
 		// Tell people about our dead services
 		otherTombstones := state.TombstoneOthersServices()
@@ -345,23 +337,15 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, qui
 		tombstones = append(tombstones, otherTombstones...)
 
 		if tombstones != nil && len(tombstones) > 0 {
-			state.SendTombstones(tombstones, propagateQuit)
+			state.SendTombstones(tombstones)
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
 			state.Broadcasts <- nil
 		}
 
-		// Now that we're finished, see if we're supposed to exit
-		select {
-			case <- quit:
-				propagateQuit <- true
-				return
-			default:
-		}
-
-		time.Sleep(TOMBSTONE_SLEEP_INTERVAL)
-	}
+		return nil
+	})
 }
 
 func (state *ServicesState) TombstoneOthersServices() [][]byte {
