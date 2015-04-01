@@ -515,6 +515,7 @@ func Example_BroadcastTombstones() {
 	state.BroadcastTombstones(func() []service.Service { return []service.Service{} }, looper)
 
 	// TODO go test seems broken. It should match this, but can't for some reason:
+	// XXX it can't see output generated _by_ the test code itself
 	// TombstoneServices(): New host or not running services, skipping.
 	// Output:
 }
