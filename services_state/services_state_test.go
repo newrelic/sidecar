@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/director"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -247,12 +247,7 @@ func Test_Broadcasts(t *testing.T) {
 
 		state.HostnameFn = func() (string, error) { return hostname, nil }
 
-		looper := &director.TimedLooper{
-			Count: 1,
-			Interval: 1 * time.Nanosecond,
-			DoneChan: nil,
-			QuitChan: nil,
-		}
+		looper := director.NewTimedLooper(1, 1 * time.Nanosecond, nil)
 
 		Convey("New services are serialized into the channel", func() {
 			go state.BroadcastServices(containerFn, looper)
@@ -514,12 +509,8 @@ func Example_BroadcastTombstones() {
 		return "something", nil
 	}
 
-	looper := &director.TimedLooper{
-		Count: 1,
-		Interval: 1 * time.Nanosecond,
-		DoneChan: nil,
-		QuitChan: nil,
-	}
+	looper := director.NewTimedLooper(1, 1 * time.Nanosecond, nil)
+
 	go func() { <-state.Broadcasts }()
 	state.BroadcastTombstones(func() []service.Service { return []service.Service{} }, looper)
 

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/director"
 	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/services_state"
 )
@@ -60,8 +60,8 @@ func Test_ServicesBridge(t *testing.T) {
 			monitor.ServiceChecks[state.ServiceName(&svc)] = check
 
 			waitChan := make(chan error)
-			looper := director.TimedLooper{5, 5 * time.Nanosecond, waitChan, nil}
-			go monitor.Watch(listFn, state.ServiceName, &looper)
+			looper := director.NewTimedLooper(5, 5 * time.Nanosecond, waitChan)
+			go monitor.Watch(listFn, state.ServiceName, looper)
 
 			svcList = append(svcList, svc)
 			<-waitChan

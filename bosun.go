@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/newrelic/bosun/director"
+	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/docker_discovery"
 	"github.com/newrelic/bosun/haproxy"
 	"github.com/newrelic/bosun/services_state"
@@ -100,12 +100,12 @@ func main() {
 	wg.Add(1)
 
 	quitDiscovery := make(chan bool)
-	servicesLooper := &director.TimedLooper{
-		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil, nil,
-	}
-	tombstoneLooper := &director.TimedLooper{
-		director.FOREVER, services_state.TOMBSTONE_SLEEP_INTERVAL, nil, nil,
-	}
+	servicesLooper := director.NewTimedLooper(
+		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil,
+	)
+	tombstoneLooper := director.NewTimedLooper(
+		director.FOREVER, services_state.TOMBSTONE_SLEEP_INTERVAL, nil,
+	)
 
 	docker := docker_discovery.New("tcp://localhost:2375")
 	docker.Run(quitDiscovery)

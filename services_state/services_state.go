@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/newrelic/bosun/director"
+	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"
 )

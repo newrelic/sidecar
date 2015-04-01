@@ -3,7 +3,7 @@ package healthy
 import (
 	"log"
 
-	"github.com/newrelic/bosun/director"
+	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/services_state"
 )
