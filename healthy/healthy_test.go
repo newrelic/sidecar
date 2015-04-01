@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -106,14 +107,14 @@ func Test_RunningChecks(t *testing.T) {
 		monitor.AddCheck(check)
 
 		Convey("The Check Command gets evaluated", func() {
-			monitor.Run(1)
+			monitor.Run(director.ONCE)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(cmd.DesiredResult, ShouldEqual, HEALTHY) // We know it's our cmd
 		})
 
 		Convey("Healthy Checks are marked healthy", func() {
-			monitor.Run(1)
+			monitor.Run(director.ONCE)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(check.Status, ShouldEqual, HEALTHY)
@@ -128,7 +129,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(1)
+			monitor.Run(director.ONCE)
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, SICKLY)
@@ -143,7 +144,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(1)
+			monitor.Run(director.ONCE)
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, UNKNOWN)
@@ -175,7 +176,7 @@ func Test_RunningChecks(t *testing.T) {
 				Count: 2,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(1)
+			monitor.Run(director.ONCE)
 			So(badCheck.Count, ShouldEqual, 0)
 			So(badCheck.Status, ShouldEqual, HEALTHY)
 
@@ -191,7 +192,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(check)
-			monitor.Run(1)
+			monitor.Run(director.ONCE)
 
 			So(check.Status, ShouldEqual, UNKNOWN)
 			So(check.LastError.Error(), ShouldEqual, "Timed out!")
