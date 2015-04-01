@@ -141,12 +141,14 @@ func (m *Monitor) Healthy() []*Check {
 	return list
 }
 
+// Add a Check to the list. Handles synchronization.
 func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
 	m.Checks[check.ID] = check
 }
 
+// Removes a Check from the list. Handles synchronization.
 func (m *Monitor) RemoveCheck(name string) {
 	m.Lock()
 	defer m.Unlock()
