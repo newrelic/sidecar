@@ -10,6 +10,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/newrelic/bosun/service"
 )
 
 const (
@@ -103,6 +105,18 @@ func (check *Check) UpdateStatus(status int, err error) {
 	}
 }
 
+func (check *Check) ServiceStatus() int {
+	switch check.Status {
+	case HEALTHY:
+		return service.ALIVE
+	case UNKNOWN:
+		return service.UNKNOWN
+	default:
+		return service.UNHEALTHY
+	}
+}
+
+
 func NewMonitor() *Monitor {
 	monitor := Monitor{
 		CheckInterval: 3 * time.Second,
@@ -155,6 +169,18 @@ func (m *Monitor) RemoveCheck(name string) {
 	delete(m.Checks, name)
 }
 
+func (m *Monitor) MarkServices(services []*service.Service) {
+	for _, svc := range services {
+		m.RLock()
+		if _, ok := m.Checks[svc.ID]; ok && svc.IsAlive() {
+			svc.Status = m.Checks[svc.ID].ServiceStatus()
+		} else {
+			svc.Status = service.UNKNOWN
+		}
+		m.RUnlock()
+	}
+}
+
 // Run the monitoring loop. Takes an argument of how many
 // times to run. FOREVER means to run forever.
 func (m *Monitor) Run(count int) {
@@ -169,10 +195,10 @@ func (m *Monitor) Run(count int) {
 		for _, check := range m.Checks {
 			// Run all checks in parallel in goroutines
 			resultChan := make(chan checkResult, 1)
-			go func() {
+			go func(check *Check) {
 				result, err := check.Command.Run(check.Args)
 				resultChan <-checkResult{result, err}
-			}()
+			}(check) // copy check pointer for the goroutine
 
 			go func(check *Check) {
 				// We make the call but we time out if it gets too close to the
@@ -185,7 +211,7 @@ func (m *Monitor) Run(count int) {
 					check.UpdateStatus(UNKNOWN, errors.New("Timed out!"))
 				}
 				wg.Done()
-			}(check) // copy check ptr for the goroutine
+			}(check) // copy check pointer for the goroutine
 		}
 
 		// Let's make sure we don't continue to spool up

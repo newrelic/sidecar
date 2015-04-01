@@ -15,6 +15,8 @@ import (
 const (
 	ALIVE = iota
 	TOMBSTONE = iota
+	UNHEALTHY = iota
+	UNKNOWN = iota
 )
 
 type Port struct {

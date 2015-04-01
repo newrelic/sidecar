@@ -2,12 +2,14 @@ package healthy
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/newrelic/bosun/service"
 )
 
 func Test_NewCheck(t *testing.T) {
@@ -206,6 +208,68 @@ func Test_RunningChecks(t *testing.T) {
 			check.UpdateStatus(1, errors.New("Borked!"))
 
 			So(check.Status, ShouldEqual, UNKNOWN)
+		})
+	})
+}
+
+func Test_MarkServices(t *testing.T) {
+
+	Convey("MarkServices()", t, func() {
+		monitor := NewMonitor()
+		monitor.CheckInterval = 1 * time.Nanosecond
+		services := []*service.Service{
+			&service.Service{ID: "test", Status: service.ALIVE},
+			&service.Service{ID: "bad", Status: service.ALIVE},
+			&service.Service{ID: "unknown", Status: service.ALIVE},
+		}
+
+		cmd    := mockCommand{DesiredResult: HEALTHY}
+		badCmd := mockCommand{DesiredResult: SICKLY}
+
+		monitor.AddCheck(
+			&Check{
+				ID: "test",
+				Type: "mock",
+				Status: HEALTHY,
+				Args: "testing123",
+				Command: &cmd,
+			},
+		)
+		monitor.AddCheck(
+			&Check{
+				ID: "bad",
+				Type: "mock",
+				Status: HEALTHY,
+				Args: "testing123",
+				Command: &badCmd,
+			},
+		)
+
+		Convey("When healthy, marks the service as ALIVE", func() {
+			for _, chk := range monitor.Checks {
+				fmt.Printf("%s %d\n", chk.ID, chk.Status)
+			}
+			monitor.Run(director.ONCE)
+			for _, chk := range monitor.Checks {
+				fmt.Printf("%s %d\n", chk.ID, chk.Status)
+			}
+			monitor.MarkServices(services)
+
+			So(services[0].Status, ShouldEqual, service.ALIVE)
+		})
+
+		Convey("When not healthy, marks the service as UNHEALTHY", func() {
+			monitor.Run(director.ONCE)
+			monitor.MarkServices(services)
+
+			So(services[1].Status, ShouldEqual, service.UNHEALTHY)
+		})
+
+		Convey("When there is no check, marks the service as UNKNOWN", func() {
+			monitor.Run(director.ONCE)
+			monitor.MarkServices(services)
+
+			So(services[2].Status, ShouldEqual, service.UNKNOWN)
 		})
 	})
 }
