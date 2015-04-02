@@ -169,15 +169,33 @@ func (m *Monitor) RemoveCheck(name string) {
 	delete(m.Checks, name)
 }
 
+// Take a list of services and mark their Status appropriately based on
+// the current checks we have configured. Prunes checks when encountering
+// a Tombstone record for a service.
 func (m *Monitor) MarkServices(services []*service.Service) {
 	for _, svc := range services {
-		m.RLock()
-		if _, ok := m.Checks[svc.ID]; ok && svc.IsAlive() {
-			svc.Status = m.Checks[svc.ID].ServiceStatus()
+		// We remove checks when encountering a Tombstone record. This
+		// prevents us from storing up checks forever. The discovery
+		// mechanism must create tombstones when services go away, so
+		// this is the best signal we'll get that a check is no longer
+		// needed. Assumes we're only health checking _our own_ services.
+		if svc.IsTombstone() {
+			if _, ok := m.Checks[svc.ID]; ok {
+				m.Lock()
+				delete(m.Checks, svc.ID)
+				m.Unlock()
+			}
+		// When a service is anything else, we mark it based on the current
+		// check status.
 		} else {
-			svc.Status = service.UNKNOWN
+			m.RLock()
+			if _, ok := m.Checks[svc.ID]; ok {
+				svc.Status = m.Checks[svc.ID].ServiceStatus()
+			} else {
+				svc.Status = service.UNKNOWN
+			}
+			m.RUnlock()
 		}
-		m.RUnlock()
 	}
 }
 

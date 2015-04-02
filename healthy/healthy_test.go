@@ -2,7 +2,6 @@ package healthy
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -215,12 +214,16 @@ func Test_RunningChecks(t *testing.T) {
 func Test_MarkServices(t *testing.T) {
 
 	Convey("MarkServices()", t, func() {
+		// Set up a bunch of services in various states and some checks.
+		// Then we health check them and look at the results carefully.
 		monitor := NewMonitor()
 		monitor.CheckInterval = 1 * time.Nanosecond
 		services := []*service.Service{
 			&service.Service{ID: "test", Status: service.ALIVE},
 			&service.Service{ID: "bad", Status: service.ALIVE},
 			&service.Service{ID: "unknown", Status: service.ALIVE},
+			&service.Service{ID: "test2", Status: service.TOMBSTONE},
+			&service.Service{ID: "unknown2", Status: service.UNKNOWN},
 		}
 
 		cmd    := mockCommand{DesiredResult: HEALTHY}
@@ -244,32 +247,45 @@ func Test_MarkServices(t *testing.T) {
 				Command: &badCmd,
 			},
 		)
+		monitor.AddCheck(
+			&Check{
+				ID: "test2",
+				Type: "mock",
+				Status: HEALTHY,
+				Args: "foofoofoo",
+				Command: &cmd,
+			},
+		)
+		monitor.AddCheck(
+			&Check{
+				ID: "unknown2",
+				Type: "mock",
+				Status: HEALTHY,
+				Args: "foofoofoo",
+				Command: &cmd,
+			},
+		)
+		monitor.Run(director.ONCE)
+		monitor.MarkServices(services)
 
 		Convey("When healthy, marks the service as ALIVE", func() {
-			for _, chk := range monitor.Checks {
-				fmt.Printf("%s %d\n", chk.ID, chk.Status)
-			}
-			monitor.Run(director.ONCE)
-			for _, chk := range monitor.Checks {
-				fmt.Printf("%s %d\n", chk.ID, chk.Status)
-			}
-			monitor.MarkServices(services)
-
 			So(services[0].Status, ShouldEqual, service.ALIVE)
 		})
 
 		Convey("When not healthy, marks the service as UNHEALTHY", func() {
-			monitor.Run(director.ONCE)
-			monitor.MarkServices(services)
-
 			So(services[1].Status, ShouldEqual, service.UNHEALTHY)
 		})
 
 		Convey("When there is no check, marks the service as UNKNOWN", func() {
-			monitor.Run(director.ONCE)
-			monitor.MarkServices(services)
-
 			So(services[2].Status, ShouldEqual, service.UNKNOWN)
+		})
+
+		Convey("Removes a check when encountering a Tombstone", func() {
+			So(services[3].Status, ShouldEqual, service.TOMBSTONE)
+		})
+
+		Convey("Transitions services to healthy when they are", func() {
+			So(services[4].Status, ShouldEqual, service.ALIVE)
 		})
 	})
 }
