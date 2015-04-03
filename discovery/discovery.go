@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"fmt"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -40,7 +39,6 @@ func (d *MultiDiscovery) Run(quit chan bool) {
 		quitChans = append(quitChans, q)
 		disco.Run(q)
 	}
-	fmt.Printf("%#v\n", quitChans)
 
 	go func() {
 		<-quit
