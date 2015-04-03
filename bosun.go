@@ -109,12 +109,14 @@ func main() {
 
 	disco := new(discovery.MultiDiscovery)
 
-	switch config.Bosun.Discovery {
-	case "docker":
-		disco.Discoverers = append(
-			disco.Discoverers, discovery.NewDockerDiscovery("tcp://localhost:2375"),
-		)
-	default:
+	for _, method := range config.Bosun.Discovery {
+		switch method {
+		case "docker":
+			disco.Discoverers = append(
+				disco.Discoverers, discovery.NewDockerDiscovery("tcp://localhost:2375"),
+			)
+		default:
+		}
 	}
 
 	disco.Run(quitDiscovery)
