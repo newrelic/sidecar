@@ -1,4 +1,4 @@
-package docker_discovery
+package discovery
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ type DockerDiscovery struct {
 	sync.RWMutex                   // Reader/Writer lock controlling .containers
 }
 
-func New(endpoint string) *DockerDiscovery {
+func NewDockerDiscovery(endpoint string) *DockerDiscovery {
 	discovery := DockerDiscovery{
 		endpoint: endpoint,
 		events: make(chan *docker.APIEvents),

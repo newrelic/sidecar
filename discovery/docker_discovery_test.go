@@ -1,4 +1,4 @@
-package docker_discovery
+package discovery
 
 import (
 	"testing"
@@ -15,7 +15,7 @@ func Test_DockerDiscovery(t *testing.T) {
 
 	Convey("Working with Docker containers", t, func() {
 		endpoint := "http://example.com:2375"
-		disco    := New(endpoint)
+		disco    := NewDockerDiscovery(endpoint)
 		svcId1   := "deadbeef1231"
 		svcId2   := "deadbeef1011"
 		baseTime := time.Now().UTC().Round(time.Second)

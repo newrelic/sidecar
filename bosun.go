@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/relistan/go-director"
-	"github.com/newrelic/bosun/docker_discovery"
+	"github.com/newrelic/bosun/discovery"
 	"github.com/newrelic/bosun/haproxy"
 	"github.com/newrelic/bosun/services_state"
 )
@@ -107,7 +107,7 @@ func main() {
 		director.FOREVER, services_state.TOMBSTONE_SLEEP_INTERVAL, nil,
 	)
 
-	docker := docker_discovery.New("tcp://localhost:2375")
+	docker := discovery.NewDockerDiscovery("tcp://localhost:2375")
 	docker.Run(quitDiscovery)
 
 	go announceMembers(list, state)
