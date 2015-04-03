@@ -107,12 +107,21 @@ func main() {
 		director.FOREVER, services_state.TOMBSTONE_SLEEP_INTERVAL, nil,
 	)
 
-	docker := discovery.NewDockerDiscovery("tcp://localhost:2375")
-	docker.Run(quitDiscovery)
+	disco := new(discovery.MultiDiscovery)
+
+	switch config.Bosun.Discovery {
+	case "docker":
+		disco.Discoverers = append(
+			disco.Discoverers, discovery.NewDockerDiscovery("tcp://localhost:2375"),
+		)
+	default:
+	}
+
+	disco.Run(quitDiscovery)
 
 	go announceMembers(list, state)
-	go state.BroadcastServices(docker.Services, servicesLooper)
-	go state.BroadcastTombstones(docker.Services, tombstoneLooper)
+	go state.BroadcastServices(disco.Services, servicesLooper)
+	go state.BroadcastTombstones(disco.Services, tombstoneLooper)
 	go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {
