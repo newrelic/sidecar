@@ -19,6 +19,7 @@ type Target struct {
 
 type StaticDiscovery struct {
 	Targets []*Target
+	ConfigFile string
 }
 
 func (d *StaticDiscovery) Services() []service.Service {
@@ -30,7 +31,12 @@ func (d *StaticDiscovery) Services() []service.Service {
 }
 
 func (d *StaticDiscovery) Run(quit chan bool) {
-	//targets, err := d.ParseConfig("./static.json")
+	var err error
+
+	d.Targets, err = d.ParseConfig(d.ConfigFile)
+	if err != nil {
+		log.Printf("ERROR StaticDiscovery cannot parse: %s\n", err.Error())
+	}
 }
 
 // Parses a JSON config file containing an array of Targets. These are
@@ -38,30 +44,30 @@ func (d *StaticDiscovery) Run(quit chan bool) {
 // UTC time as the creation time. The same hex ID is applied to the Check
 // and the Service to make sure that they are matched by the healthy
 // package later on.
-func (d *StaticDiscovery) ParseConfig(filename string) ([]Target, error) {
+func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Printf("Unable to read announcements file: '%s!'", err.Error())
 		return nil, err
 	}
 
-	var targets []Target
+	var targets []*Target
 	json.Unmarshal(file, &targets)
 
 	// Have to loop with traditional 'for' loop so we can modify entries
-	for i := 0; i < len(targets); i++ {
+	for _, target := range targets {
 		idBytes, err := RandomHex(14)
 		if err != nil {
 			log.Printf("ParseConfig(): Unable to get random bytes (%s)", err.Error())
 			return nil, err
 		}
 
-		targets[i].Service.ID = string(idBytes)
-		targets[i].Service.Created = time.Now().UTC()
-		targets[i].Check.ID = string(idBytes)
+		target.Service.ID = string(idBytes)
+		target.Service.Created = time.Now().UTC()
+		target.Check.ID = string(idBytes)
 		log.Printf("Discovered service: %s, ID: %s\n",
-			targets[i].Service.Name,
-			targets[i].Service.ID,
+			target.Service.Name,
+			target.Service.ID,
 		)
 	}
 	return targets, nil

@@ -54,3 +54,16 @@ func Test_Services(t *testing.T) {
 		})
 	})
 }
+
+func Test_Run(t *testing.T) {
+	Convey("Run()", t, func() {
+		disco := new(StaticDiscovery)
+
+		Convey("Parses the specified config file", func() {
+			So(len(disco.Targets), ShouldEqual, 0)
+			disco.ConfigFile = STATIC_JSON
+			disco.Run(make(chan bool))
+			So(len(disco.Targets), ShouldEqual, 1)
+		})
+	})
+}
