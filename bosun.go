@@ -113,7 +113,7 @@ func main() {
 		switch method {
 		case "docker":
 			disco.Discoverers = append(
-				disco.Discoverers, discovery.NewDockerDiscovery("tcp://localhost:2375"),
+				disco.Discoverers, discovery.NewDockerDiscovery(config.Docker.DockerURL),
 			)
 		default:
 		}
