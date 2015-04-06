@@ -77,7 +77,7 @@ func main() {
 	mlConfig.Delegate = delegate
 	mlConfig.Events = delegate
 
-	publishedIP, err := getPublishedIP(config.Bosun.ExcludeIPs)
+	publishedIP, err := getPublishedIP(config.Bosun.ExcludeIPs, opts.AdvertiseIP)
 	exitWithError(err, "Failed to find private IP address")
 	mlConfig.AdvertiseAddr = publishedIP
 
