@@ -29,6 +29,11 @@ func (d *StaticDiscovery) Run(quit chan bool) {
 
 }
 
+// Parses a JSON config file containing an array of Targets. These are
+// then augmented with a random hex ID and stamped with the current
+// UTC time as the creation time. The same hex ID is applied to the Check
+// and the Service to make sure that they are matched by the healthy
+// package later on.
 func (d *StaticDiscovery) ParseConfig(filename string) ([]Target, error) {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -39,7 +44,7 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]Target, error) {
 	var targets []Target
 	json.Unmarshal(file, &targets)
 
-	// Have to loop with traditional for loop so we can modify entries
+	// Have to loop with traditional 'for' loop so we can modify entries
 	for i := 0; i < len(targets); i++ {
 		idBytes, err := RandomHex(14)
 		if err != nil {
