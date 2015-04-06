@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	STATIC_JSON = "../static.json"
+	STATIC_JSON = "../fixtures/static.json"
 )
 
 func Test_ParseConfig(t *testing.T) {

@@ -1,0 +1,18 @@
+[
+    {
+        "Service": {
+            "Name": "some_service",
+            "Image": "bb6268ff91dc42a51f51db53846f72102ed9ff3f",
+            "Ports": [
+                {
+                    "Type": "tcp",
+                    "Port": 10234
+                }
+            ]
+        },
+        "Check": {
+            "Type": "HttpGet",
+            "Args": "http://:10234/"
+        }
+    }
+]
