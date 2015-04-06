@@ -8,4 +8,4 @@ name_match = "^/(.+)(-[0-9a-z]{7,14})$"
 [haproxy]
 bind_ip       = "192.168.168.168"
 template_file = "views/haproxy.cfg"
-config_file   = "/etc/haproxy/haproxy.cfg"
+config_file   = "/etc/haproxy.cfg"
