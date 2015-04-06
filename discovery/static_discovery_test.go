@@ -1,9 +1,12 @@
 package discovery
 
 import (
+	"reflect"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/newrelic/bosun/healthy"
+	"github.com/newrelic/bosun/service"
 )
 
 const (
@@ -25,6 +28,29 @@ func Test_ParseConfig(t *testing.T) {
 			So(len(parsed), ShouldEqual, 1)
 			So(parsed[0].Service.Ports[0].Type, ShouldEqual, "tcp")
 			So(parsed[0].Check.ID, ShouldEqual, parsed[0].Service.ID)
+		})
+	})
+}
+
+func Test_Services(t *testing.T) {
+	Convey("Services()", t, func() {
+		disco := new(StaticDiscovery)
+		tgt1 := &Target{
+			service.Service{ID: "asdf"},
+			healthy.Check{ID: "asdf"},
+		}
+		tgt2 := &Target{
+			service.Service{ID: "foofoo"},
+			healthy.Check{ID: "foofoo"},
+		}
+		disco.Targets = []*Target{ tgt1, tgt2 }
+
+		Convey("Returns a list of services extracted from Targets", func() {
+			services := disco.Services()
+
+			So(len(services), ShouldEqual, 2)
+			So(reflect.DeepEqual(services[0], tgt1.Service), ShouldBeTrue)
+			So(reflect.DeepEqual(services[1], tgt2.Service), ShouldBeTrue)
 		})
 	})
 }

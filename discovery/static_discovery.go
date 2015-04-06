@@ -18,15 +18,19 @@ type Target struct {
 }
 
 type StaticDiscovery struct {
-	ServiceList []*Target
+	Targets []*Target
 }
 
 func (d *StaticDiscovery) Services() []service.Service {
-	return nil
+	var services []service.Service
+	for _, target := range d.Targets {
+		services = append(services, target.Service)
+	}
+	return services
 }
 
 func (d *StaticDiscovery) Run(quit chan bool) {
-
+	//targets, err := d.ParseConfig("./static.json")
 }
 
 // Parses a JSON config file containing an array of Targets. These are
