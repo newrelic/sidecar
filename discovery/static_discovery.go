@@ -22,6 +22,8 @@ type StaticDiscovery struct {
 	ConfigFile string
 }
 
+// Returns the list of services derived from the targets that were parsed
+// out of the config file.
 func (d *StaticDiscovery) Services() []service.Service {
 	var services []service.Service
 	for _, target := range d.Targets {
@@ -30,6 +32,8 @@ func (d *StaticDiscovery) Services() []service.Service {
 	return services
 }
 
+// Causes the configuration to be parsed and loaded. There is no background
+// processing needed on an ongoing basis.
 func (d *StaticDiscovery) Run(quit chan bool) {
 	var err error
 
