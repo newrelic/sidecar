@@ -69,7 +69,7 @@ func main() {
 	state := services_state.NewServicesState()
 	delegate := NewServicesDelegate(state)
 
-	config := parseConfig("bosun.toml")
+	config := parseConfig(*opts.ConfigFile)
 	state.ServiceNameMatch = config.Services.NameRegexp
 
 	// Use a LAN config but add our delegate
@@ -82,6 +82,7 @@ func main() {
 	mlConfig.AdvertiseAddr = publishedIP
 
 	log.Println("Bosun starting -------------------")
+	log.Printf("Config File: %s\n", *opts.ConfigFile)
 	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
 	log.Printf("Advertised address: %s\n", publishedIP)
 	log.Printf("Service Name Match: %s\n", config.Services.NameMatch)
