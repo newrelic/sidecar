@@ -4,6 +4,10 @@ import (
 	"github.com/newrelic/bosun/service"
 )
 
+// A Discoverer is responsible for findind services that we care
+// about. It must have a method to return the list of services, and
+// a Run() method that will be invoked when the discovery mechanism(s)
+// is/are started.
 type Discoverer interface {
 	// Returns a slice of services that we discovered
 	Services() []service.Service
@@ -43,6 +47,7 @@ func (d *MultiDiscovery) Run(quit chan bool) {
 	go func() {
 		<-quit
 		for _, q := range quitChans {
+			// Copy q so we don't change it out from under the goroutine
 			go func(q chan bool) {
 				q <-true
 			}(q)
