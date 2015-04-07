@@ -131,7 +131,7 @@ func (h *HAproxy) Verify() error {
 // the service that it needs to reload once the new file has been written
 // and verified.
 func (h *HAproxy) Watch(state *services_state.ServicesState) {
-	eventChannel := make(chan services_state.ChangeEvent)
+	eventChannel := make(chan services_state.ChangeEvent, 2)
 	state.AddListener(eventChannel)
 
 	for {

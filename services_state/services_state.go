@@ -160,9 +160,7 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 		return
 	}
 	event := ChangeEvent{ Hostname: hostname, Time: changedTime }
-	println(len(state.listeners))
 	for _, listener := range state.listeners {
-	log.Println("trying listener")
 		select {
 			case listener <-event:
 				continue

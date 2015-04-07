@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/newrelic/bosun/healthy"
@@ -20,6 +21,14 @@ type Target struct {
 type StaticDiscovery struct {
 	Targets []*Target
 	ConfigFile string
+	HostnameFn func() (string, error)
+}
+
+func NewStaticDiscovery() *StaticDiscovery {
+	return &StaticDiscovery{
+		ConfigFile: "static.json",
+	    HostnameFn: os.Hostname,
+	}
 }
 
 // Returns the list of services derived from the targets that were parsed
@@ -27,6 +36,7 @@ type StaticDiscovery struct {
 func (d *StaticDiscovery) Services() []service.Service {
 	var services []service.Service
 	for _, target := range d.Targets {
+		target.Service.Updated = time.Now().UTC()
 		services = append(services, target.Service)
 	}
 	return services
@@ -60,7 +70,7 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 
 	// Have to loop with traditional 'for' loop so we can modify entries
 	for _, target := range targets {
-		idBytes, err := RandomHex(14)
+		idBytes, err := RandomHex(6)
 		if err != nil {
 			log.Printf("ParseConfig(): Unable to get random bytes (%s)", err.Error())
 			return nil, err
@@ -68,6 +78,7 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 
 		target.Service.ID = string(idBytes)
 		target.Service.Created = time.Now().UTC()
+		target.Service.Hostname, _ = d.HostnameFn()
 		target.Check.ID = string(idBytes)
 		log.Printf("Discovered service: %s, ID: %s\n",
 			target.Service.Name,

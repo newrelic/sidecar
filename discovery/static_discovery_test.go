@@ -15,7 +15,8 @@ const (
 
 func Test_ParseConfig(t *testing.T) {
 	Convey("ParseConfig()", t, func() {
-		disco := new(StaticDiscovery)
+		disco := NewStaticDiscovery()
+		disco.HostnameFn = func() (string, error) { return hostname, nil }
 
 		Convey("Errors when there is a problem with the file", func() {
 			_, err := disco.ParseConfig("!!!!")
@@ -29,12 +30,17 @@ func Test_ParseConfig(t *testing.T) {
 			So(parsed[0].Service.Ports[0].Type, ShouldEqual, "tcp")
 			So(parsed[0].Check.ID, ShouldEqual, parsed[0].Service.ID)
 		})
+
+		Convey("Applies hostnames to services", func() {
+			parsed, _ := disco.ParseConfig(STATIC_JSON)
+			So(parsed[0].Service.Hostname, ShouldEqual, hostname)
+		})
 	})
 }
 
 func Test_Services(t *testing.T) {
 	Convey("Services()", t, func() {
-		disco := new(StaticDiscovery)
+		disco := NewStaticDiscovery()
 		tgt1 := &Target{
 			service.Service{ID: "asdf"},
 			healthy.Check{ID: "asdf"},
@@ -52,12 +58,19 @@ func Test_Services(t *testing.T) {
 			So(reflect.DeepEqual(services[0], tgt1.Service), ShouldBeTrue)
 			So(reflect.DeepEqual(services[1], tgt2.Service), ShouldBeTrue)
 		})
+
+		Convey("Updates the current timestamp each time", func() {
+			services  := disco.Services()
+			services2 := disco.Services()
+
+			So(services[0].Updated.Before(services2[0].Updated), ShouldBeTrue)
+		})
 	})
 }
 
 func Test_Run(t *testing.T) {
 	Convey("Run()", t, func() {
-		disco := new(StaticDiscovery)
+		disco := NewStaticDiscovery()
 
 		Convey("Parses the specified config file", func() {
 			So(len(disco.Targets), ShouldEqual, 0)

@@ -28,7 +28,9 @@ func (d *MultiDiscovery) Services() []service.Service {
 
 	for _, disco := range d.Discoverers {
 		services := disco.Services()
-		aggregate = append(aggregate, services...)
+		if len(services) > 0 {
+			aggregate = append(aggregate, services...)
+		}
 	}
 
 	return aggregate

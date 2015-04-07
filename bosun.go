@@ -64,6 +64,26 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 	return proxy
 }
 
+func configureDiscovery(config *Config) discovery.Discoverer {
+	disco := new(discovery.MultiDiscovery)
+
+	for _, method := range config.Bosun.Discovery {
+		switch method {
+		case "docker":
+			disco.Discoverers = append(
+				disco.Discoverers, discovery.NewDockerDiscovery(config.Docker.DockerURL),
+			)
+		case "static":
+			disco.Discoverers = append(
+				disco.Discoverers, discovery.NewStaticDiscovery(),
+			)
+		default:
+		}
+	}
+
+	return disco
+}
+
 func main() {
 	opts := parseCommandLine()
 	state := services_state.NewServicesState()
@@ -101,6 +121,7 @@ func main() {
 	wg.Add(1)
 
 	quitDiscovery := make(chan bool)
+
 	servicesLooper := director.NewTimedLooper(
 		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil,
 	)
@@ -111,18 +132,7 @@ func main() {
 		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil,
 	)
 
-	disco := new(discovery.MultiDiscovery)
-
-	for _, method := range config.Bosun.Discovery {
-		switch method {
-		case "docker":
-			disco.Discoverers = append(
-				disco.Discoverers, discovery.NewDockerDiscovery(config.Docker.DockerURL),
-			)
-		default:
-		}
-	}
-
+	disco := configureDiscovery(&config)
 	disco.Run(quitDiscovery)
 
 	go announceMembers(list, state)
