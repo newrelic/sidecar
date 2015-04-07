@@ -40,6 +40,19 @@ Bosun supports both Docker-based discovery and a discovery mechanism where
 you publish services into a JSON file locally. These can then be advertised
 as running services just like they would be from a Docker host.
 
+###Discovery
+
+Bosun currently supports two methods of discovery and these can be set in
+the `bosun.toml` file in the `bosun` section. Like this:
+
+```toml
+[bosun]
+discovery = [ "docker", "static" ]
+```
+
+Zero or more options may be supplied. Note that if nothing is in this section,
+Bosun will only participate in a cluster but will not announce anything.
+
 ####Configuring Docker Discovery
 
 Bosun currently accepts a single option for Docker-based discovery, the URL
