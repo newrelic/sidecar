@@ -79,7 +79,7 @@ func findPrivateAddresses() ([]*net.IP, error) {
 }
 
 func getPublishedIP(excluded []string, advertise *string) (string, error) {
-	if advertise != nil {
+	if advertise != nil && *advertise != "" {
 		return *advertise, nil
 	}
 
