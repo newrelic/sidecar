@@ -83,7 +83,10 @@ That in turn points to a static discovery file that looks like this:
             "Type": "HttpGet",
             "Args": "http://:10234/"
         }
-    }
+    },
+	{
+	...
+	}
 ]
 ```
 
