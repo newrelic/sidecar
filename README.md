@@ -18,13 +18,80 @@ $ go build
 Or you can run it like this:
 
 ```bash
-$ go run *.go -cluster-ip <boostrap_host>
+$ go run *.go --cluster-ip <boostrap_host>
 ```
 
 You always need to supply at least one IP address or hostname with the
 `--cluster-ip` argument. If are running solo, or are the first member, this can
 be your own hostname. You may specify the argument multiple times to have
 multiple hosts. It is recommended to use more than one when possible.
+
+Configuration
+-------------
+
+Bosun expects to find a TOML config file, by default named `bosun.toml` in the
+current path, to specify how it should operate. You can tell it to use a
+specific file with the `--config-file` or `-f` option on the command line.
+
+It comes supplied with an example config file called `bosun.example.toml`
+which you should copy and modify as needed.
+
+Bosun supports both Docker-based discovery and a discovery mechanism where
+you publish services into a JSON file locally. These can then be advertised
+as running services just like they would be from a Docker host.
+
+####Configuring Docker Discovery
+
+Bosun currently accepts a single option for Docker-based discovery, the URL
+to use to connect to Docker. You really want this to be the local machine.
+It uses the same URLs that are supported by the Docker command line tools.
+The configuration block for Bosun looks like this:
+
+```toml
+[docker_discovery]
+docker_url = "tcp://localhost:2375"
+```
+
+Note that it only supports a *single* URL, unlike the Docker CLI tool.
+
+####Configuring Static Discovery
+
+Static Discovery requires a configuration block in the `bosun.toml` that
+looks like this:
+
+```toml
+[static_discovery]
+config_file = "/my_path/static.json"
+```
+
+That in turn points to a static discovery file that looks like this:
+
+```json
+[
+    {
+        "Service": {
+            "Name": "some_service",
+            "Image": "bb6268ff91dc42a51f51db53846f72102ed9ff3f",
+            "Ports": [
+                {
+                    "Type": "tcp",
+                    "Port": 10234
+                }
+            ]
+        },
+        "Check": {
+            "Type": "HttpGet",
+            "Args": "http://:10234/"
+        }
+    }
+]
+```
+
+Here we've defined both the service itself and the health check to use
+to validate its status. It supports a single health check per service.
+You should supply something in place of the value for `Image` that is
+meaningful to you. Usually this is a version or git commit string. It
+will show up in the Bosun web UI.
 
 Monitoring It
 -------------
