@@ -11,12 +11,16 @@ import (
 type servicesDelegate struct {
 	state *services_state.ServicesState
 	pendingBroadcasts [][]byte
+	notifications chan *service.Service
+	inProcess bool
 }
 
 func NewServicesDelegate(state *services_state.ServicesState) *servicesDelegate {
 	delegate := servicesDelegate{
 		state: state,
 		pendingBroadcasts: make([][]byte, 0),
+		notifications: make(chan *service.Service, 25),
+		inProcess: false,
 	}
 
 	return &delegate
@@ -42,7 +46,16 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 		return
 	}
 
-	d.state.AddServiceEntry(*data)
+	// Lazily kick off goroutine
+	if !d.inProcess {
+		go func() {
+			for entry := range d.notifications {
+				d.state.AddServiceEntry(*entry)
+			}
+		}()
+		d.inProcess = true
+	}
+	d.notifications <-data
 }
 
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {

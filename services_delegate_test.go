@@ -1,8 +1,10 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
+	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/services_state"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -19,6 +21,21 @@ func Test_GetBroadcasts(t *testing.T) {
 			[]byte(`{"ID":"1b3295bf300f","Name":"/romantic_brown","Image":"0415448f2cc2","Created":"2014-10-02T23:58:48Z","Hostname":"docker1","Ports":[{"Type":"tcp","Port":9494}],"Updated":"2015-03-04T01:12:32.630357657Z","Status":0}`),
 			[]byte(`{"ID":"deadbeefabba","Name":"/dockercon-6c01869525db08","Image":"nginx:latest","Created":"2015-02-25T19:04:46Z","Hostname":"docker2","Ports":[{"Type":"tcp","Port":10234}],"Updated":"2015-03-04T01:12:46.669648453Z","Status":0}`),
 		}
+
+		Convey("NotifyMsg()", func() {
+			Convey("Lazily kicks off goroutine", func() {
+				So(delegate.inProcess, ShouldBeFalse)
+				delegate.NotifyMsg(bCast[0])
+				So(delegate.inProcess, ShouldBeTrue)
+			})
+
+			Convey("Pushes a message into the channel", func() {
+				delegate.NotifyMsg(bCast[0])
+				msg := <-delegate.notifications
+				So(msg, ShouldNotBeNil)
+				So(reflect.DeepEqual(msg, service.Decode(bCast[0])), ShouldBeTrue)
+			})
+		})
 
 		Convey("GetBroadcasts()", func() {
 			Convey("Returns nil when there is nothing to send", func() {
