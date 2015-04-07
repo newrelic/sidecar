@@ -228,9 +228,9 @@ func Test_ServicesStateWithData(t *testing.T) {
 	})
 }
 
-func Test_Broadcasts(t *testing.T) {
+func Test_TrackingAndBroadcasting(t *testing.T) {
 
-	Convey("When Broadcasting services", t, func() {
+	Convey("When Tracking and Broadcasting services", t, func() {
 		state    := NewServicesState()
 		state.Servers[hostname] = NewServer(hostname)
 		svcId1   := "deadbeef123"
@@ -249,6 +249,18 @@ func Test_Broadcasts(t *testing.T) {
 
 		looper := director.NewTimedLooper(1, 1 * time.Nanosecond, nil)
 
+		Convey("All of the services are added to state", func() {
+			looper := director.NewFreeLooper(1, make(chan error))
+
+			go state.TrackNewServices(containerFn, looper)
+			looper.Wait()
+
+			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
+			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)
+			So(state.Servers[hostname].Services[svcId1].ID, ShouldEqual, svcId1)
+			So(state.Servers[hostname].Services[svcId2].ID, ShouldEqual, svcId2)
+		})
+
 		Convey("New services are serialized into the channel", func() {
 			go state.BroadcastServices(containerFn, looper)
 
@@ -259,16 +271,6 @@ func Test_Broadcasts(t *testing.T) {
 			So(len(readBroadcasts), ShouldEqual, 2)
 			So(string(readBroadcasts[0]), ShouldEqual, string(json1))
 			So(string(readBroadcasts[1]), ShouldEqual, string(json2))
-		})
-
-		Convey("All of the services are added to state", func() {
-			go state.BroadcastServices(containerFn, looper)
-			<-state.Broadcasts // Block until we get a result
-
-			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
-			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)
-			So(state.Servers[hostname].Services[svcId1].ID, ShouldEqual, svcId1)
-			So(state.Servers[hostname].Services[svcId2].ID, ShouldEqual, svcId2)
 		})
 
 		Convey("Puts a nil into the broadcasts channel when no services", func() {

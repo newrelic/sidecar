@@ -278,14 +278,24 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 	log.Println(state.Format(list))
 }
 
+// Talk to the discovery mechanism and track any services we don't
+// already know about.
+func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper director.Looper) {
+	looper.Loop(func() error {
+		for _, container := range fn() {
+			state.AddServiceEntry(container)
+		}
+		return nil
+	})
+}
+
 // Loops forever, keeping transmitting info about our containers
 // on the broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
-		containerList := fn()
 		var prepared [][]byte
 
-		for _, container := range containerList {
+		for _, container := range fn() {
 			state.AddServiceEntry(container)
 			encoded, err := container.Encode()
 			if err != nil {
