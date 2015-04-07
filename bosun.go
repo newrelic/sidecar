@@ -71,11 +71,13 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 		switch method {
 		case "docker":
 			disco.Discoverers = append(
-				disco.Discoverers, discovery.NewDockerDiscovery(config.Docker.DockerURL),
+				disco.Discoverers,
+				discovery.NewDockerDiscovery(config.DockerDiscovery.DockerURL),
 			)
 		case "static":
 			disco.Discoverers = append(
-				disco.Discoverers, discovery.NewStaticDiscovery(),
+				disco.Discoverers,
+				discovery.NewStaticDiscovery(config.StaticDiscovery.ConfigFile),
 			)
 		default:
 		}

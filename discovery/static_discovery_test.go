@@ -15,7 +15,7 @@ const (
 
 func Test_ParseConfig(t *testing.T) {
 	Convey("ParseConfig()", t, func() {
-		disco := NewStaticDiscovery()
+		disco := NewStaticDiscovery(STATIC_JSON)
 		disco.HostnameFn = func() (string, error) { return hostname, nil }
 
 		Convey("Errors when there is a problem with the file", func() {
@@ -40,7 +40,7 @@ func Test_ParseConfig(t *testing.T) {
 
 func Test_Services(t *testing.T) {
 	Convey("Services()", t, func() {
-		disco := NewStaticDiscovery()
+		disco := NewStaticDiscovery(STATIC_JSON)
 		tgt1 := &Target{
 			service.Service{ID: "asdf"},
 			healthy.Check{ID: "asdf"},
@@ -70,11 +70,10 @@ func Test_Services(t *testing.T) {
 
 func Test_Run(t *testing.T) {
 	Convey("Run()", t, func() {
-		disco := NewStaticDiscovery()
+		disco := NewStaticDiscovery(STATIC_JSON)
 
 		Convey("Parses the specified config file", func() {
 			So(len(disco.Targets), ShouldEqual, 0)
-			disco.ConfigFile = STATIC_JSON
 			disco.Run(make(chan bool))
 			So(len(disco.Targets), ShouldEqual, 1)
 		})

@@ -1,6 +1,12 @@
 [bosun]
 exclude_ips = [ "192.168.168.168" ]
-discovery = [ "docker" ]
+discovery = [ "docker", "static" ]
+
+[docker_discovery]
+docker_url = "unix://var/run/docker.sock"
+
+[static_discovery]
+config_file = "static.json"
 
 [services]
 name_match = "^/(.+)(-[0-9a-z]{7,14})$"

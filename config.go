@@ -12,7 +12,7 @@ type HAproxyConfig struct {
 	BindIP       string `toml:"bind_ip"`
 	TemplateFile string `toml:"template_file"`
 	ConfigFile   string `toml:"config_file"`
-	Disable      bool
+	Disable      bool `toml:"disable"`
 }
 
 type ServicesConfig struct {
@@ -29,15 +29,21 @@ type DockerConfig struct {
 	DockerURL string `toml:"docker_url"`
 }
 
+type StaticConfig struct {
+	ConfigFile string `toml:"config_file"`
+}
+
 type Config struct {
-	Bosun    BosunConfig
-	Docker   DockerConfig
+	Bosun           BosunConfig
+	DockerDiscovery DockerConfig
+	StaticDiscovery StaticConfig
 	Services ServicesConfig
 	HAproxy  HAproxyConfig
 }
 
 func setDefaults(config *Config) {
-	config.Docker.DockerURL = "tcp://localhost:2375"
+	config.DockerDiscovery.DockerURL = "tcp://localhost:2375"
+	config.StaticDiscovery.ConfigFile = "static.json"
 }
 
 func parseConfig(path string) Config {

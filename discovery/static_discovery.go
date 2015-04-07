@@ -24,9 +24,9 @@ type StaticDiscovery struct {
 	HostnameFn func() (string, error)
 }
 
-func NewStaticDiscovery() *StaticDiscovery {
+func NewStaticDiscovery(filename string) *StaticDiscovery {
 	return &StaticDiscovery{
-		ConfigFile: "static.json",
+		ConfigFile: filename,
 	    HostnameFn: os.Hostname,
 	}
 }
