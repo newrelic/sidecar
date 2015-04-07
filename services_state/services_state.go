@@ -296,7 +296,6 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 		var prepared [][]byte
 
 		for _, container := range fn() {
-			state.AddServiceEntry(container)
 			encoded, err := container.Encode()
 			if err != nil {
 				log.Printf("ERROR encoding container: (%s)", err.Error())

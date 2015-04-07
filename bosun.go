@@ -107,6 +107,9 @@ func main() {
 	tombstoneLooper := director.NewTimedLooper(
 		director.FOREVER, services_state.TOMBSTONE_SLEEP_INTERVAL, nil,
 	)
+	trackingLooper := director.NewTimedLooper(
+		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil,
+	)
 
 	disco := new(discovery.MultiDiscovery)
 
@@ -125,6 +128,7 @@ func main() {
 	go announceMembers(list, state)
 	go state.BroadcastServices(disco.Services, servicesLooper)
 	go state.BroadcastTombstones(disco.Services, tombstoneLooper)
+	go state.TrackNewServices(disco.Services, trackingLooper)
 	go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {
