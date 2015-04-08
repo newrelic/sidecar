@@ -8,7 +8,7 @@ import (
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 )
 
 var hostname string = "indefatigable"
@@ -23,7 +23,7 @@ func Test_ServicesBridge(t *testing.T) {
 		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
 
 		monitor := NewMonitor()
-		state   := services_state.NewServicesState()
+		state   := catalog.NewServicesState()
 		state.HostnameFn = func() (string, error) { return hostname, nil }
 		state.ServiceNameMatch  = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
 

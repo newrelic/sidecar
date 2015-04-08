@@ -13,16 +13,16 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 )
 
-func makeHandler(fn func(http.ResponseWriter, *http.Request, *memberlist.Memberlist, *services_state.ServicesState), list *memberlist.Memberlist, state *services_state.ServicesState) http.HandlerFunc {
+func makeHandler(fn func(http.ResponseWriter, *http.Request, *memberlist.Memberlist, *catalog.ServicesState), list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
 	return func(response http.ResponseWriter, req *http.Request) {
 		fn(response, req, list, state)
 	}
 }
 
-func watchHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
+func watchHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
 	defer req.Body.Close()
 
 	response.Header().Set("Content-Type", "application/json")
@@ -45,7 +45,7 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	}
 }
 
-func servicesHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
+func servicesHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
 	params := mux.Vars(req)
 
 	defer req.Body.Close()
@@ -58,7 +58,7 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 	}
 }
 
-func serversHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
+func serversHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
 	defer req.Body.Close()
 
 	response.Header().Set("Content-Type", "text/html")
@@ -116,7 +116,7 @@ func lineWrapMembers(cols int, fields []*Member) [][]*Member {
 	return retval
 }
 
-func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *services_state.ServicesState) {
+func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
 	timeAgo := func(when time.Time) string { return output.TimeAgo(when, time.Now().UTC()) }
 
 	funcMap := template.FuncMap{
@@ -156,7 +156,7 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 	t.ExecuteTemplate(response, "services.html", viewData)
 }
 
-func serveHttp(list *memberlist.Memberlist, state *services_state.ServicesState) {
+func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	router := mux.NewRouter()
 
 	router.HandleFunc(

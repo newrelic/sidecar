@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func Test_GetBroadcasts(t *testing.T) {
 	Convey("When handing back broadcast messages", t, func() {
-		state    := services_state.NewServicesState()
+		state    := catalog.NewServicesState()
 		delegate := NewServicesDelegate(state)
 		bCast    := [][]byte{
 			[]byte(`{"ID":"d419fa7ad1a7","Name":"/dockercon-6adfe629eebc91","Image":"nginx:latest","Created":"2015-02-25T19:04:46Z","Hostname":"docker2","Ports":[{"Type":"tcp","Port":10234}],"Updated":"2015-03-04T01:12:46.669648453Z","Status":0}`),

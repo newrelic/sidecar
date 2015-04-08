@@ -5,10 +5,10 @@ import (
 
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 )
 
-func (m *Monitor) Services(state *services_state.ServicesState) []service.Service {
+func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
 	var svcList []service.Service
 
 	m.RLock()

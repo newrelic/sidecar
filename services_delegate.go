@@ -6,11 +6,11 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 )
 
 type servicesDelegate struct {
-	state *services_state.ServicesState
+	state *catalog.ServicesState
 	pendingBroadcasts [][]byte
 	notifications chan *service.Service
 	inProcess bool
@@ -22,7 +22,7 @@ type NodeMetadata struct {
 	State string
 }
 
-func NewServicesDelegate(state *services_state.ServicesState) *servicesDelegate {
+func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 	delegate := servicesDelegate{
 		state: state,
 		pendingBroadcasts: make([][]byte, 0),
@@ -116,7 +116,7 @@ func (d *servicesDelegate) LocalState(join bool) []byte {
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 	log.Printf("MergeRemoteState(): %s %b\n", string(buf), join)
 
-	otherState, err := services_state.Decode(buf)
+	otherState, err := catalog.Decode(buf)
 	if err != nil {
 		log.Printf("Failed to MergeRemoteState(): %s", err.Error())
 		return

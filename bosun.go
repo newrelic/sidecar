@@ -11,7 +11,7 @@ import (
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/discovery"
 	"github.com/newrelic/bosun/haproxy"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 )
 
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
@@ -25,7 +25,7 @@ func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
 	}
 }
 
-func announceMembers(list *memberlist.Memberlist, state *services_state.ServicesState) {
+func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	for {
 		// Ask for members of the cluster
 		for _, member := range list.Members() {
@@ -86,7 +86,7 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 	return disco
 }
 
-func configureDelegate(state *services_state.ServicesState, opts *CliOpts) *servicesDelegate {
+func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDelegate {
 	delegate := NewServicesDelegate(state)
 	delegate.Metadata = NodeMetadata{
 		ClusterName: *opts.ClusterName,
@@ -98,7 +98,7 @@ func configureDelegate(state *services_state.ServicesState, opts *CliOpts) *serv
 
 func main() {
 	opts := parseCommandLine()
-	state := services_state.NewServicesState()
+	state := catalog.NewServicesState()
 	delegate := configureDelegate(state, opts)
 
 	config := parseConfig(*opts.ConfigFile)
@@ -137,13 +137,13 @@ func main() {
 	quitDiscovery := make(chan bool)
 
 	servicesLooper := director.NewTimedLooper(
-		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil,
+		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
 	tombstoneLooper := director.NewTimedLooper(
-		director.FOREVER, services_state.TOMBSTONE_SLEEP_INTERVAL, nil,
+		director.FOREVER, catalog.TOMBSTONE_SLEEP_INTERVAL, nil,
 	)
 	trackingLooper := director.NewTimedLooper(
-		director.FOREVER, services_state.ALIVE_SLEEP_INTERVAL, nil,
+		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
 
 	disco := configureDiscovery(&config)

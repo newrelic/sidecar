@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -21,7 +21,7 @@ var hostname3 = "invincible"
 
 func Test_HAproxy(t * testing.T) {
 	Convey("End-to-end testing HAproxy functionality", t, func() {
-		state    := services_state.NewServicesState()
+		state    := catalog.NewServicesState()
 	    svcId1   := "deadbeef123"
 	    svcId2   := "deadbeef101"
 	    svcId3   := "deadbeef105"

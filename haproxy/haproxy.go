@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/services_state"
+	"github.com/newrelic/bosun/catalog"
 )
 
 type portset map[string]struct{}
@@ -71,7 +71,7 @@ func sanitizeName(image string) string {
 // supplied io.Writer interface. This gets a list from servicesWithPorts() and
 // builds a list of unique ports for all services, then passes these to the
 // template. Ports are looked up by the func getPorts().
-func (h *HAproxy) WriteConfig(state *services_state.ServicesState, output io.Writer) {
+func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 	services := servicesWithPorts(state)
 	ports    := h.makePortmap(services)
 
@@ -130,8 +130,8 @@ func (h *HAproxy) Verify() error {
 // config file (haproxy.ConfigFile) when the state changes. Also notifies
 // the service that it needs to reload once the new file has been written
 // and verified.
-func (h *HAproxy) Watch(state *services_state.ServicesState) {
-	eventChannel := make(chan services_state.ChangeEvent, 2)
+func (h *HAproxy) Watch(state *catalog.ServicesState) {
+	eventChannel := make(chan catalog.ChangeEvent, 2)
 	state.AddListener(eventChannel)
 
 	for {
@@ -156,7 +156,7 @@ func (h *HAproxy) Watch(state *services_state.ServicesState) {
 // Like state.ByService() but only stores information for services which
 // actually have public ports. Only matches services that have the same name
 // and the same ports. Otherwise log an error.
-func servicesWithPorts(state *services_state.ServicesState) map[string][]*service.Service {
+func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Service {
 	serviceMap := make(map[string][]*service.Service)
 
 	state.EachServiceSorted(

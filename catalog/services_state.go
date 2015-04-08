@@ -1,4 +1,4 @@
-package services_state
+package catalog
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 	"github.com/newrelic/bosun/service"
 )
 
-// services_state handles all of the eventual-consistency mechanisms for
+// catalog handles all of the eventual-consistency mechanisms for
 // service discovery state. The ServicesState struct has a mapping of
 // servers to Service lists and manages the lifecycle.
 
@@ -74,7 +74,7 @@ func NewServicesState() *ServicesState {
 }
 
 // Return a Marshaled/Encoded byte array that can be deocoded with
-// services_state.Decode()
+// catalog.Decode()
 func (state *ServicesState) Encode() []byte {
 	jsonData, err := json.Marshal(state.Servers)
 	if err != nil {

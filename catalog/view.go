@@ -1,4 +1,4 @@
-package services_state
+package catalog
 
 import (
 	"sort"
