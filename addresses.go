@@ -16,7 +16,7 @@ func setupIPBlocks() {
 
 	privateBlocks = make([]*net.IPNet, len(privateBlockStrs))
 
-	for i, blockStr := range(privateBlockStrs) {
+	for i, blockStr := range privateBlockStrs {
 		_, block, _ := net.ParseCIDR(blockStr)
 		privateBlocks[i] = block
 	}
@@ -63,7 +63,7 @@ func findPrivateAddresses() ([]*net.IP, error) {
 			continue
 		}
 
-		if(isPrivateIP(ip.String())) {
+		if isPrivateIP(ip.String()) {
 			result = append(result, &ip)
 		}
 	}

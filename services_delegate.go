@@ -5,30 +5,30 @@ import (
 	"log"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/catalog"
+	"github.com/newrelic/bosun/service"
 )
 
 type servicesDelegate struct {
-	state *catalog.ServicesState
+	state             *catalog.ServicesState
 	pendingBroadcasts [][]byte
-	notifications chan *service.Service
-	inProcess bool
-	Metadata NodeMetadata
+	notifications     chan *service.Service
+	inProcess         bool
+	Metadata          NodeMetadata
 }
 
 type NodeMetadata struct {
 	ClusterName string
-	State string
+	State       string
 }
 
 func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 	delegate := servicesDelegate{
-		state: state,
+		state:             state,
 		pendingBroadcasts: make([][]byte, 0),
-		notifications: make(chan *service.Service, 25),
-		inProcess: false,
-		Metadata: NodeMetadata{ ClusterName: "default" },
+		notifications:     make(chan *service.Service, 25),
+		inProcess:         false,
+		Metadata:          NodeMetadata{ClusterName: "default"},
 	}
 
 	return &delegate
@@ -68,7 +68,7 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 		}()
 		d.inProcess = true
 	}
-	d.notifications <-data
+	d.notifications <- data
 }
 
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
@@ -144,7 +144,7 @@ func packPacket(broadcasts [][]byte, limit int, overhead int) (packet [][]byte, 
 	total := 0
 	leftover = make([][]byte, 0) // So we don't return unallocated buffer
 	for _, message := range broadcasts {
-		if total + len(message) + overhead < limit  {
+		if total+len(message)+overhead < limit {
 			packet = append(packet, message)
 			total += len(message) + overhead
 		} else {

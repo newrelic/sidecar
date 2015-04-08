@@ -9,9 +9,9 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/relistan/go-director"
+	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/discovery"
 	"github.com/newrelic/bosun/haproxy"
-	"github.com/newrelic/bosun/catalog"
 )
 
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
@@ -90,7 +90,7 @@ func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDel
 	delegate := NewServicesDelegate(state)
 	delegate.Metadata = NodeMetadata{
 		ClusterName: *opts.ClusterName,
-		State: "Running",
+		State:       "Running",
 	}
 
 	return delegate
