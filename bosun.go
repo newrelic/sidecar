@@ -86,10 +86,20 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 	return disco
 }
 
+func configureDelegate(state *services_state.ServicesState, opts *CliOpts) *servicesDelegate {
+	delegate := NewServicesDelegate(state)
+	delegate.Metadata = NodeMetadata{
+		ClusterName: *opts.ClusterName,
+		State: "Running",
+	}
+
+	return delegate
+}
+
 func main() {
 	opts := parseCommandLine()
 	state := services_state.NewServicesState()
-	delegate := NewServicesDelegate(state)
+	delegate := configureDelegate(state, opts)
 
 	config := parseConfig(*opts.ConfigFile)
 	state.ServiceNameMatch = config.Services.NameRegexp
@@ -99,11 +109,13 @@ func main() {
 	mlConfig.Delegate = delegate
 	mlConfig.Events = delegate
 
+	// Figure out our IP address from the CLI or by inspecting
 	publishedIP, err := getPublishedIP(config.Bosun.ExcludeIPs, opts.AdvertiseIP)
 	exitWithError(err, "Failed to find private IP address")
 	mlConfig.AdvertiseAddr = publishedIP
 
 	log.Println("Bosun starting -------------------")
+	log.Printf("Cluster Name: %s\n", *opts.ClusterName)
 	log.Printf("Config File: %s\n", *opts.ConfigFile)
 	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
 	log.Printf("Advertised address: %s\n", publishedIP)
@@ -118,7 +130,7 @@ func main() {
 	_, err = list.Join(*opts.ClusterIPs)
 	exitWithError(err, "Failed to join cluster")
 
-	metaUpdates := make(chan []byte)
+	//metaUpdates := make(chan []byte)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -141,7 +153,7 @@ func main() {
 	go state.BroadcastServices(disco.Services, servicesLooper)
 	go state.BroadcastTombstones(disco.Services, tombstoneLooper)
 	go state.TrackNewServices(disco.Services, trackingLooper)
-	go updateMetaData(list, metaUpdates)
+	//go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {
 		proxy := configureHAproxy(config)
@@ -151,7 +163,7 @@ func main() {
 	serveHttp(list, state)
 
 	time.Sleep(4 * time.Second)
-	metaUpdates <- []byte("A message!")
+	//metaUpdates <- []byte("A message!")
 
 	wg.Wait() // forever... nothing will decrement the wg
 }

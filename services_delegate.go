@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/hashicorp/memberlist"
@@ -13,6 +14,12 @@ type servicesDelegate struct {
 	pendingBroadcasts [][]byte
 	notifications chan *service.Service
 	inProcess bool
+	Metadata NodeMetadata
+}
+
+type NodeMetadata struct {
+	ClusterName string
+	State string
 }
 
 func NewServicesDelegate(state *services_state.ServicesState) *servicesDelegate {
@@ -21,6 +28,7 @@ func NewServicesDelegate(state *services_state.ServicesState) *servicesDelegate 
 		pendingBroadcasts: make([][]byte, 0),
 		notifications: make(chan *service.Service, 25),
 		inProcess: false,
+		Metadata: NodeMetadata{ ClusterName: "default" },
 	}
 
 	return &delegate
@@ -28,7 +36,12 @@ func NewServicesDelegate(state *services_state.ServicesState) *servicesDelegate 
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
 	log.Printf("NodeMeta(): %d\n", limit)
-	return []byte(`{ "State": "Running" }`)
+	data, err := json.Marshal(d.Metadata)
+	if err != nil {
+		log.Println("Error encoding Node metadata!")
+		data = []byte("{}")
+	}
+	return data
 }
 
 func (d *servicesDelegate) NotifyMsg(message []byte) {
@@ -115,7 +128,7 @@ func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 }
 
 func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
-	log.Printf("NotifyJoin(): %s\n", node.Name)
+	log.Printf("NotifyJoin(): %s %s\n", node.Name, string(node.Meta))
 }
 
 func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
