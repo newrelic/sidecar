@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"reflect"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -55,8 +54,8 @@ func Test_Services(t *testing.T) {
 			services := disco.Services()
 
 			So(len(services), ShouldEqual, 2)
-			So(reflect.DeepEqual(services[0], tgt1.Service), ShouldBeTrue)
-			So(reflect.DeepEqual(services[1], tgt2.Service), ShouldBeTrue)
+			So(services[0], ShouldResemble, tgt1.Service)
+			So(services[1], ShouldResemble, tgt2.Service)
 		})
 
 		Convey("Updates the current timestamp each time", func() {

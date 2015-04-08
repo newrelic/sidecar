@@ -3,7 +3,6 @@ package services_state
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"sync"
 	"testing"
 	"regexp"
@@ -106,7 +105,7 @@ func Test_ServicesStateWithData(t *testing.T) {
 			state.HostnameFn = func() (string, error) { return anotherHostname, nil }
 			state.AddServiceEntry(svc)
 
-			So(reflect.DeepEqual(state.GetLocalService(svcId), &svc), ShouldBeTrue)
+			So(state.GetLocalService(svcId), ShouldResemble, &svc)
 		})
 
 		Convey("AddServiceEntry()", func() {

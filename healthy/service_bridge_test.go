@@ -1,7 +1,6 @@
 package healthy
 
 import (
-	"reflect"
 	"regexp"
 	"testing"
 	"time"
@@ -67,7 +66,7 @@ func Test_ServicesBridge(t *testing.T) {
 			<-waitChan
 
 			So(len(monitor.Checks), ShouldEqual, 1)
-			So(reflect.DeepEqual(monitor.Checks[svc.ID], check), ShouldBeTrue)
+			So(monitor.Checks[svc.ID], ShouldResemble, check)
 		})
 	})
 }

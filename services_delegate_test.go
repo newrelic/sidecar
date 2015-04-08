@@ -1,7 +1,6 @@
 package main
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/newrelic/bosun/service"
@@ -33,7 +32,7 @@ func Test_GetBroadcasts(t *testing.T) {
 				delegate.NotifyMsg(bCast[0])
 				msg := <-delegate.notifications
 				So(msg, ShouldNotBeNil)
-				So(reflect.DeepEqual(msg, service.Decode(bCast[0])), ShouldBeTrue)
+				So(msg, ShouldResemble, service.Decode(bCast[0]))
 			})
 		})
 
