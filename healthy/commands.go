@@ -13,7 +13,7 @@ import (
 // a 200-299 back as success. Anything else is considered
 // a failure. The URL to hit is passed ass the args to the
 // Run method.
-type HttpGetCmd struct {}
+type HttpGetCmd struct{}
 
 func (h *HttpGetCmd) Run(args string) (int, error) {
 	resp, err := http.Get(args)
@@ -39,8 +39,8 @@ func (h *HttpGetCmd) Run(args string) (int, error) {
 type ExternalCmd struct{}
 
 func (e *ExternalCmd) Run(args string) (int, error) {
-    cmd := exec.Command(args)
-    err := cmd.Run()
+	cmd := exec.Command(args)
+	err := cmd.Run()
 	if err == nil {
 		return HEALTHY, nil
 	}

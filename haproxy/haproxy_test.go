@@ -9,64 +9,63 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/catalog"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/newrelic/bosun/catalog"
+	"github.com/newrelic/bosun/service"
 )
 
 var hostname1 = "indomitable"
 var hostname2 = "indefatigable"
 var hostname3 = "invincible"
 
-
-func Test_HAproxy(t * testing.T) {
+func Test_HAproxy(t *testing.T) {
 	Convey("End-to-end testing HAproxy functionality", t, func() {
-		state    := catalog.NewServicesState()
-	    svcId1   := "deadbeef123"
-	    svcId2   := "deadbeef101"
-	    svcId3   := "deadbeef105"
-	    svcId4   := "deadbeef999"
-	    baseTime := time.Now().UTC().Round(time.Second)
+		state := catalog.NewServicesState()
+		svcId1 := "deadbeef123"
+		svcId2 := "deadbeef101"
+		svcId3 := "deadbeef105"
+		svcId4 := "deadbeef999"
+		baseTime := time.Now().UTC().Round(time.Second)
 
-		ports1   := []service.Port{service.Port{"tcp", 10450}, service.Port{"tcp", 10020}}
-		ports2   := []service.Port{service.Port{"tcp", 9999}}
+		ports1 := []service.Port{service.Port{"tcp", 10450}, service.Port{"tcp", 10020}}
+		ports2 := []service.Port{service.Port{"tcp", 9999}}
 
 		services := []service.Service{
 			service.Service{
-				ID: svcId1,
-				Name: "awesome-svc-adfffed1233",
-				Image: "awesome-svc",
+				ID:       svcId1,
+				Name:     "awesome-svc-adfffed1233",
+				Image:    "awesome-svc",
 				Hostname: hostname1,
-				Updated: baseTime.Add(5 * time.Second),
-				Ports: ports1,
+				Updated:  baseTime.Add(5 * time.Second),
+				Ports:    ports1,
 			},
 			service.Service{
-				ID: svcId2,
-				Name: "awesome-svc-1234fed1233",
-				Image: "awesome-svc",
+				ID:       svcId2,
+				Name:     "awesome-svc-1234fed1233",
+				Image:    "awesome-svc",
 				Hostname: hostname2,
-				Updated: baseTime.Add(5 * time.Second),
-				Ports: ports1,
+				Updated:  baseTime.Add(5 * time.Second),
+				Ports:    ports1,
 			},
 			service.Service{
-				ID: svcId3,
-				Name: "some-svc-0123456789a",
-				Image: "some-svc",
+				ID:       svcId3,
+				Name:     "some-svc-0123456789a",
+				Image:    "some-svc",
 				Hostname: hostname2,
-				Updated: baseTime.Add(5 * time.Second),
-				Ports: ports2,
+				Updated:  baseTime.Add(5 * time.Second),
+				Ports:    ports2,
 			},
 			service.Service{
-				ID: svcId4,
-				Name: "some-svc-befede6789a",
-				Image: "some-svc",
+				ID:       svcId4,
+				Name:     "some-svc-befede6789a",
+				Image:    "some-svc",
 				Hostname: hostname2,
-				Updated: baseTime.Add(5 * time.Second),
+				Updated:  baseTime.Add(5 * time.Second),
 				// No ports!
 			},
 		}
 
-	    state.HostnameFn = func() (string, error) { return hostname1, nil }
+		state.HostnameFn = func() (string, error) { return hostname1, nil }
 
 		for _, svc := range services {
 			state.AddServiceEntry(svc)
@@ -93,12 +92,12 @@ func Test_HAproxy(t * testing.T) {
 
 		Convey("servicesWithPorts() groups services by name and port", func() {
 			badSvc := service.Service{
-				ID: "0000bad00000",
-				Name: "some-svc-0155555789a",
-				Image: "some-svc",
+				ID:       "0000bad00000",
+				Name:     "some-svc-0155555789a",
+				Image:    "some-svc",
 				Hostname: "titanic",
-				Updated: baseTime.Add(5 * time.Second),
-				Ports: []service.Port{ service.Port{"tcp", 666} },
+				Updated:  baseTime.Add(5 * time.Second),
+				Ports:    []service.Port{service.Port{"tcp", 666}},
 			}
 
 			svcName := state.ServiceName(&badSvc)
@@ -151,19 +150,19 @@ func Test_HAproxy(t * testing.T) {
 
 		Convey("Watch() writes out a config when the state changes", func() {
 			tmpDir, _ := ioutil.TempDir("/tmp", "bosun-test")
-			config :=  fmt.Sprintf("%s/haproxy.cfg", tmpDir)
+			config := fmt.Sprintf("%s/haproxy.cfg", tmpDir)
 			proxy.ConfigFile = config
 
 			go proxy.Watch(state)
 			newTime := time.Now().UTC()
 
 			svc := service.Service{
-				ID: "abcdef123123123",
-				Name: "some-svc-befede6789a",
-				Image: "some-svc",
+				ID:       "abcdef123123123",
+				Name:     "some-svc-befede6789a",
+				Image:    "some-svc",
 				Hostname: hostname2,
-				Updated: newTime,
-				Ports:  []service.Port{service.Port{"tcp", 1337}},
+				Updated:  newTime,
+				Ports:    []service.Port{service.Port{"tcp", 1337}},
 			}
 			time.Sleep(5 * time.Millisecond)
 			state.AddServiceEntry(svc)
@@ -180,7 +179,7 @@ func Test_HAproxy(t * testing.T) {
 
 func ShouldMatch(actual interface{}, expected ...interface{}) string {
 	wanted := expected[0].(string)
-	got	   := actual.([]byte)
+	got := actual.([]byte)
 
 	wantedRegexp := regexp.MustCompile(wanted)
 

@@ -51,7 +51,7 @@ func (d *MultiDiscovery) Run(quit chan bool) {
 		for _, q := range quitChans {
 			// Copy q so we don't change it out from under the goroutine
 			go func(q chan bool) {
-				q <-true
+				q <- true
 			}(q)
 		}
 	}()

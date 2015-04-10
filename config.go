@@ -12,7 +12,7 @@ type HAproxyConfig struct {
 	BindIP       string `toml:"bind_ip"`
 	TemplateFile string `toml:"template_file"`
 	ConfigFile   string `toml:"config_file"`
-	Disable      bool `toml:"disable"`
+	Disable      bool   `toml:"disable"`
 }
 
 type ServicesConfig struct {
@@ -37,8 +37,8 @@ type Config struct {
 	Bosun           BosunConfig
 	DockerDiscovery DockerConfig
 	StaticDiscovery StaticConfig
-	Services ServicesConfig
-	HAproxy  HAproxyConfig
+	Services        ServicesConfig
+	HAproxy         HAproxyConfig
 }
 
 func setDefaults(config *Config) {

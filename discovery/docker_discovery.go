@@ -15,39 +15,39 @@ const (
 )
 
 type DockerDiscovery struct {
-	events chan *docker.APIEvents  // Where events are announced to us
-	endpoint string                // The Docker endpoint to talk to
-	containers []*service.Service  // The list of containers we know about
-	sync.RWMutex                   // Reader/Writer lock controlling .containers
+	events       chan *docker.APIEvents // Where events are announced to us
+	endpoint     string                 // The Docker endpoint to talk to
+	containers   []*service.Service     // The list of containers we know about
+	sync.RWMutex                        // Reader/Writer lock controlling .containers
 }
 
 func NewDockerDiscovery(endpoint string) *DockerDiscovery {
 	discovery := DockerDiscovery{
 		endpoint: endpoint,
-		events: make(chan *docker.APIEvents),
+		events:   make(chan *docker.APIEvents),
 	}
 	return &discovery
 }
 
 func (d *DockerDiscovery) Run(quit chan bool) {
 	getContainersQuit := make(chan bool)
-	watchEventsQuit   := make(chan bool)
+	watchEventsQuit := make(chan bool)
 	processEventsQuit := make(chan bool)
 
 	// Propagate quit channel message
 	go func() {
 		<-quit // Block on channel until we get a message
-		go func() { getContainersQuit <-true }()
-		go func() { watchEventsQuit <-true }()
-		go func() { processEventsQuit <-true }()
+		go func() { getContainersQuit <- true }()
+		go func() { watchEventsQuit <- true }()
+		go func() { processEventsQuit <- true }()
 	}()
 
 	// Loop around fetching the whole container list
 	go func() {
-		for ;; {
+		for {
 			d.getContainers()
 			select {
-			case <- getContainersQuit:
+			case <-getContainersQuit:
 				return
 			default:
 			}
@@ -75,7 +75,7 @@ func (d *DockerDiscovery) Services() []service.Service {
 func (d *DockerDiscovery) getContainers() {
 	// New connection every time
 	client, _ := docker.NewClient(d.endpoint)
-	containers, err := client.ListContainers(docker.ListContainersOptions{ All: false })
+	containers, err := client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		return
 	}
@@ -102,7 +102,7 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 		if err != nil {
 			log.Println("Lost connection to Docker, re-connecting")
 			client.RemoveEventListener(d.events)
-			d.events  = make(chan *docker.APIEvents) // RemoveEventListener closes it
+			d.events = make(chan *docker.APIEvents) // RemoveEventListener closes it
 
 			client, err = docker.NewClient(d.endpoint)
 			if err == nil {
@@ -113,7 +113,7 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 		}
 
 		select {
-		case <- quit:
+		case <-quit:
 			return
 		default:
 		}
@@ -147,7 +147,7 @@ func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 func (d *DockerDiscovery) processEvents(quit chan bool) {
 	for {
 		select {
-		case <- quit:
+		case <-quit:
 			return
 		default:
 		}

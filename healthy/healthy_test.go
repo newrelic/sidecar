@@ -26,7 +26,7 @@ func Test_NewMonitor(t *testing.T) {
 	Convey("Returns a properly configured Monitor", t, func() {
 		monitor := NewMonitor()
 
-		So(monitor.CheckInterval, ShouldEqual, 3 * time.Second)
+		So(monitor.CheckInterval, ShouldEqual, 3*time.Second)
 		So(len(monitor.Checks), ShouldEqual, 0)
 	})
 }
@@ -75,10 +75,10 @@ func Test_RemoveCheck(t *testing.T) {
 }
 
 type mockCommand struct {
-	CallCount int
-	LastArgs string
+	CallCount     int
+	LastArgs      string
 	DesiredResult int
-	Error error
+	Error         error
 }
 
 func (m *mockCommand) Run(args string) (int, error) {
@@ -87,7 +87,7 @@ func (m *mockCommand) Run(args string) (int, error) {
 	return m.DesiredResult, m.Error
 }
 
-type slowCommand struct {}
+type slowCommand struct{}
 
 func (s *slowCommand) Run(args string) (int, error) {
 	time.Sleep(10 * time.Millisecond)
@@ -100,8 +100,8 @@ func Test_RunningChecks(t *testing.T) {
 		monitor.CheckInterval = 1 * time.Nanosecond
 		cmd := mockCommand{DesiredResult: HEALTHY}
 		check := &Check{
-			Type: "mock",
-			Args: "testing",
+			Type:    "mock",
+			Args:    "testing",
 			Command: &cmd,
 		}
 		monitor.AddCheck(check)
@@ -123,9 +123,9 @@ func Test_RunningChecks(t *testing.T) {
 		Convey("Unhealthy Checks are marked unhealthy", func() {
 			fail := mockCommand{DesiredResult: SICKLY}
 			badCheck := &Check{
-				Type: "mock",
-				Args: "testing123",
-				Command: &fail,
+				Type:     "mock",
+				Args:     "testing123",
+				Command:  &fail,
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
@@ -138,9 +138,9 @@ func Test_RunningChecks(t *testing.T) {
 		Convey("Erroring checks are marked UNKNOWN", func() {
 			fail := mockCommand{Error: errors.New("Uh oh!"), DesiredResult: FAILED}
 			badCheck := &Check{
-				Type: "mock",
-				Args: "testing123",
-				Command: &fail,
+				Type:     "mock",
+				Args:     "testing123",
+				Command:  &fail,
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
@@ -154,9 +154,9 @@ func Test_RunningChecks(t *testing.T) {
 			fail := mockCommand{DesiredResult: SICKLY}
 			maxCount := 2
 			badCheck := &Check{
-				Type: "mock",
-				Args: "testing123",
-				Command: &fail,
+				Type:     "mock",
+				Args:     "testing123",
+				Command:  &fail,
 				MaxCount: maxCount,
 			}
 			monitor.AddCheck(badCheck)
@@ -169,11 +169,11 @@ func Test_RunningChecks(t *testing.T) {
 		Convey("Checks that were failed return to health", func() {
 			healthy := mockCommand{DesiredResult: HEALTHY}
 			badCheck := &Check{
-				Type: "mock",
-				Status: FAILED,
-				Args: "testing123",
+				Type:    "mock",
+				Status:  FAILED,
+				Args:    "testing123",
 				Command: &healthy,
-				Count: 2,
+				Count:   2,
 			}
 			monitor.AddCheck(badCheck)
 			monitor.Run(director.ONCE)
@@ -184,11 +184,11 @@ func Test_RunningChecks(t *testing.T) {
 
 		Convey("Checks that take too long time out", func() {
 			check := &Check{
-				ID: "test",
-				Type: "mock",
-				Status: FAILED,
-				Args: "testing123",
-				Command: &slowCommand{},
+				ID:       "test",
+				Type:     "mock",
+				Status:   FAILED,
+				Args:     "testing123",
+				Command:  &slowCommand{},
 				MaxCount: 3,
 			}
 			monitor.AddCheck(check)
@@ -225,42 +225,42 @@ func Test_MarkServices(t *testing.T) {
 			&service.Service{ID: "unknown2", Status: service.UNKNOWN},
 		}
 
-		cmd    := mockCommand{DesiredResult: HEALTHY}
+		cmd := mockCommand{DesiredResult: HEALTHY}
 		badCmd := mockCommand{DesiredResult: SICKLY}
 
 		monitor.AddCheck(
 			&Check{
-				ID: "test",
-				Type: "mock",
-				Status: HEALTHY,
-				Args: "testing123",
+				ID:      "test",
+				Type:    "mock",
+				Status:  HEALTHY,
+				Args:    "testing123",
 				Command: &cmd,
 			},
 		)
 		monitor.AddCheck(
 			&Check{
-				ID: "bad",
-				Type: "mock",
-				Status: HEALTHY,
-				Args: "testing123",
+				ID:      "bad",
+				Type:    "mock",
+				Status:  HEALTHY,
+				Args:    "testing123",
 				Command: &badCmd,
 			},
 		)
 		monitor.AddCheck(
 			&Check{
-				ID: "test2",
-				Type: "mock",
-				Status: HEALTHY,
-				Args: "foofoofoo",
+				ID:      "test2",
+				Type:    "mock",
+				Status:  HEALTHY,
+				Args:    "foofoofoo",
 				Command: &cmd,
 			},
 		)
 		monitor.AddCheck(
 			&Check{
-				ID: "unknown2",
-				Type: "mock",
-				Status: HEALTHY,
-				Args: "foofoofoo",
+				ID:      "unknown2",
+				Type:    "mock",
+				Status:  HEALTHY,
+				Args:    "foofoofoo",
 				Command: &cmd,
 			},
 		)

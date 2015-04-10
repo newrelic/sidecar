@@ -8,10 +8,10 @@ import (
 )
 
 type mockDiscoverer struct {
-	ServicesList []service.Service
-	RunInvoked bool
+	ServicesList    []service.Service
+	RunInvoked      bool
 	ServicesInvoked bool
-	Quit chan bool
+	Quit            chan bool
 }
 
 func (m *mockDiscoverer) Services() []service.Service {
@@ -37,7 +37,7 @@ func Test_MultiDiscovery(t *testing.T) {
 			}, false, false, make(chan bool),
 		}
 
-		multi := &MultiDiscovery{[]Discoverer{ disco1, disco2 }}
+		multi := &MultiDiscovery{[]Discoverer{disco1, disco2}}
 
 		Convey("Run() invokes the Run() method for all the discoverers", func() {
 			multi.Run(make(chan bool))
@@ -49,7 +49,7 @@ func Test_MultiDiscovery(t *testing.T) {
 		Convey("Run() propagates the quit signal", func() {
 			quit := make(chan bool, 1)
 			multi.Run(quit)
-			quit <-true
+			quit <- true
 
 			So(disco1.RunInvoked, ShouldBeTrue)
 			So(disco2.RunInvoked, ShouldBeTrue)

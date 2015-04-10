@@ -53,12 +53,12 @@ func NewServer(name string) *Server {
 
 // Holds the state about all the servers in the cluster
 type ServicesState struct {
-	Servers           map[string]*Server
-	HostnameFn        func() (string, error)
-	Broadcasts        chan [][]byte
-	ServiceNameMatch  *regexp.Regexp // How we match service names
-	LastChanged       time.Time
-	listeners         []chan ChangeEvent
+	Servers          map[string]*Server
+	HostnameFn       func() (string, error)
+	Broadcasts       chan [][]byte
+	ServiceNameMatch *regexp.Regexp // How we match service names
+	LastChanged      time.Time
+	listeners        []chan ChangeEvent
 }
 
 // Returns a pointer to a properly configured ServicesState

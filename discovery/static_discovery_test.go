@@ -48,7 +48,7 @@ func Test_Services(t *testing.T) {
 			service.Service{ID: "foofoo"},
 			healthy.Check{ID: "foofoo"},
 		}
-		disco.Targets = []*Target{ tgt1, tgt2 }
+		disco.Targets = []*Target{tgt1, tgt2}
 
 		Convey("Returns a list of services extracted from Targets", func() {
 			services := disco.Services()
@@ -59,7 +59,7 @@ func Test_Services(t *testing.T) {
 		})
 
 		Convey("Updates the current timestamp each time", func() {
-			services  := disco.Services()
+			services := disco.Services()
 			services2 := disco.Services()
 
 			So(services[0].Updated.Before(services2[0].Updated), ShouldBeTrue)

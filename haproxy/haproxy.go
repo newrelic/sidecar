@@ -12,8 +12,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/catalog"
+	"github.com/newrelic/bosun/service"
 )
 
 type portset map[string]struct{}
@@ -21,10 +21,10 @@ type portmap map[string]portset
 
 // Configuration and state for the HAproxy management module
 type HAproxy struct {
-	ReloadCmd string
-	VerifyCmd string
-	BindIP string
-	Template string
+	ReloadCmd  string
+	VerifyCmd  string
+	BindIP     string
+	Template   string
 	ConfigFile string
 }
 
@@ -45,7 +45,7 @@ func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 	ports := make(portmap)
 
 	for name, svcList := range services {
-        if _, ok := ports[name]; !ok {
+		if _, ok := ports[name]; !ok {
 			ports[name] = make(portset, 5)
 		}
 
@@ -73,7 +73,7 @@ func sanitizeName(image string) string {
 // template. Ports are looked up by the func getPorts().
 func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 	services := servicesWithPorts(state)
-	ports    := h.makePortmap(services)
+	ports := h.makePortmap(services)
 
 	data := struct {
 		Services map[string][]*service.Service
@@ -81,7 +81,7 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 		Services: services,
 	}
 
-    funcMap := template.FuncMap{
+	funcMap := template.FuncMap{
 		"now": time.Now().UTC,
 		"getPorts": func(k string) []string {
 			var keys []string
@@ -90,9 +90,9 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 			}
 			return keys
 		},
-		"bindIP": func() string { return h.BindIP },
+		"bindIP":       func() string { return h.BindIP },
 		"sanitizeName": sanitizeName,
-    }
+	}
 
 	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles(h.Template)
 	if err != nil {

@@ -4,8 +4,8 @@ import (
 	"log"
 
 	"github.com/relistan/go-director"
-	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/catalog"
+	"github.com/newrelic/bosun/service"
 )
 
 func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
@@ -56,7 +56,7 @@ func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.S
 		}
 
 		m.Lock()
-OUTER:
+	OUTER:
 		for _, check := range m.Checks {
 			found := false
 			for _, svc := range services {

@@ -31,7 +31,7 @@ const (
 // members is possible but requires use of the RWMutex.
 type Monitor struct {
 	CheckInterval time.Duration
-	Checks map[string]*Check
+	Checks        map[string]*Check
 	ServiceChecks map[string]*Check
 	sync.RWMutex
 }
@@ -74,12 +74,12 @@ type Checker interface {
 
 func NewCheck(id string) *Check {
 	check := Check{
-		ID: id,
-		Count: 0,
-		Type: "http",
-		Command: &HttpGetCmd{},
+		ID:       id,
+		Count:    0,
+		Type:     "http",
+		Command:  &HttpGetCmd{},
 		MaxCount: 1,
-		Status: UNKNOWN,
+		Status:   UNKNOWN,
 	}
 	return &check
 }
@@ -116,11 +116,10 @@ func (check *Check) ServiceStatus() int {
 	}
 }
 
-
 func NewMonitor() *Monitor {
 	monitor := Monitor{
 		CheckInterval: 3 * time.Second,
-		Checks: make(map[string]*Check, 5),
+		Checks:        make(map[string]*Check, 5),
 		ServiceChecks: make(map[string]*Check, 5),
 	}
 	return &monitor
@@ -185,8 +184,8 @@ func (m *Monitor) MarkServices(services []*service.Service) {
 				delete(m.Checks, svc.ID)
 				m.Unlock()
 			}
-		// When a service is anything else, we mark it based on the current
-		// check status.
+			// When a service is anything else, we mark it based on the current
+			// check status.
 		} else {
 			m.RLock()
 			if _, ok := m.Checks[svc.ID]; ok {
@@ -215,7 +214,7 @@ func (m *Monitor) Run(count int) {
 			resultChan := make(chan checkResult, 1)
 			go func(check *Check) {
 				result, err := check.Command.Run(check.Args)
-				resultChan <-checkResult{result, err}
+				resultChan <- checkResult{result, err}
 			}(check) // copy check pointer for the goroutine
 
 			go func(check *Check) {
@@ -224,7 +223,7 @@ func (m *Monitor) Run(count int) {
 				select {
 				case result := <-resultChan:
 					check.UpdateStatus(result.status, result.err)
-				case <-time.After(m.CheckInterval - 1 * time.Millisecond):
+				case <-time.After(m.CheckInterval - 1*time.Millisecond):
 					log.Printf("Error, check %s timed out!", check.ID)
 					check.UpdateStatus(UNKNOWN, errors.New("Timed out!"))
 				}
@@ -249,5 +248,5 @@ func (m *Monitor) Run(count int) {
 
 type checkResult struct {
 	status int
-	err error
+	err    error
 }

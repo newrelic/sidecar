@@ -7,32 +7,32 @@ import (
 
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/service"
 	"github.com/newrelic/bosun/catalog"
+	"github.com/newrelic/bosun/service"
 )
 
 var hostname string = "indefatigable"
 
 func Test_ServicesBridge(t *testing.T) {
 	Convey("The services bridge", t, func() {
-		svcId1   := "deadbeef123"
-		svcId2   := "deadbeef101"
+		svcId1 := "deadbeef123"
+		svcId2 := "deadbeef101"
 		baseTime := time.Now().UTC().Round(time.Second)
 
-		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
-		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
+		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
+		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 
 		monitor := NewMonitor()
-		state   := catalog.NewServicesState()
+		state := catalog.NewServicesState()
 		state.HostnameFn = func() (string, error) { return hostname, nil }
-		state.ServiceNameMatch  = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
+		state.ServiceNameMatch = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
 
 		check1 := Check{
-			ID: svcId1,
+			ID:     svcId1,
 			Status: HEALTHY,
 		}
 		check2 := Check{
-			ID: svcId2,
+			ID:     svcId2,
 			Status: UNKNOWN,
 		}
 		monitor.AddCheck(&check1)
@@ -51,15 +51,15 @@ func Test_ServicesBridge(t *testing.T) {
 		Convey("Responds to changes in a list of services", func() {
 			So(len(monitor.Checks), ShouldEqual, 2)
 			svcList := []service.Service{}
-			listFn  := func() []service.Service { return svcList }
-			svc     := service.Service{ ID: "babbacabba", Name: "testing-12312312" }
+			listFn := func() []service.Service { return svcList }
+			svc := service.Service{ID: "babbacabba", Name: "testing-12312312"}
 
 			cmd := mockCommand{DesiredResult: HEALTHY}
 			check := &Check{ID: svc.ID, Command: &cmd}
 			monitor.ServiceChecks[state.ServiceName(&svc)] = check
 
 			waitChan := make(chan error)
-			looper := director.NewTimedLooper(5, 5 * time.Nanosecond, waitChan)
+			looper := director.NewTimedLooper(5, 5*time.Nanosecond, waitChan)
 			go monitor.Watch(listFn, state.ServiceName, looper)
 
 			svcList = append(svcList, svc)

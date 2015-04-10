@@ -15,11 +15,11 @@ import (
 
 type Target struct {
 	Service service.Service
-	Check healthy.Check
+	Check   healthy.Check
 }
 
 type StaticDiscovery struct {
-	Targets []*Target
+	Targets    []*Target
 	ConfigFile string
 	HostnameFn func() (string, error)
 }
@@ -27,7 +27,7 @@ type StaticDiscovery struct {
 func NewStaticDiscovery(filename string) *StaticDiscovery {
 	return &StaticDiscovery{
 		ConfigFile: filename,
-	    HostnameFn: os.Hostname,
+		HostnameFn: os.Hostname,
 	}
 }
 
@@ -97,7 +97,7 @@ func RandomHex(count int) ([]byte, error) {
 		return nil, err
 	}
 
-	encoded := make([]byte, count * 2)
+	encoded := make([]byte, count*2)
 	hex.Encode(encoded, raw)
 	return encoded, nil
 }
