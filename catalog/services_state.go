@@ -19,23 +19,23 @@ import (
 // servers to Service lists and manages the lifecycle.
 
 const (
-	TOMBSTONE_LIFESPAN = 3 * time.Hour          // How long we keep tombstones around
-	TOMBSTONE_COUNT = 10                        // Send tombstones at 1 per second 10 times
+	TOMBSTONE_LIFESPAN       = 3 * time.Hour    // How long we keep tombstones around
+	TOMBSTONE_COUNT          = 10               // Send tombstones at 1 per second 10 times
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
-	ALIVE_LIFESPAN = 20 * time.Second           // Down if not heard from in 20 seconds
-	ALIVE_SLEEP_INTERVAL = 2 * time.Second      // Sleep between local service checks
-	RETRANSMIT_MODULO = 3                       // 1/RETRANSMIT_MODULO services is retransmitted
+	ALIVE_LIFESPAN           = 20 * time.Second // Down if not heard from in 20 seconds
+	ALIVE_SLEEP_INTERVAL     = 2 * time.Second  // Sleep between local service checks
+	RETRANSMIT_MODULO        = 3                // 1/RETRANSMIT_MODULO services is retransmitted
 )
 
 type ChangeEvent struct {
 	Hostname string
-	Time time.Time
+	Time     time.Time
 }
 
 // Holds the state about one server in our cluster
 type Server struct {
-	Name string
-	Services map[string]*service.Service
+	Name        string
+	Services    map[string]*service.Service
 	LastUpdated time.Time
 	LastChanged time.Time
 }
@@ -54,21 +54,21 @@ func NewServer(name string) *Server {
 
 // Holds the state about all the servers in the cluster
 type ServicesState struct {
-	Servers map[string]*Server
-	HostnameFn func() (string, error)
-	Broadcasts chan [][]byte
-	ServiceNameMatch *regexp.Regexp // How we match service names
-	LastChanged time.Time
+	Servers           map[string]*Server
+	HostnameFn        func() (string, error)
+	Broadcasts        chan [][]byte
+	ServiceNameMatch  *regexp.Regexp // How we match service names
+	LastChanged       time.Time
 	retransmitCounter int
-	listeners []chan ChangeEvent
+	listeners         []chan ChangeEvent
 }
 
 // Returns a pointer to a properly configured ServicesState
 func NewServicesState() *ServicesState {
 	var state ServicesState
-	state.Servers     = make(map[string]*Server, 5)
-	state.HostnameFn  = os.Hostname
-	state.Broadcasts  = make(chan [][]byte)
+	state.Servers = make(map[string]*Server, 5)
+	state.HostnameFn = os.Hostname
+	state.Broadcasts = make(chan [][]byte)
 	state.LastChanged = time.Unix(0, 0)
 	return &state
 }
@@ -159,13 +159,13 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 		log.Printf("Skipping listeners, there are none")
 		return
 	}
-	event := ChangeEvent{ Hostname: hostname, Time: changedTime }
+	event := ChangeEvent{Hostname: hostname, Time: changedTime}
 	for _, listener := range state.listeners {
 		select {
-			case listener <-event:
-				continue
-			default:
-				log.Println("ServerChanged(): Can't send to listener!")
+		case listener <- event:
+			continue
+		default:
+			log.Println("ServerChanged(): Can't send to listener!")
 		}
 	}
 }
@@ -229,7 +229,7 @@ func (state *ServicesState) retransmit(svc service.Service) {
 			log.Printf("ERROR encoding message to forward: (%s)", err.Error())
 			return
 		}
-		state.Broadcasts <-[][]byte{encoded}
+		state.Broadcasts <- [][]byte{encoded}
 	}()
 }
 
@@ -237,7 +237,7 @@ func (state *ServicesState) retransmit(svc service.Service) {
 // only happen for state transitions, it's any new message at all.
 func (state *ServicesState) shouldRetransmit() bool {
 	state.retransmitCounter += 1
-	return (state.retransmitCounter % RETRANSMIT_MODULO == 0)
+	return (state.retransmitCounter%RETRANSMIT_MODULO == 0)
 }
 
 // Pretty-print(ish) a services state struct so a human can read
@@ -339,7 +339,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 		containerList := fn()
 		// Tell people about our dead services
 		otherTombstones := state.TombstoneOthersServices()
-		tombstones      := state.TombstoneServices(hostname, containerList)
+		tombstones := state.TombstoneServices(hostname, containerList)
 
 		tombstones = append(tombstones, otherTombstones...)
 
@@ -364,7 +364,7 @@ func (state *ServicesState) TombstoneOthersServices() [][]byte {
 	// time at all.
 	state.EachService(func(hostname *string, id *string, svc *service.Service) {
 		if svc.IsTombstone() &&
-				svc.Updated.Before(time.Now().UTC().Add(0 - TOMBSTONE_LIFESPAN)) {
+			svc.Updated.Before(time.Now().UTC().Add(0-TOMBSTONE_LIFESPAN)) {
 			delete(state.Servers[*hostname].Services, *id)
 			// If this is the last service, remove the server
 			if len(state.Servers[*hostname].Services) < 1 {
@@ -373,7 +373,7 @@ func (state *ServicesState) TombstoneOthersServices() [][]byte {
 		}
 
 		if svc.IsAlive() &&
-				svc.Updated.Before(time.Now().UTC().Add(0 - ALIVE_LIFESPAN)) {
+			svc.Updated.Before(time.Now().UTC().Add(0-ALIVE_LIFESPAN)) {
 
 			log.Printf("Found expired service %s from %s, tombstoning",
 				svc.Name, svc.Hostname,

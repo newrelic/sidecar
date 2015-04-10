@@ -3,9 +3,9 @@ package catalog
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sync"
 	"testing"
-	"regexp"
 	"time"
 
 	"github.com/relistan/go-director"
@@ -69,13 +69,13 @@ func Test_ServicesStateWithData(t *testing.T) {
 		svcId := "deadbeef123"
 
 		svc := service.Service{
-			ID: svcId,
-			Name: "radical_service",
-			Image: "101deadbeef",
-			Created: baseTime,
+			ID:       svcId,
+			Name:     "radical_service",
+			Image:    "101deadbeef",
+			Created:  baseTime,
 			Hostname: anotherHostname,
-			Updated: baseTime,
-			Status: service.ALIVE,
+			Updated:  baseTime,
+			Status:   service.ALIVE,
 		}
 
 		Convey("Encode() generates JSON that we can Decode()", func() {
@@ -122,13 +122,13 @@ func Test_ServicesStateWithData(t *testing.T) {
 				state.AddServiceEntry(svc)
 
 				staleService := service.Service{
-					ID: "deadbeef123",
-					Name: "stale_service",
-					Image: "stale",
-					Created: baseTime,
+					ID:       "deadbeef123",
+					Name:     "stale_service",
+					Image:    "stale",
+					Created:  baseTime,
 					Hostname: anotherHostname,
-					Updated: baseTime.Add(0 - 1 * time.Minute),
-					Status: service.ALIVE,
+					Updated:  baseTime.Add(0 - 1*time.Minute),
+					Status:   service.ALIVE,
 				}
 
 				state.AddServiceEntry(staleService)
@@ -196,16 +196,16 @@ func Test_ServicesStateWithData(t *testing.T) {
 
 				pendingBroadcast := false
 				select {
-					case <-state.Broadcasts:
-						pendingBroadcast = true
-					default:
+				case <-state.Broadcasts:
+					pendingBroadcast = true
+				default:
 				}
 				So(pendingBroadcast, ShouldBeFalse)
 			})
 		})
 
 		Convey("Merge() merges state we care about from other state structs", func() {
-			firstState  := NewServicesState()
+			firstState := NewServicesState()
 			secondState := NewServicesState()
 			firstState.AddServiceEntry(svc)
 			secondState.Merge(firstState)
@@ -230,15 +230,15 @@ func Test_ServicesStateWithData(t *testing.T) {
 func Test_TrackingAndBroadcasting(t *testing.T) {
 
 	Convey("When Tracking and Broadcasting services", t, func() {
-		state    := NewServicesState()
+		state := NewServicesState()
 		state.Servers[hostname] = NewServer(hostname)
-		svcId1   := "deadbeef123"
-		svcId2   := "deadbeef101"
+		svcId1 := "deadbeef123"
+		svcId2 := "deadbeef101"
 		baseTime := time.Now().UTC().Round(time.Second)
 
-		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
-		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
-		services := []service.Service{ service1, service2 }
+		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
+		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
+		services := []service.Service{service1, service2}
 
 		containerFn := func() []service.Service {
 			return services
@@ -246,7 +246,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 		state.HostnameFn = func() (string, error) { return hostname, nil }
 
-		looper := director.NewTimedLooper(1, 1 * time.Nanosecond, nil)
+		looper := director.NewTimedLooper(1, 1*time.Nanosecond, nil)
 
 		Convey("All of the services are added to state", func() {
 			looper := director.NewFreeLooper(1, make(chan error))
@@ -281,7 +281,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 		})
 
 		Convey("All of the tombstones are serialized into the channel", func() {
-			junk := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
+			junk := service.Service{ID: "runs", Hostname: hostname, Updated: baseTime}
 			state.AddServiceEntry(junk)
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
@@ -296,7 +296,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 		Convey("The LastChanged time is changed when a service is Tombstoned", func() {
 			lastChanged := state.LastChanged
-			junk := service.Service{ ID: "runs", Hostname: hostname, Updated: baseTime }
+			junk := service.Service{ID: "runs", Hostname: hostname, Updated: baseTime}
 			state.AddServiceEntry(junk)
 			go state.BroadcastTombstones(containerFn, looper)
 
@@ -324,7 +324,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 		Convey("Tombstones have a lifespan, then expire", func() {
 			service1.Tombstone()
-			service1.Updated = service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
+			service1.Updated = service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1*time.Minute)
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
 			So(state.Servers[hostname].Services[service1.ID], ShouldNotBeNil)
@@ -341,7 +341,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			state.AddServiceEntry(service1)
 			state.Servers[hostname].Services[service1.ID].Tombstone()
 			state.Servers[hostname].Services[service1.ID].Updated =
-					service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1 * time.Minute)
+				service1.Updated.Add(0 - TOMBSTONE_LIFESPAN - 1*time.Minute)
 
 			So(state.Servers[hostname], ShouldNotBeNil)
 			state.TombstoneOthersServices()
@@ -352,7 +352,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			lastChanged := state.Servers[hostname].LastChanged
 			state.AddServiceEntry(service1)
 			svc := state.Servers[hostname].Services[service1.ID]
-			stamp := service1.Updated.Add(0 - ALIVE_LIFESPAN - 5 * time.Second)
+			stamp := service1.Updated.Add(0 - ALIVE_LIFESPAN - 5*time.Second)
 			svc.Updated = stamp
 
 			state.TombstoneOthersServices()
@@ -366,12 +366,12 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 func Test_Listeners(t *testing.T) {
 	Convey("Working with state Listeners", t, func() {
-		state     := NewServicesState()
-		listener  := make(chan ChangeEvent, 1)
+		state := NewServicesState()
+		listener := make(chan ChangeEvent, 1)
 		listener2 := make(chan ChangeEvent, 1)
-		svcId1    := "deadbeef123"
-		baseTime  := time.Now().UTC().Round(time.Second)
-		svc1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
+		svcId1 := "deadbeef123"
+		baseTime := time.Now().UTC().Round(time.Second)
+		svc1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
 
 		Convey("Adding listeners results in new entries in the listeners list", func() {
 			So(len(state.listeners), ShouldEqual, 0)
@@ -410,12 +410,12 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 	Convey("When managing cluster members", t, func() {
 		state := NewServicesState()
 		state.Servers[hostname] = NewServer(hostname)
-		svcId1     := "deadbeef123"
-		svcId2     := "deadbeef101"
-		baseTime   := time.Now().UTC().Round(time.Second)
+		svcId1 := "deadbeef123"
+		svcId2 := "deadbeef101"
+		baseTime := time.Now().UTC().Round(time.Second)
 
-		service1 := service.Service{ ID: svcId1, Hostname: hostname, Updated: baseTime }
-		service2 := service.Service{ ID: svcId2, Hostname: hostname, Updated: baseTime }
+		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
+		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 
 		state.HostnameFn = func() (string, error) { return hostname, nil }
 
@@ -448,10 +448,10 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 func Example_ByServiceWithoutMatcher() {
 	state := NewServicesState()
 	state.Servers[hostname] = NewServer(hostname)
-	svcId1     := "deadbeef123"
-	svcId2     := "deadbeef101"
-	svcId3     := "deadbeef105"
-	baseTime   := time.Now().UTC().Round(time.Second)
+	svcId1 := "deadbeef123"
+	svcId2 := "deadbeef101"
+	svcId3 := "deadbeef105"
+	baseTime := time.Now().UTC().Round(time.Second)
 
 	service1 := service.Service{
 		ID: svcId1, Name: "service1", Image: "img1",
@@ -477,11 +477,11 @@ func Example_ByServiceWithoutMatcher() {
 func Example_ByServiceWithMatcher() {
 	state := NewServicesState()
 	state.Servers[hostname] = NewServer(hostname)
-	state.ServiceNameMatch  = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
-	svcId1     := "deadbeef123"
-	svcId2     := "deadbeef101"
-	svcId3     := "deadbeef105"
-	baseTime   := time.Now().UTC().Round(time.Second)
+	state.ServiceNameMatch = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
+	svcId1 := "deadbeef123"
+	svcId2 := "deadbeef101"
+	svcId3 := "deadbeef105"
+	baseTime := time.Now().UTC().Round(time.Second)
 
 	service1 := service.Service{
 		ID: svcId1, Name: "service1-deadabba999", Image: "img1",
@@ -510,7 +510,7 @@ func Example_BroadcastTombstones() {
 		return "something", nil
 	}
 
-	looper := director.NewTimedLooper(1, 1 * time.Nanosecond, nil)
+	looper := director.NewTimedLooper(1, 1*time.Nanosecond, nil)
 
 	go func() { <-state.Broadcasts }()
 	state.BroadcastTombstones(func() []service.Service { return []service.Service{} }, looper)
@@ -522,19 +522,19 @@ func Example_BroadcastTombstones() {
 }
 
 func ShouldBeTheSameTimeAs(actual interface{}, expected ...interface{}) string {
-    wanted := expected[0].(time.Time)
-    got    := actual.(time.Time)
+	wanted := expected[0].(time.Time)
+	got := actual.(time.Time)
 
-    if !got.Equal(wanted) {
-        return "expected:\n" + fmt.Sprintf("%#v", wanted) + "\n\ngot:\n" + fmt.Sprintf("%#v", got)
-    }
+	if !got.Equal(wanted) {
+		return "expected:\n" + fmt.Sprintf("%#v", wanted) + "\n\ngot:\n" + fmt.Sprintf("%#v", got)
+	}
 
-    return ""
+	return ""
 }
 
 func ShouldMatch(actual interface{}, expected ...interface{}) string {
 	wanted := expected[0].(string)
-	got    := actual.([]byte)
+	got := actual.([]byte)
 
 	wantedRegexp := regexp.MustCompile(wanted)
 

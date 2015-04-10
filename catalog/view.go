@@ -27,15 +27,15 @@ func (state *ServicesState) EachServiceSorted(fn func(hostname *string, serviceI
 type ServicesByAge []*service.Service
 
 func (s ServicesByAge) Len() int {
-    return len(s)
+	return len(s)
 }
 
 func (s ServicesByAge) Swap(i, j int) {
-    s[i], s[j] = s[j], s[i]
+	s[i], s[j] = s[j], s[i]
 }
 
 func (s ServicesByAge) Less(i, j int) bool {
-    return s[i].Updated.Before(s[j].Updated)
+	return s[i].Updated.Before(s[j].Updated)
 }
 
 func (s *Server) SortedServices() []*service.Service {
@@ -54,15 +54,15 @@ func (s *Server) SortedServices() []*service.Service {
 type ServerByName []*Server
 
 func (s ServerByName) Len() int {
-    return len(s)
+	return len(s)
 }
 
 func (s ServerByName) Swap(i, j int) {
-    s[i], s[j] = s[j], s[i]
+	s[i], s[j] = s[j], s[i]
 }
 
 func (s ServerByName) Less(i, j int) bool {
-    return s[i].Name < s[j].Name
+	return s[i].Name < s[j].Name
 }
 
 func (state *ServicesState) SortedServers() []*Server {
