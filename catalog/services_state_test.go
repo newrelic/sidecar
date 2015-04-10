@@ -179,10 +179,12 @@ func Test_ServicesStateWithData(t *testing.T) {
 
 			Convey("Retransmits a packet when the state changes", func() {
 				state.AddServiceEntry(svc)
+				<-state.Broadcasts // Catch the retransmit from the initial add
 				svc.Tombstone()
 				state.AddServiceEntry(svc)
 
 				packet := <-state.Broadcasts
+
 				encoded, _ := svc.Encode()
 				So(len(packet), ShouldEqual, 1)
 				So(string(packet[0]), ShouldEqual, string(encoded))
@@ -192,6 +194,20 @@ func Test_ServicesStateWithData(t *testing.T) {
 				state.Broadcasts = make(chan [][]byte, 1)
 				state.AddServiceEntry(svc)
 				svc.Updated = svc.Updated.Add(1 * time.Second)
+				state.AddServiceEntry(svc)
+
+				pendingBroadcast := false
+				select {
+				case <-state.Broadcasts:
+					pendingBroadcast = true
+				default:
+				}
+				So(pendingBroadcast, ShouldBeFalse)
+			})
+
+			Convey("Doesn't retransmit an add of a new service for this host", func() {
+				state.HostnameFn = func() (string, error) { return hostname, nil }
+				state.Broadcasts = make(chan [][]byte, 1)
 				state.AddServiceEntry(svc)
 
 				pendingBroadcast := false
@@ -422,8 +438,8 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 		Convey("Expire() tombstones all services for a server", func() {
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
-			go state.ExpireServer(hostname)
 
+			go state.ExpireServer(hostname)
 			expired := <-state.Broadcasts
 
 			So(len(expired), ShouldEqual, 2)

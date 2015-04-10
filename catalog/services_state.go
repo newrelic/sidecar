@@ -24,7 +24,6 @@ const (
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
 	ALIVE_LIFESPAN           = 20 * time.Second // Down if not heard from in 20 seconds
 	ALIVE_SLEEP_INTERVAL     = 2 * time.Second  // Sleep between local service checks
-	RETRANSMIT_MODULO        = 3                // 1/RETRANSMIT_MODULO services is retransmitted
 )
 
 type ChangeEvent struct {
@@ -59,7 +58,6 @@ type ServicesState struct {
 	Broadcasts        chan [][]byte
 	ServiceNameMatch  *regexp.Regexp // How we match service names
 	LastChanged       time.Time
-	retransmitCounter int
 	listeners         []chan ChangeEvent
 }
 
@@ -135,19 +133,21 @@ func (state *ServicesState) ExpireServer(hostname string) {
 	}
 
 	state.SendTombstones(tombstones)
-	state.ServerChanged(hostname)
+	state.ServerChanged(hostname, time.Now().UTC())
 }
 
 // Tell the state that something changed on a particular server so that it
 // can keep the timestamps up to date. This is how we know something has
 // transitioned state.
-func (state *ServicesState) ServerChanged(hostname string) {
+func (state *ServicesState) ServerChanged(hostname string, updated time.Time) {
 	if !state.HasServer(hostname) {
 		log.Printf("Attempt to change a server we don't have! (%s)", hostname)
 		return
 	}
-	state.Servers[hostname].LastChanged = state.Servers[hostname].LastUpdated
-	state.LastChanged = state.Servers[hostname].LastChanged
+
+	state.Servers[hostname].LastUpdated = updated
+	state.Servers[hostname].LastChanged = updated
+	state.LastChanged = updated
 	state.NotifyListeners(hostname, state.LastChanged)
 }
 
@@ -165,7 +165,7 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 		case listener <- event:
 			continue
 		default:
-			log.Println("ServerChanged(): Can't send to listener!")
+			log.Println("NotifyListeners(): Can't send to listener!")
 		}
 	}
 }
@@ -180,7 +180,7 @@ func (state *ServicesState) AddListener(listener chan ChangeEvent) {
 
 // Take a service and merge it into our state. Correctly handle
 // timestamps so we only add things newer than what we already
-// know about.
+// know about. Retransmits updates to cluster peers.
 func (state *ServicesState) AddServiceEntry(entry service.Service) {
 
 	if !state.HasServer(entry.Hostname) {
@@ -189,25 +189,22 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 
 	server := state.Servers[entry.Hostname]
 	// Only apply changes that are newer or services are missing
-	if server.Services[entry.ID] == nil {
+	if _, ok := server.Services[entry.ID]; !ok {
 		server.Services[entry.ID] = &entry
-		server.LastUpdated = entry.Updated
-		state.ServerChanged(entry.Hostname)
+		state.ServerChanged(entry.Hostname, entry.Updated)
+		state.retransmit(entry)
 	} else if entry.Invalidates(server.Services[entry.ID]) {
-		server.LastUpdated = entry.Updated // ServerChanged() relies on this
+		server.LastUpdated = entry.Updated
 		if server.Services[entry.ID].Status != entry.Status {
-			state.ServerChanged(entry.Hostname)
-			// We tell our gossip peers about the state change
-			// by sending them the record. We're saved from an endless
-			// retransmit loop by the Invalidates() call above.
-			state.retransmit(entry)
-		} else if state.shouldRetransmit() {
-			state.retransmit(entry)
+			state.ServerChanged(entry.Hostname, entry.Updated)
 		}
+		// We tell our gossip peers about the updated service
+		// by sending them the record. We're saved from an endless
+		// retransmit loop by the Invalidates() call above.
+		state.retransmit(entry)
 		server.Services[entry.ID] = &entry
 		return // So we don't re-retransmit
 	}
-
 }
 
 // Merge a complete state struct into this one. Usually used on
@@ -223,6 +220,13 @@ func (state *ServicesState) Merge(otherState *ServicesState) {
 // Take a service we already handled, and drop it back into the
 // channel. Backgrounded to not block the caller.
 func (state *ServicesState) retransmit(svc service.Service) {
+	// We don't retransmit our own events! We're already
+	// transmitting them.
+	hostname, err := state.HostnameFn()
+	if svc.Hostname == hostname && err == nil {
+		return
+	}
+
 	go func() {
 		encoded, err := svc.Encode()
 		if err != nil {
@@ -231,13 +235,6 @@ func (state *ServicesState) retransmit(svc service.Service) {
 		}
 		state.Broadcasts <- [][]byte{encoded}
 	}()
-}
-
-// Determines if we'll retransmit any arbitrary message. This does not
-// only happen for state transitions, it's any new message at all.
-func (state *ServicesState) shouldRetransmit() bool {
-	state.retransmitCounter += 1
-	return (state.retransmitCounter%RETRANSMIT_MODULO == 0)
 }
 
 // Pretty-print(ish) a services state struct so a human can read
@@ -387,7 +384,7 @@ func (state *ServicesState) TombstoneOthersServices() [][]byte {
 			// which updates the timestamp to Now().UTC()
 			svc.Status = service.TOMBSTONE
 			svc.Updated = svc.Updated.Add(time.Second)
-			state.ServerChanged(svc.Hostname)
+			state.ServerChanged(svc.Hostname, svc.Updated)
 
 			encoded, err := svc.Encode()
 
@@ -418,10 +415,10 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 
 	// Tombstone our own services that went away
 	for id, svc := range services {
-		if mapping[id] == nil && svc.Status != service.TOMBSTONE {
+		if _, ok := mapping[id]; !ok && !svc.IsTombstone() {
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
-			state.ServerChanged(hostname)
+			state.ServerChanged(hostname, svc.Updated)
 			// Tombstone each record twice to help with receipt
 			encoded, err := svc.Encode()
 			if err != nil {
