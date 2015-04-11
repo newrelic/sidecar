@@ -84,16 +84,16 @@
 			"Rev": "71c2886f5a673a35f909803f38ece5810165097b"
 		},
 		{
-			"ImportPath": "github.com/hashicorp/memberlist",
-			"Rev": "dad1009e26ac60199c094f2e91cdd7769a7f46cc"
-		},
-		{
 			"ImportPath": "github.com/jtolds/gls",
 			"Rev": "f1ac7f4f24f50328e6bc838ca4437d1612a0243c"
 		},
 		{
 			"ImportPath": "github.com/matttproud/golang_protobuf_extensions/ext",
 			"Rev": "ba7d65ac66e9da93a714ca18f6d1bc7a0c09100c"
+		},
+		{
+			"ImportPath": "github.com/newrelic-forks/memberlist",
+			"Rev": "adf77aa0851c3bc6c570c52c3f1171646f8f1bd6"
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_golang/model",

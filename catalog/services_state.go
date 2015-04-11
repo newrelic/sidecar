@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/hashicorp/memberlist"
+	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"

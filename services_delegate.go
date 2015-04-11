@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/hashicorp/memberlist"
+	"github.com/newrelic-forks/memberlist"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
 )

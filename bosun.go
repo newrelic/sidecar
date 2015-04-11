@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/memberlist"
+	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/discovery"
