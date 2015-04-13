@@ -310,6 +310,28 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			So(readBroadcasts[1], ShouldMatch, "^{\"ID\":\"runs\".*\"Status\":1}$")
 		})
 
+		Convey("The timestamp is incremented on each subsequent Tombstone background run", func() {
+			state.Broadcasts = make(chan [][]byte, 4)
+			looper := director.NewFreeLooper(2, make(chan error))
+			service1.Tombstone()
+			service2.Tombstone()
+			go state.SendTombstones([]service.Service{service1, service2}, looper)
+			looper.Wait()
+
+			// First go-round
+			broadcasts := <-state.Broadcasts
+			So(len(broadcasts), ShouldEqual, 2)
+			// It's JSON so just string match rather than decoding
+			So(broadcasts[0], ShouldMatch, service1.Updated.Format(time.RFC3339Nano))
+			So(broadcasts[1], ShouldMatch, service2.Updated.Format(time.RFC3339Nano))
+
+			// Second go-round
+			broadcasts = <-state.Broadcasts
+			So(len(broadcasts), ShouldEqual, 2)
+			So(broadcasts[0], ShouldMatch, service1.Updated.Add(50 * time.Nanosecond).Format(time.RFC3339Nano))
+			So(broadcasts[1], ShouldMatch, service2.Updated.Add(50 * time.Nanosecond).Format(time.RFC3339Nano))
+		})
+
 		Convey("The LastChanged time is changed when a service is Tombstoned", func() {
 			lastChanged := state.LastChanged
 			junk := service.Service{ID: "runs", Hostname: hostname, Updated: baseTime}

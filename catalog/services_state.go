@@ -118,22 +118,18 @@ func (state *ServicesState) ExpireServer(hostname string) {
 
 	log.Printf("Expiring %s\n", hostname)
 
-	tombstones := make([][]byte, 0, len(state.Servers[hostname].Services))
+	tombstones := make([]service.Service, 0, len(state.Servers[hostname].Services))
 
 	for _, svc := range state.Servers[hostname].Services {
 		svc.Tombstone()
-
-		encoded, err := svc.Encode()
-		if err != nil {
-			log.Printf("ERROR encoding service: (%s)", err.Error())
-			continue
-		}
-
-		tombstones = append(tombstones, encoded)
+		tombstones = append(tombstones, *svc)
 	}
 
-	state.SendTombstones(tombstones)
-	state.ServerChanged(hostname, time.Now().UTC())
+	state.SendTombstones(
+		tombstones,
+		director.NewTimedLooper(TOMBSTONE_COUNT, 1 * time.Second, nil),
+	)
+	state.ServerChanged(hostname, time.Now().UTC(),)
 }
 
 // Tell the state that something changed on a particular server so that it
@@ -317,15 +313,28 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 // Actually transmit an encoded tombstone record into the channel. Runs a
 // background goroutine that continues the broadcast for 10 seconds so we
 // have a pretty good idea that it was delivered.
-func (state *ServicesState) SendTombstones(tombstones [][]byte) {
-	state.Broadcasts <- tombstones // Put it on the wire
-
+func (state *ServicesState) SendTombstones(services []service.Service, looper director.Looper) {
 	// Announce these every second for awhile
 	go func() {
-		for i := 0; i < TOMBSTONE_COUNT; i++ {
-			state.Broadcasts <- tombstones
-			time.Sleep(1 * time.Second)
-		}
+		additionalTime := 0 * time.Second
+		looper.Loop(func() error {
+			var tombstones [][]byte
+
+			for _, svc := range services {
+				svc.Updated = svc.Updated.Add(additionalTime)
+				encoded, err := svc.Encode()
+				if err != nil {
+					log.Printf("ERROR encoding container: (%s)", err.Error())
+				}
+				tombstones = append(tombstones, encoded)
+			}
+
+			// We add time to make sure that these get retransmitted by peers.
+			// Otherwise they aren't "new" messages and don't get retransmitted.
+			additionalTime = additionalTime + 50 * time.Nanosecond
+			state.Broadcasts <- tombstones // Put it on the wire
+			return nil
+		})
 	}()
 }
 
@@ -341,7 +350,10 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 		tombstones = append(tombstones, otherTombstones...)
 
 		if tombstones != nil && len(tombstones) > 0 {
-			state.SendTombstones(tombstones)
+			state.SendTombstones(
+				tombstones,
+				director.NewTimedLooper(TOMBSTONE_COUNT, 1 * time.Second, nil),
+			)
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
@@ -352,8 +364,8 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 	})
 }
 
-func (state *ServicesState) TombstoneOthersServices() [][]byte {
-	result := make([][]byte, 0, 1)
+func (state *ServicesState) TombstoneOthersServices() []service.Service {
+	result := make([]service.Service, 0, 1)
 
 	// Manage tombstone life so we don't keep them forever. We have to do this
 	// even for hosts that aren't running services now, because they might have
@@ -386,20 +398,14 @@ func (state *ServicesState) TombstoneOthersServices() [][]byte {
 			svc.Updated = svc.Updated.Add(time.Second)
 			state.ServerChanged(svc.Hostname, svc.Updated)
 
-			encoded, err := svc.Encode()
-
-			if err != nil {
-				log.Printf("ERROR encoding container: (%s)", err.Error())
-			}
-
-			result = append(result, encoded)
+			result = append(result, *svc)
 		}
 	})
 
 	return result
 }
 
-func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) [][]byte {
+func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) []service.Service {
 
 	if !state.HasServer(hostname) {
 		println("TombstoneServices(): New host or not running services, skipping.")
@@ -408,7 +414,7 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 	// Build a map from the list first
 	mapping := makeServiceMapping(containerList)
 
-	result := make([][]byte, 0, len(containerList))
+	result := make([]service.Service, 0, len(containerList))
 
 	// Copy this so we can change the real list in the loop
 	services := state.Servers[hostname].Services
@@ -419,14 +425,10 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 			log.Printf("Tombstoning %s\n", svc.ID)
 			svc.Tombstone()
 			state.ServerChanged(hostname, svc.Updated)
-			// Tombstone each record twice to help with receipt
-			encoded, err := svc.Encode()
-			if err != nil {
-				log.Printf("ERROR encoding container: (%s)", err.Error())
-			}
 
+			// Tombstone each record twice to help with receipt
 			for i := 0; i < 2; i++ {
-				result = append(result, encoded)
+				result = append(result, *svc)
 			}
 		}
 	}
