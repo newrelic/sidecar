@@ -261,8 +261,9 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 		}
 
 		state.HostnameFn = func() (string, error) { return hostname, nil }
+		state.tombstoneRetransmit = 1 * time.Nanosecond
 
-		looper := director.NewTimedLooper(1, 1*time.Nanosecond, nil)
+		looper := director.NewFreeLooper(1, nil)
 
 		Convey("All of the services are added to state", func() {
 			looper := director.NewFreeLooper(1, make(chan error))
@@ -456,8 +457,9 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 
 		state.HostnameFn = func() (string, error) { return hostname, nil }
+		state.tombstoneRetransmit = 1 * time.Nanosecond
 
-		Convey("Expire() tombstones all services for a server", func() {
+		Convey("ExpireServer() tombstones all services for a server", func() {
 			state.AddServiceEntry(service1)
 			state.AddServiceEntry(service2)
 

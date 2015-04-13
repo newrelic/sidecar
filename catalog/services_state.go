@@ -22,6 +22,7 @@ const (
 	TOMBSTONE_LIFESPAN       = 3 * time.Hour    // How long we keep tombstones around
 	TOMBSTONE_COUNT          = 10               // Send tombstones at 1 per second 10 times
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
+	TOMBSTONE_RETRANSMIT     = 1 * time.Second  // Time between tombstone retranmission
 	ALIVE_LIFESPAN           = 20 * time.Second // Down if not heard from in 20 seconds
 	ALIVE_SLEEP_INTERVAL     = 2 * time.Second  // Sleep between local service checks
 )
@@ -59,6 +60,7 @@ type ServicesState struct {
 	ServiceNameMatch *regexp.Regexp // How we match service names
 	LastChanged      time.Time
 	listeners        []chan ChangeEvent
+	tombstoneRetransmit  time.Duration
 }
 
 // Returns a pointer to a properly configured ServicesState
@@ -68,6 +70,7 @@ func NewServicesState() *ServicesState {
 	state.HostnameFn = os.Hostname
 	state.Broadcasts = make(chan [][]byte)
 	state.LastChanged = time.Unix(0, 0)
+	state.tombstoneRetransmit = TOMBSTONE_RETRANSMIT
 	return &state
 }
 
@@ -127,7 +130,7 @@ func (state *ServicesState) ExpireServer(hostname string) {
 
 	state.SendTombstones(
 		tombstones,
-		director.NewTimedLooper(TOMBSTONE_COUNT, 1 * time.Second, nil),
+		director.NewTimedLooper(TOMBSTONE_COUNT, state.tombstoneRetransmit, nil),
 	)
 	state.ServerChanged(hostname, time.Now().UTC(),)
 }
@@ -352,7 +355,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 		if tombstones != nil && len(tombstones) > 0 {
 			state.SendTombstones(
 				tombstones,
-				director.NewTimedLooper(TOMBSTONE_COUNT, 1 * time.Second, nil),
+				director.NewTimedLooper(TOMBSTONE_COUNT, state.tombstoneRetransmit, nil),
 			)
 		} else {
 			// We expect there to always be _something_ in the channel
