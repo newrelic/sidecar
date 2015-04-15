@@ -82,6 +82,7 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	defer metrics.MeasureSince([]string{"delegate", "GetBroadcasts"}, time.Now())
+	metrics.SetGauge([]string{"delegate", "pendingBroadcasts"}, float32(len(d.pendingBroadcasts)))
 
 	log.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
 
