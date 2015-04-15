@@ -87,13 +87,15 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 	return disco
 }
 
-func configureMetrics() {
-	sink, err := metrics.NewStatsdSink("docker1:8125")
-	exitWithError(err, "Can't configure Statsd")
+func configureMetrics(config *Config) {
+	if config.Bosun.StatsAddr != "" {
+		sink, err := metrics.NewStatsdSink(config.Bosun.StatsAddr)
+		exitWithError(err, "Can't configure Statsd")
 
-	metricsConfig := metrics.DefaultConfig("bosun")
-	_, err = metrics.NewGlobal(metricsConfig, sink)
-	exitWithError(err, "Can't start metrics")
+		metricsConfig := metrics.DefaultConfig("bosun")
+		_, err = metrics.NewGlobal(metricsConfig, sink)
+		exitWithError(err, "Can't start metrics")
+	}
 }
 
 func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDelegate {
@@ -157,7 +159,7 @@ func main() {
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
 
-	configureMetrics()
+	configureMetrics(&config)
 
 	disco := configureDiscovery(&config)
 	disco.Run(quitDiscovery)

@@ -23,6 +23,7 @@ type ServicesConfig struct {
 type BosunConfig struct {
 	ExcludeIPs []string `toml:"exclude_ips"`
 	Discovery  []string `toml:"discovery"`
+	StatsAddr  string `toml:"stats_addr"`
 }
 
 type DockerConfig struct {
