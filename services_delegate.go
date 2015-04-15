@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
@@ -47,6 +49,8 @@ func (d *servicesDelegate) NodeMeta(limit int) []byte {
 }
 
 func (d *servicesDelegate) NotifyMsg(message []byte) {
+	defer metrics.MeasureSince([]string{"delegate", "NotifyMsg"}, time.Now())
+
 	if len(message) < 1 {
 		log.Println("NotifyMsg(): empty")
 		return
@@ -77,6 +81,8 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 }
 
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
+	defer metrics.MeasureSince([]string{"delegate", "GetBroadcasts"}, time.Now())
+
 	log.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
 
 	broadcast := make([][]byte, 0, 1)
@@ -119,6 +125,8 @@ func (d *servicesDelegate) LocalState(join bool) []byte {
 }
 
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
+	defer metrics.MeasureSince([]string{"delegate", "MergeRemoteState"}, time.Now())
+
 	log.Printf("MergeRemoteState(): %s %b\n", string(buf), join)
 
 	otherState, err := catalog.Decode(buf)

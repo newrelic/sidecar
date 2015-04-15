@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/catalog"
@@ -86,6 +87,15 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 	return disco
 }
 
+func configureMetrics() {
+	sink, err := metrics.NewStatsdSink("docker1:8125")
+	exitWithError(err, "Can't configure Statsd")
+
+	metricsConfig := metrics.DefaultConfig("bosun")
+	_, err = metrics.NewGlobal(metricsConfig, sink)
+	exitWithError(err, "Can't start metrics")
+}
+
 func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDelegate {
 	delegate := NewServicesDelegate(state)
 	delegate.Metadata = NodeMetadata{
@@ -146,6 +156,8 @@ func main() {
 	trackingLooper := director.NewTimedLooper(
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
+
+	configureMetrics()
 
 	disco := configureDiscovery(&config)
 	disco.Run(quitDiscovery)

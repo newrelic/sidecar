@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/output"
@@ -181,6 +182,7 @@ func (state *ServicesState) AddListener(listener chan ChangeEvent) {
 // timestamps so we only add things newer than what we already
 // know about. Retransmits updates to cluster peers.
 func (state *ServicesState) AddServiceEntry(entry service.Service) {
+	defer metrics.MeasureSince([]string{"services_state", "AddServiceEntry"}, time.Now())
 
 	if !state.HasServer(entry.Hostname) {
 		state.Servers[entry.Hostname] = NewServer(entry.Hostname)
@@ -287,6 +289,7 @@ func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper
 // on the broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
+		metrics.MeasureSince([]string{"services_state", "BroadcastServices"}, time.Now())
 		var prepared [][]byte
 
 		for _, container := range fn() {
@@ -319,6 +322,8 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 func (state *ServicesState) SendTombstones(services []service.Service, looper director.Looper) {
 	// Announce these every second for awhile
 	go func() {
+		metrics.MeasureSince([]string{"services_state", "SendTombstones"}, time.Now())
+
 		additionalTime := 0 * time.Second
 		looper.Loop(func() error {
 			var tombstones [][]byte
@@ -345,6 +350,8 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 	hostname, _ := state.HostnameFn()
 
 	looper.Loop(func() error {
+		metrics.MeasureSince([]string{"services_state", "SendTombstones"}, time.Now())
+
 		containerList := fn()
 		// Tell people about our dead services
 		otherTombstones := state.TombstoneOthersServices()
@@ -368,6 +375,8 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 }
 
 func (state *ServicesState) TombstoneOthersServices() []service.Service {
+	metrics.MeasureSince([]string{"services_state", "TombstoneOthersServices"}, time.Now())
+
 	result := make([]service.Service, 0, 1)
 
 	// Manage tombstone life so we don't keep them forever. We have to do this
