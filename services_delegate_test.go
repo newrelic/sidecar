@@ -5,7 +5,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/newrelic/bosun/catalog"
-	"github.com/newrelic/bosun/service"
 )
 
 func Test_GetBroadcasts(t *testing.T) {
@@ -32,7 +31,7 @@ func Test_GetBroadcasts(t *testing.T) {
 				delegate.NotifyMsg(bCast[0])
 				msg := <-delegate.notifications
 				So(msg, ShouldNotBeNil)
-				So(msg, ShouldResemble, service.Decode(bCast[0]))
+				So(msg, ShouldResemble, bCast[0])
 			})
 		})
 

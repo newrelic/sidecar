@@ -7,14 +7,16 @@ import (
 	"github.com/newrelic-forks/memberlist"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
+	"sync"
 )
 
 type servicesDelegate struct {
 	state             *catalog.ServicesState
 	pendingBroadcasts [][]byte
-	notifications     chan *service.Service
+	notifications     chan []byte
 	inProcess         bool
 	Metadata          NodeMetadata
+	sync.Mutex
 }
 
 type NodeMetadata struct {
@@ -26,7 +28,7 @@ func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 	delegate := servicesDelegate{
 		state:             state,
 		pendingBroadcasts: make([][]byte, 0),
-		notifications:     make(chan *service.Service, 25),
+		notifications:     make(chan []byte, 25),
 		inProcess:         false,
 		Metadata:          NodeMetadata{ClusterName: "default"},
 	}
@@ -53,22 +55,25 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 	log.Printf("NotifyMsg(): %s\n", string(message))
 
 	// TODO don't just send container structs, send message structs
-	data := service.Decode(message)
-	if data == nil {
-		log.Printf("NotifyMsg(): error decoding!\n")
-		return
-	}
+	d.notifications <- message
 
 	// Lazily kick off goroutine
+	d.Lock()
+	defer d.Unlock()
+
 	if !d.inProcess {
 		go func() {
-			for entry := range d.notifications {
+			for message := range d.notifications {
+				entry := service.Decode(message)
+				if entry == nil {
+					log.Printf("NotifyMsg(): error decoding!\n")
+					continue
+				}
 				d.state.AddServiceEntry(*entry)
 			}
 		}()
 		d.inProcess = true
 	}
-	d.notifications <- data
 }
 
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
