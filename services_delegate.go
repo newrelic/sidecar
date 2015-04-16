@@ -64,7 +64,6 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 	// Lazily kick off goroutine
 	d.Lock()
 	defer d.Unlock()
-
 	if !d.inProcess {
 		go func() {
 			for message := range d.notifications {

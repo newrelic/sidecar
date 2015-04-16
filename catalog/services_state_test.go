@@ -311,12 +311,12 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			So(readBroadcasts[1], ShouldMatch, "^{\"ID\":\"runs\".*\"Status\":1}$")
 		})
 
-		Convey("The timestamp is incremented on each subsequent Tombstone background run", func() {
+		Convey("The timestamp is incremented on each subsequent service broadcast background run", func() {
 			state.Broadcasts = make(chan [][]byte, 4)
 			looper := director.NewFreeLooper(2, make(chan error))
 			service1.Tombstone()
 			service2.Tombstone()
-			go state.SendTombstones([]service.Service{service1, service2}, looper)
+			go state.SendServices([]service.Service{service1, service2}, looper)
 			looper.Wait()
 
 			// First go-round

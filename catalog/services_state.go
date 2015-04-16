@@ -22,10 +22,12 @@ import (
 const (
 	TOMBSTONE_LIFESPAN       = 3 * time.Hour    // How long we keep tombstones around
 	TOMBSTONE_COUNT          = 10               // Send tombstones at 1 per second 10 times
+	ALIVE_COUNT              = 5                // Send new services at 1 per second 5 times
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
 	TOMBSTONE_RETRANSMIT     = 1 * time.Second  // Time between tombstone retranmission
 	ALIVE_LIFESPAN           = 20 * time.Second // Down if not heard from in 20 seconds
 	ALIVE_SLEEP_INTERVAL     = 2 * time.Second  // Sleep between local service checks
+	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute  // Broadcast Alive messages every minute
 )
 
 type ChangeEvent struct {
@@ -129,7 +131,7 @@ func (state *ServicesState) ExpireServer(hostname string) {
 		tombstones = append(tombstones, *svc)
 	}
 
-	state.SendTombstones(
+	state.SendServices(
 		tombstones,
 		director.NewTimedLooper(TOMBSTONE_COUNT, state.tombstoneRetransmit, nil),
 	)
@@ -285,48 +287,81 @@ func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper
 	})
 }
 
+func (state *ServicesState) IsNewService(svc *service.Service) bool {
+	found := false
+	hostname, _ := state.HostnameFn()
+	var storedSvc *service.Service = nil
+
+	if state.HasServer(hostname) {
+		_, found = state.Servers[hostname].Services[svc.ID]
+	}
+
+	if !found || (storedSvc != nil && storedSvc.IsTombstone()) {
+		return true
+	}
+
+	return false
+}
+
 // Loops forever, keeping transmitting info about our containers
 // on the broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, looper director.Looper) {
+	lastTime := time.Unix(0, 0)
+	haveNewServices := false
+
 	looper.Loop(func() error {
 		metrics.MeasureSince([]string{"services_state", "BroadcastServices"}, time.Now())
-		var prepared [][]byte
+		var services []service.Service
 
-		for _, container := range fn() {
-			encoded, err := container.Encode()
-			if err != nil {
-				log.Printf("ERROR encoding container: (%s)", err.Error())
-				continue
+		servicesList := fn()
+
+		for _, svc := range servicesList {
+			if state.IsNewService(&svc) {
+				log.Printf("Found new services!")
+				haveNewServices = true
 			}
-
-			prepared = append(prepared, encoded)
+			// We'll broadcast it now if it's new or we've hit refresh window
+			if haveNewServices || lastTime.Before(time.Now().UTC().Add(0 - ALIVE_BROADCAST_INTERVAL)) {
+				services = append(services, svc)
+			}
 		}
 
-		log.Printf("Starting to broadcast")
-		if len(prepared) > 0 {
-			state.Broadcasts <- prepared // Put it on the wire
+		if len(services) > 0 {
+			log.Printf("Starting to broadcast")
+			// Figure out how many times to announce the service. New services get more announcements.
+			runCount := 1
+			if haveNewServices {
+				runCount = ALIVE_COUNT
+			}
+
+			state.SendServices(
+				services,
+				director.NewTimedLooper(runCount, state.tombstoneRetransmit, nil),
+			)
+			log.Printf("Completing broadcast")
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
 			state.Broadcasts <- nil
 		}
-		log.Printf("Completing broadcast")
 
+		haveNewServices = false
+		lastTime = time.Now().UTC()
 		return nil
 	})
 }
 
-// Actually transmit an encoded tombstone record into the channel. Runs a
+// Actually transmit an encoded service record into the channel. Runs a
 // background goroutine that continues the broadcast for 10 seconds so we
 // have a pretty good idea that it was delivered.
-func (state *ServicesState) SendTombstones(services []service.Service, looper director.Looper) {
+func (state *ServicesState) SendServices(services []service.Service, looper director.Looper) {
 	// Announce these every second for awhile
 	go func() {
-		metrics.MeasureSince([]string{"services_state", "SendTombstones"}, time.Now())
+		metrics.MeasureSince([]string{"services_state", "SendServices"}, time.Now())
 
 		additionalTime := 0 * time.Second
 		looper.Loop(func() error {
-			var tombstones [][]byte
+			var prepared [][]byte
 
 			for _, svc := range services {
 				svc.Updated = svc.Updated.Add(additionalTime)
@@ -334,13 +369,13 @@ func (state *ServicesState) SendTombstones(services []service.Service, looper di
 				if err != nil {
 					log.Printf("ERROR encoding container: (%s)", err.Error())
 				}
-				tombstones = append(tombstones, encoded)
+				prepared = append(prepared, encoded)
 			}
 
 			// We add time to make sure that these get retransmitted by peers.
 			// Otherwise they aren't "new" messages and don't get retransmitted.
 			additionalTime = additionalTime + 50 * time.Nanosecond
-			state.Broadcasts <- tombstones // Put it on the wire
+			state.Broadcasts <- prepared // Put it on the wire
 			return nil
 		})
 	}()
@@ -350,7 +385,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 	hostname, _ := state.HostnameFn()
 
 	looper.Loop(func() error {
-		metrics.MeasureSince([]string{"services_state", "SendTombstones"}, time.Now())
+		metrics.MeasureSince([]string{"services_state", "BroadcastTombstones"}, time.Now())
 
 		containerList := fn()
 		// Tell people about our dead services
@@ -360,7 +395,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 		tombstones = append(tombstones, otherTombstones...)
 
 		if tombstones != nil && len(tombstones) > 0 {
-			state.SendTombstones(
+			state.SendServices(
 				tombstones,
 				director.NewTimedLooper(TOMBSTONE_COUNT, state.tombstoneRetransmit, nil),
 			)
@@ -500,10 +535,10 @@ func (state *ServicesState) ByService() map[string][]*service.Service {
 	return serviceMap
 }
 
-func makeServiceMapping(containerList []service.Service) map[string]*service.Service {
-	mapping := make(map[string]*service.Service, len(containerList))
-	for _, container := range containerList {
-		mapping[container.ID] = &container
+func makeServiceMapping(svcList []service.Service) map[string]*service.Service {
+	mapping := make(map[string]*service.Service, len(svcList))
+	for _, svc := range svcList {
+		mapping[svc.ID] = &svc
 	}
 
 	return mapping
