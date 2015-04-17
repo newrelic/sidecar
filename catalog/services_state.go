@@ -25,8 +25,8 @@ const (
 	ALIVE_COUNT              = 5                // Send new services at 1 per second 5 times
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
 	TOMBSTONE_RETRANSMIT     = 1 * time.Second  // Time between tombstone retranmission
-	ALIVE_LIFESPAN           = 20 * time.Second // Down if not heard from in 20 seconds
-	ALIVE_SLEEP_INTERVAL     = 2 * time.Second  // Sleep between local service checks
+	ALIVE_LIFESPAN           = 1 * time.Minute + 20 * time.Second // Down if not heard from in 20 seconds
+	ALIVE_SLEEP_INTERVAL     = 1 * time.Second  // Sleep between local service checks
 	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute  // Broadcast Alive messages every minute
 )
 
@@ -287,16 +287,15 @@ func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper
 	})
 }
 
+// Do we know about this service already? If we do, is it a tombstone?
 func (state *ServicesState) IsNewService(svc *service.Service) bool {
-	found := false
-	hostname, _ := state.HostnameFn()
-	var storedSvc *service.Service = nil
+	var found *service.Service
 
-	if state.HasServer(hostname) {
-		_, found = state.Servers[hostname].Services[svc.ID]
+	if state.HasServer(svc.Hostname) {
+		found = state.Servers[svc.Hostname].Services[svc.ID]
 	}
 
-	if !found || (storedSvc != nil && storedSvc.IsTombstone()) {
+	if found == nil || (svc.IsAlive() && found.IsTombstone()) {
 		return true
 	}
 
@@ -307,46 +306,47 @@ func (state *ServicesState) IsNewService(svc *service.Service) bool {
 // on the broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, looper director.Looper) {
 	lastTime := time.Unix(0, 0)
-	haveNewServices := false
 
 	looper.Loop(func() error {
-		metrics.MeasureSince([]string{"services_state", "BroadcastServices"}, time.Now())
+		defer metrics.MeasureSince([]string{"services_state", "BroadcastServices"}, time.Now())
 		var services []service.Service
+		haveNewServices := false
 
 		servicesList := fn()
 
 		for _, svc := range servicesList {
-			if state.IsNewService(&svc) {
-				log.Printf("Found new services!")
+			isNew := state.IsNewService(&svc)
+
+			if isNew {
+				log.Println("Found new services!")
 				haveNewServices = true
-			}
+				services = append(services, svc)
 			// We'll broadcast it now if it's new or we've hit refresh window
-			if haveNewServices || lastTime.Before(time.Now().UTC().Add(0 - ALIVE_BROADCAST_INTERVAL)) {
+			} else if time.Now().UTC().Add(0 - ALIVE_BROADCAST_INTERVAL).After(lastTime) {
 				services = append(services, svc)
 			}
 		}
 
 		if len(services) > 0 {
-			log.Printf("Starting to broadcast")
+			log.Println("Starting to broadcast")
 			// Figure out how many times to announce the service. New services get more announcements.
 			runCount := 1
 			if haveNewServices {
 				runCount = ALIVE_COUNT
 			}
 
+			lastTime = time.Now().UTC()
 			state.SendServices(
 				services,
 				director.NewTimedLooper(runCount, state.tombstoneRetransmit, nil),
 			)
-			log.Printf("Completing broadcast")
+			log.Println("Completing broadcast")
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
 			state.Broadcasts <- nil
 		}
 
-		haveNewServices = false
-		lastTime = time.Now().UTC()
 		return nil
 	})
 }
