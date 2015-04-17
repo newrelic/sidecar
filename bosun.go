@@ -140,7 +140,7 @@ func main() {
 	log.Printf("Advertised address: %s\n", publishedIP)
 	log.Printf("Service Name Match: %s\n", config.Services.NameMatch)
 	log.Printf("Excluded IPs: %v\n", config.Bosun.ExcludeIPs)
-	log.Printf("Pussh/Pull Interval: %s\n", config.Bosun.PushPullInterval.Duration.String())
+	log.Printf("Push/Pull Interval: %s\n", config.Bosun.PushPullInterval.Duration.String())
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
