@@ -120,7 +120,13 @@ func main() {
 	mlConfig := memberlist.DefaultLANConfig()
 	mlConfig.Delegate = delegate
 	mlConfig.Events = delegate
-	mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1 * time.Second
+
+	// Set up the push pull interval for Memberlist
+	if config.Bosun.PushPullInterval == 0 {
+		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1 * time.Second
+	} else {
+		mlConfig.PushPullInterval = config.Bosun.PushPullInterval
+	}
 
 	// Figure out our IP address from the CLI or by inspecting
 	publishedIP, err := getPublishedIP(config.Bosun.ExcludeIPs, opts.AdvertiseIP)

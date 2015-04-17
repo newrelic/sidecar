@@ -2,6 +2,7 @@ package main
 
 import (
 	"regexp"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -21,9 +22,10 @@ type ServicesConfig struct {
 }
 
 type BosunConfig struct {
-	ExcludeIPs []string `toml:"exclude_ips"`
-	Discovery  []string `toml:"discovery"`
-	StatsAddr  string `toml:"stats_addr"`
+	ExcludeIPs       []string      `toml:"exclude_ips"`
+	Discovery        []string      `toml:"discovery"`
+	StatsAddr        string        `toml:"stats_addr"`
+	PushPullInterval time.Duration `toml:"push_pull_interval"`
 }
 
 type DockerConfig struct {
