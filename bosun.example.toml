@@ -1,6 +1,7 @@
 [bosun]
 exclude_ips = [ "192.168.168.168" ]
 discovery = [ "docker", "static" ]
+push_pull_interval = "20s"
 
 [docker_discovery]
 docker_url = "unix://var/run/docker.sock"

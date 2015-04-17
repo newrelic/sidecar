@@ -122,10 +122,10 @@ func main() {
 	mlConfig.Events = delegate
 
 	// Set up the push pull interval for Memberlist
-	if config.Bosun.PushPullInterval == 0 {
+	if config.Bosun.PushPullInterval.Duration == 0 {
 		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1 * time.Second
 	} else {
-		mlConfig.PushPullInterval = config.Bosun.PushPullInterval
+		mlConfig.PushPullInterval = config.Bosun.PushPullInterval.Duration
 	}
 
 	// Figure out our IP address from the CLI or by inspecting
@@ -140,6 +140,7 @@ func main() {
 	log.Printf("Advertised address: %s\n", publishedIP)
 	log.Printf("Service Name Match: %s\n", config.Services.NameMatch)
 	log.Printf("Excluded IPs: %v\n", config.Bosun.ExcludeIPs)
+	log.Printf("Pussh/Pull Interval: %s\n", config.Bosun.PushPullInterval.Duration.String())
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
