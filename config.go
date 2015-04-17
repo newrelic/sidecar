@@ -22,10 +22,10 @@ type ServicesConfig struct {
 }
 
 type BosunConfig struct {
-	ExcludeIPs       []string      `toml:"exclude_ips"`
-	Discovery        []string      `toml:"discovery"`
-	StatsAddr        string        `toml:"stats_addr"`
-	PushPullInterval duration      `toml:"push_pull_interval"`
+	ExcludeIPs       []string `toml:"exclude_ips"`
+	Discovery        []string `toml:"discovery"`
+	StatsAddr        string   `toml:"stats_addr"`
+	PushPullInterval duration `toml:"push_pull_interval"`
 }
 
 type DockerConfig struct {
@@ -49,15 +49,14 @@ func setDefaults(config *Config) {
 	config.StaticDiscovery.ConfigFile = "static.json"
 }
 
-
 type duration struct {
-    time.Duration
+	time.Duration
 }
 
 func (d *duration) UnmarshalText(text []byte) error {
-    var err error
-    d.Duration, err = time.ParseDuration(string(text))
-    return err
+	var err error
+	d.Duration, err = time.ParseDuration(string(text))
+	return err
 }
 
 func parseConfig(path string) Config {

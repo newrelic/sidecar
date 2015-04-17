@@ -329,8 +329,8 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			// Second go-round
 			broadcasts = <-state.Broadcasts
 			So(len(broadcasts), ShouldEqual, 2)
-			So(broadcasts[0], ShouldMatch, service1.Updated.Add(50 * time.Nanosecond).Format(time.RFC3339Nano))
-			So(broadcasts[1], ShouldMatch, service2.Updated.Add(50 * time.Nanosecond).Format(time.RFC3339Nano))
+			So(broadcasts[0], ShouldMatch, service1.Updated.Add(50*time.Nanosecond).Format(time.RFC3339Nano))
+			So(broadcasts[1], ShouldMatch, service2.Updated.Add(50*time.Nanosecond).Format(time.RFC3339Nano))
 		})
 
 		Convey("The LastChanged time is changed when a service is Tombstoned", func() {

@@ -20,14 +20,14 @@ import (
 // servers to Service lists and manages the lifecycle.
 
 const (
-	TOMBSTONE_LIFESPAN       = 3 * time.Hour    // How long we keep tombstones around
-	TOMBSTONE_COUNT          = 10               // Send tombstones at 1 per second 10 times
-	ALIVE_COUNT              = 5                // Send new services at 1 per second 5 times
-	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second  // Sleep between local service checks
-	TOMBSTONE_RETRANSMIT     = 1 * time.Second  // Time between tombstone retranmission
-	ALIVE_LIFESPAN           = 1 * time.Minute + 20 * time.Second // Down if not heard from in 20 seconds
-	ALIVE_SLEEP_INTERVAL     = 1 * time.Second  // Sleep between local service checks
-	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute  // Broadcast Alive messages every minute
+	TOMBSTONE_LIFESPAN       = 3 * time.Hour                  // How long we keep tombstones around
+	TOMBSTONE_COUNT          = 10                             // Send tombstones at 1 per second 10 times
+	ALIVE_COUNT              = 5                              // Send new services at 1 per second 5 times
+	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second                // Sleep between local service checks
+	TOMBSTONE_RETRANSMIT     = 1 * time.Second                // Time between tombstone retranmission
+	ALIVE_LIFESPAN           = 1*time.Minute + 20*time.Second // Down if not heard from in 20 seconds
+	ALIVE_SLEEP_INTERVAL     = 1 * time.Second                // Sleep between local service checks
+	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute                // Broadcast Alive messages every minute
 )
 
 type ChangeEvent struct {
@@ -57,13 +57,13 @@ func NewServer(name string) *Server {
 
 // Holds the state about all the servers in the cluster
 type ServicesState struct {
-	Servers          map[string]*Server
-	HostnameFn       func() (string, error)
-	Broadcasts       chan [][]byte
-	ServiceNameMatch *regexp.Regexp // How we match service names
-	LastChanged      time.Time
-	listeners        []chan ChangeEvent
-	tombstoneRetransmit  time.Duration
+	Servers             map[string]*Server
+	HostnameFn          func() (string, error)
+	Broadcasts          chan [][]byte
+	ServiceNameMatch    *regexp.Regexp // How we match service names
+	LastChanged         time.Time
+	listeners           []chan ChangeEvent
+	tombstoneRetransmit time.Duration
 }
 
 // Returns a pointer to a properly configured ServicesState
@@ -135,7 +135,7 @@ func (state *ServicesState) ExpireServer(hostname string) {
 		tombstones,
 		director.NewTimedLooper(TOMBSTONE_COUNT, state.tombstoneRetransmit, nil),
 	)
-	state.ServerChanged(hostname, time.Now().UTC(),)
+	state.ServerChanged(hostname, time.Now().UTC())
 }
 
 // Tell the state that something changed on a particular server so that it
@@ -321,7 +321,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 				log.Println("Found new services!")
 				haveNewServices = true
 				services = append(services, svc)
-			// We'll broadcast it now if it's new or we've hit refresh window
+				// We'll broadcast it now if it's new or we've hit refresh window
 			} else if time.Now().UTC().Add(0 - ALIVE_BROADCAST_INTERVAL).After(lastTime) {
 				services = append(services, svc)
 			}
@@ -374,7 +374,7 @@ func (state *ServicesState) SendServices(services []service.Service, looper dire
 
 			// We add time to make sure that these get retransmitted by peers.
 			// Otherwise they aren't "new" messages and don't get retransmitted.
-			additionalTime = additionalTime + 50 * time.Nanosecond
+			additionalTime = additionalTime + 50*time.Nanosecond
 			state.Broadcasts <- prepared // Put it on the wire
 			return nil
 		})

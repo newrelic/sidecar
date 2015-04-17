@@ -123,7 +123,7 @@ func main() {
 
 	// Set up the push pull interval for Memberlist
 	if config.Bosun.PushPullInterval.Duration == 0 {
-		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1 * time.Second
+		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1*time.Second
 	} else {
 		mlConfig.PushPullInterval = config.Bosun.PushPullInterval.Duration
 	}
