@@ -2,3 +2,4 @@
 *.swo
 bosun
 bosun.toml
+bosun.cpu.prof
