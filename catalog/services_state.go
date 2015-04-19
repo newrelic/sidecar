@@ -84,6 +84,12 @@ func NewServicesState() *ServicesState {
 	return &state
 }
 
+// Shortcut for checking if the server has this service or not.
+func (server *Server) HasService(id string) bool {
+	_, ok := server.Services[id]
+	return ok
+}
+
 // Return a Marshaled/Encoded byte array that can be deocoded with
 // catalog.Decode()
 func (state *ServicesState) Encode() []byte {
@@ -99,11 +105,8 @@ func (state *ServicesState) Encode() []byte {
 // Shortcut for checking if the Servers map has an entry for this
 // hostname.
 func (state *ServicesState) HasServer(hostname string) bool {
-	if state.Servers[hostname] != nil {
-		return true
-	}
-
-	return false
+	_, ok := state.Servers[hostname]
+	return ok
 }
 
 // Looks up a service from *only this host* by ID
@@ -193,7 +196,7 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 
 	server := state.Servers[entry.Hostname]
 	// Only apply changes that are newer or services are missing
-	if _, ok := server.Services[entry.ID]; !ok {
+	if !server.HasService(entry.ID) {
 		server.Services[entry.ID] = &entry
 		state.ServerChanged(entry.Hostname, entry.Updated)
 		state.retransmit(entry)
@@ -202,12 +205,12 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 		if server.Services[entry.ID].Status != entry.Status {
 			state.ServerChanged(entry.Hostname, entry.Updated)
 		}
+		server.Services[entry.ID] = &entry
 		// We tell our gossip peers about the updated service
 		// by sending them the record. We're saved from an endless
 		// retransmit loop by the Invalidates() call above.
 		state.retransmit(entry)
-		server.Services[entry.ID] = &entry
-		return // So we don't re-retransmit
+		return
 	}
 }
 
