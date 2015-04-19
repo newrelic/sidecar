@@ -3,8 +3,10 @@ package main // import "github.com/newrelic/bosun"
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"runtime/pprof"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -13,6 +15,10 @@ import (
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/discovery"
 	"github.com/newrelic/bosun/haproxy"
+)
+
+var (
+	profilerFile os.File
 )
 
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
@@ -108,12 +114,39 @@ func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDel
 	return delegate
 }
 
+func configureSignalHandler(opts *CliOpts) {
+	if !*opts.CpuProfile {
+		return
+	}
+
+	// Capture CTRL-C and stop the CPU profiler                            
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, os.Interrupt)
+	go func() {
+		for sig := range sigChannel {
+			log.Printf("Captured %v, stopping profiler and exiting..", sig)
+			pprof.StopCPUProfile()
+			profilerFile.Close()
+			os.Exit(1)
+		}
+	}()
+}
+
 func main() {
 	opts := parseCommandLine()
+	configureSignalHandler(opts)
+	// Enable CPU profiling support if requested
+	if *opts.CpuProfile {
+		profilerFile, err := os.Create("bosun.cpu.prof")
+		exitWithError(err, "Can't write profiling file")
+		pprof.StartCPUProfile(profilerFile)
+	}
 	state := catalog.NewServicesState()
 	delegate := configureDelegate(state, opts)
 
 	config := parseConfig(*opts.ConfigFile)
+
+
 	state.ServiceNameMatch = config.Services.NameRegexp
 
 	// Use a LAN config but add our delegate
@@ -151,8 +184,6 @@ func main() {
 	exitWithError(err, "Failed to join cluster")
 
 	//metaUpdates := make(chan []byte)
-	var wg sync.WaitGroup
-	wg.Add(1)
 
 	quitDiscovery := make(chan bool)
 
@@ -187,5 +218,5 @@ func main() {
 	time.Sleep(4 * time.Second)
 	//metaUpdates <- []byte("A message!")
 
-	wg.Wait() // forever... nothing will decrement the wg
+	select {}
 }
