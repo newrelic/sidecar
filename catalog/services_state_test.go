@@ -102,7 +102,7 @@ func Test_ServicesStateWithData(t *testing.T) {
 		})
 
 		Convey("GetLocalService() returns a service when we have it", func() {
-			state.HostnameFn = func() (string, error) { return anotherHostname, nil }
+			state.Hostname = anotherHostname
 			state.AddServiceEntry(svc)
 
 			So(state.GetLocalService(svcId), ShouldResemble, &svc)
@@ -206,7 +206,7 @@ func Test_ServicesStateWithData(t *testing.T) {
 			})
 
 			Convey("Doesn't retransmit an add of a new service for this host", func() {
-				state.HostnameFn = func() (string, error) { return hostname, nil }
+				state.Hostname = hostname
 				state.Broadcasts = make(chan [][]byte, 1)
 				state.AddServiceEntry(svc)
 
@@ -260,7 +260,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			return services
 		}
 
-		state.HostnameFn = func() (string, error) { return hostname, nil }
+		state.Hostname = hostname
 		state.tombstoneRetransmit = 1 * time.Nanosecond
 
 		looper := director.NewFreeLooper(1, nil)
@@ -376,7 +376,7 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 		Convey("When the last tombstone is removed, so is the server", func() {
 			state := NewServicesState() // Totally empty
-			state.HostnameFn = func() (string, error) { return hostname, nil }
+			state.Hostname = hostname
 			state.AddServiceEntry(service1)
 			state.Servers[hostname].Services[service1.ID].Tombstone()
 			state.Servers[hostname].Services[service1.ID].Updated =
@@ -456,7 +456,7 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 
-		state.HostnameFn = func() (string, error) { return hostname, nil }
+		state.Hostname = hostname
 		state.tombstoneRetransmit = 1 * time.Nanosecond
 
 		Convey("ExpireServer() tombstones all services for a server", func() {
@@ -546,9 +546,7 @@ func Example_ByServiceWithMatcher() {
 
 func Example_BroadcastTombstones() {
 	state := NewServicesState()
-	state.HostnameFn = func() (string, error) {
-		return "something", nil
-	}
+	state.Hostname = "something"
 
 	looper := director.NewTimedLooper(1, 1*time.Nanosecond, nil)
 

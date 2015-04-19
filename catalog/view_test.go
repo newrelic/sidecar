@@ -27,7 +27,7 @@ func Test_ServerSorting(t *testing.T) {
 		service2 := service.Service{ID: svcId2, Hostname: hostname2, Updated: baseTime}
 		service3 := service.Service{ID: svcId3, Hostname: hostname3, Updated: baseTime.Add(10 * time.Second)}
 
-		state.HostnameFn = func() (string, error) { return hostname, nil }
+		state.Hostname = hostname
 
 		state.AddServiceEntry(service1)
 		state.AddServiceEntry(service2)

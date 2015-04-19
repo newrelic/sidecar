@@ -15,7 +15,7 @@ const (
 func Test_ParseConfig(t *testing.T) {
 	Convey("ParseConfig()", t, func() {
 		disco := NewStaticDiscovery(STATIC_JSON)
-		disco.HostnameFn = func() (string, error) { return hostname, nil }
+		disco.Hostname = hostname
 
 		Convey("Errors when there is a problem with the file", func() {
 			_, err := disco.ParseConfig("!!!!")

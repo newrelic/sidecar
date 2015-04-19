@@ -21,13 +21,17 @@ type Target struct {
 type StaticDiscovery struct {
 	Targets    []*Target
 	ConfigFile string
-	HostnameFn func() (string, error)
+	Hostname string
 }
 
 func NewStaticDiscovery(filename string) *StaticDiscovery {
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Printf("Error getting hostname! %s\n", err.Error())
+	}
 	return &StaticDiscovery{
 		ConfigFile: filename,
-		HostnameFn: os.Hostname,
+		Hostname: hostname,
 	}
 }
 
@@ -78,7 +82,7 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 
 		target.Service.ID = string(idBytes)
 		target.Service.Created = time.Now().UTC()
-		target.Service.Hostname, _ = d.HostnameFn()
+		target.Service.Hostname = d.Hostname
 		target.Check.ID = string(idBytes)
 		log.Printf("Discovered service: %s, ID: %s\n",
 			target.Service.Name,

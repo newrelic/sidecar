@@ -24,7 +24,7 @@ func Test_ServicesBridge(t *testing.T) {
 
 		monitor := NewMonitor()
 		state := catalog.NewServicesState()
-		state.HostnameFn = func() (string, error) { return hostname, nil }
+		state.Hostname = hostname
 		state.ServiceNameMatch = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
 
 		check1 := Check{

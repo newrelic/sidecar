@@ -21,6 +21,7 @@ var hostname3 = "invincible"
 func Test_HAproxy(t *testing.T) {
 	Convey("End-to-end testing HAproxy functionality", t, func() {
 		state := catalog.NewServicesState()
+		state.Hostname = hostname1
 		svcId1 := "deadbeef123"
 		svcId2 := "deadbeef101"
 		svcId3 := "deadbeef105"
@@ -64,8 +65,6 @@ func Test_HAproxy(t *testing.T) {
 				// No ports!
 			},
 		}
-
-		state.HostnameFn = func() (string, error) { return hostname1, nil }
 
 		for _, svc := range services {
 			state.AddServiceEntry(svc)

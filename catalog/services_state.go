@@ -30,6 +30,9 @@ const (
 	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute                // Broadcast Alive messages every minute
 )
 
+// A ChangeEvent represents the time and hostname that was modified and signals a major
+// state change event. It is passed to listeners over the listeners channel in the
+// state object.
 type ChangeEvent struct {
 	Hostname string
 	Time     time.Time
@@ -58,7 +61,7 @@ func NewServer(name string) *Server {
 // Holds the state about all the servers in the cluster
 type ServicesState struct {
 	Servers             map[string]*Server
-	HostnameFn          func() (string, error)
+	Hostname            string
 	Broadcasts          chan [][]byte
 	ServiceNameMatch    *regexp.Regexp // How we match service names
 	LastChanged         time.Time
@@ -69,10 +72,14 @@ type ServicesState struct {
 // Returns a pointer to a properly configured ServicesState
 func NewServicesState() *ServicesState {
 	var state ServicesState
+	var err error
 	state.Servers = make(map[string]*Server, 5)
-	state.HostnameFn = os.Hostname
 	state.Broadcasts = make(chan [][]byte)
 	state.LastChanged = time.Unix(0, 0)
+	state.Hostname, err = os.Hostname()
+	if err != nil {
+		log.Printf("Error getting hostname! %s\n", err.Error())
+	}
 	state.tombstoneRetransmit = TOMBSTONE_RETRANSMIT
 	return &state
 }
@@ -101,18 +108,12 @@ func (state *ServicesState) HasServer(hostname string) bool {
 
 // Looks up a service from *only this host* by ID
 func (state *ServicesState) GetLocalService(id string) *service.Service {
-	hostname, err := state.HostnameFn()
-	if err != nil {
-		log.Println("GetLocalService(): Error, bad hostname func!")
+	if !state.HasServer(state.Hostname) {
+		log.Printf("GetLocalService(): Error, bad hostname (%s)\n", state.Hostname)
 		return nil
 	}
 
-	if !state.HasServer(hostname) {
-		log.Printf("GetLocalService(): Error, bad hostname (%s)\n", hostname)
-		return nil
-	}
-
-	return state.Servers[hostname].Services[id]
+	return state.Servers[state.Hostname].Services[id]
 }
 
 // A server has left the cluster, so tombstone all of its records
@@ -225,8 +226,7 @@ func (state *ServicesState) Merge(otherState *ServicesState) {
 func (state *ServicesState) retransmit(svc service.Service) {
 	// We don't retransmit our own events! We're already
 	// transmitting them.
-	hostname, err := state.HostnameFn()
-	if svc.Hostname == hostname && err == nil {
+	if svc.Hostname == state.Hostname {
 		return
 	}
 
@@ -382,15 +382,13 @@ func (state *ServicesState) SendServices(services []service.Service, looper dire
 }
 
 func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, looper director.Looper) {
-	hostname, _ := state.HostnameFn()
-
 	looper.Loop(func() error {
 		metrics.MeasureSince([]string{"services_state", "BroadcastTombstones"}, time.Now())
 
 		containerList := fn()
 		// Tell people about our dead services
 		otherTombstones := state.TombstoneOthersServices()
-		tombstones := state.TombstoneServices(hostname, containerList)
+		tombstones := state.TombstoneServices(state.Hostname, containerList)
 
 		tombstones = append(tombstones, otherTombstones...)
 
