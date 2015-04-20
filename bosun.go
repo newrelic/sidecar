@@ -146,7 +146,6 @@ func main() {
 
 	config := parseConfig(*opts.ConfigFile)
 
-
 	state.ServiceNameMatch = config.Services.NameRegexp
 
 	// Use a LAN config but add our delegate
@@ -159,6 +158,9 @@ func main() {
 		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1*time.Second
 	} else {
 		mlConfig.PushPullInterval = config.Bosun.PushPullInterval.Duration
+	}
+	if config.Bosun.GossipMessages != 0 {
+		mlConfig.GossipMessages = config.Bosun.GossipMessages
 	}
 
 	// Figure out our IP address from the CLI or by inspecting
@@ -174,6 +176,7 @@ func main() {
 	log.Printf("Service Name Match: %s\n", config.Services.NameMatch)
 	log.Printf("Excluded IPs: %v\n", config.Bosun.ExcludeIPs)
 	log.Printf("Push/Pull Interval: %s\n", config.Bosun.PushPullInterval.Duration.String())
+	log.Printf("Gossip Messages: %d\n", config.Bosun.GossipMessages)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)

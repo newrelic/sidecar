@@ -26,6 +26,7 @@ type BosunConfig struct {
 	Discovery        []string `toml:"discovery"`
 	StatsAddr        string   `toml:"stats_addr"`
 	PushPullInterval duration `toml:"push_pull_interval"`
+	GossipMessages   int      `toml:"gossip_messages"`
 }
 
 type DockerConfig struct {
