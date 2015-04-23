@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/relistan/go-director"
+
 	"github.com/newrelic/bosun/service"
 )
 
@@ -200,10 +202,8 @@ func (m *Monitor) MarkServices(services []*service.Service) {
 
 // Run the monitoring loop. Takes an argument of how many
 // times to run. FOREVER means to run forever.
-func (m *Monitor) Run(count int) {
-	interval := time.Tick(m.CheckInterval)
-	i := 0
-	for range interval {
+func (m *Monitor) Run(looper director.Looper) {
+	looper.Loop(func() error {
 		log.Printf("Running checks")
 
 		var wg sync.WaitGroup
@@ -236,14 +236,9 @@ func (m *Monitor) Run(count int) {
 		// to complete before moving on. This could slow down
 		// our check loop if something doesn't time out properly.
 		wg.Wait()
-		// Don't increment in this case or we'll stop on maxint rollover
-		if count != FOREVER {
-			i = i + 1
-			if i >= count {
-				return
-			}
-		}
-	}
+
+		return nil
+	})
 }
 
 type checkResult struct {

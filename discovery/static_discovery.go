@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/relistan/go-director"
+
 	"github.com/newrelic/bosun/healthy"
 	"github.com/newrelic/bosun/service"
 )
@@ -48,7 +50,7 @@ func (d *StaticDiscovery) Services() []service.Service {
 
 // Causes the configuration to be parsed and loaded. There is no background
 // processing needed on an ongoing basis.
-func (d *StaticDiscovery) Run(quit chan bool) {
+func (d *StaticDiscovery) Run(looper director.Looper) {
 	var err error
 
 	d.Targets, err = d.ParseConfig(d.ConfigFile)

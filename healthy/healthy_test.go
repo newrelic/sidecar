@@ -106,15 +106,17 @@ func Test_RunningChecks(t *testing.T) {
 		}
 		monitor.AddCheck(check)
 
+		looper := director.NewFreeLooper(director.ONCE, nil)
+
 		Convey("The Check Command gets evaluated", func() {
-			monitor.Run(director.ONCE)
+			monitor.Run(looper)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(cmd.DesiredResult, ShouldEqual, HEALTHY) // We know it's our cmd
 		})
 
 		Convey("Healthy Checks are marked healthy", func() {
-			monitor.Run(director.ONCE)
+			monitor.Run(looper)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(check.Status, ShouldEqual, HEALTHY)
@@ -129,7 +131,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(director.ONCE)
+			monitor.Run(looper)
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, SICKLY)
@@ -144,7 +146,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(director.ONCE)
+			monitor.Run(looper)
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, UNKNOWN)
@@ -160,9 +162,9 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: maxCount,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(maxCount)
-			So(fail.CallCount, ShouldEqual, 2)
-			So(badCheck.Count, ShouldEqual, 2)
+			monitor.Run(director.NewFreeLooper(maxCount, nil))
+			So(fail.CallCount, ShouldEqual, maxCount)
+			So(badCheck.Count, ShouldEqual, maxCount)
 			So(badCheck.Status, ShouldEqual, FAILED)
 		})
 
@@ -176,7 +178,7 @@ func Test_RunningChecks(t *testing.T) {
 				Count:   2,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(director.ONCE)
+			monitor.Run(looper)
 			So(badCheck.Count, ShouldEqual, 0)
 			So(badCheck.Status, ShouldEqual, HEALTHY)
 
@@ -192,7 +194,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(check)
-			monitor.Run(director.ONCE)
+			monitor.Run(looper)
 
 			So(check.Status, ShouldEqual, UNKNOWN)
 			So(check.LastError.Error(), ShouldEqual, "Timed out!")
@@ -227,6 +229,8 @@ func Test_MarkServices(t *testing.T) {
 
 		cmd := mockCommand{DesiredResult: HEALTHY}
 		badCmd := mockCommand{DesiredResult: SICKLY}
+
+		looper := director.NewFreeLooper(director.ONCE, nil)
 
 		monitor.AddCheck(
 			&Check{
@@ -264,7 +268,7 @@ func Test_MarkServices(t *testing.T) {
 				Command: &cmd,
 			},
 		)
-		monitor.Run(director.ONCE)
+		monitor.Run(looper)
 		monitor.MarkServices(services)
 
 		Convey("When healthy, marks the service as ALIVE", func() {

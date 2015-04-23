@@ -7,11 +7,8 @@ import (
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
+	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
-)
-
-const (
-	SLEEP_INTERVAL = 1 * time.Second
 )
 
 type DockerDiscovery struct {
@@ -29,34 +26,24 @@ func NewDockerDiscovery(endpoint string) *DockerDiscovery {
 	return &discovery
 }
 
-func (d *DockerDiscovery) Run(quit chan bool) {
-	getContainersQuit := make(chan bool)
+func (d *DockerDiscovery) Run(looper director.Looper) {
 	watchEventsQuit := make(chan bool)
 	processEventsQuit := make(chan bool)
 
-	// Propagate quit channel message
+	go d.watchEvents(watchEventsQuit)
+	go d.processEvents(processEventsQuit)
+
 	go func() {
-		<-quit // Block on channel until we get a message
-		go func() { getContainersQuit <- true }()
+		// Loop around fetching the whole container list
+		looper.Loop(func() error {
+			d.getContainers()
+			return nil
+		})
+
+		// Propagate quit channel message
 		go func() { watchEventsQuit <- true }()
 		go func() { processEventsQuit <- true }()
 	}()
-
-	// Loop around fetching the whole container list
-	go func() {
-		for {
-			d.getContainers()
-			select {
-			case <-getContainersQuit:
-				return
-			default:
-			}
-			time.Sleep(SLEEP_INTERVAL)
-		}
-	}()
-
-	go d.watchEvents(watchEventsQuit)
-	go d.processEvents(processEventsQuit)
 }
 
 func (d *DockerDiscovery) Services() []service.Service {

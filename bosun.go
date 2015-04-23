@@ -188,8 +188,6 @@ func main() {
 
 	//metaUpdates := make(chan []byte)
 
-	quitDiscovery := make(chan bool)
-
 	servicesLooper := director.NewTimedLooper(
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
@@ -199,11 +197,14 @@ func main() {
 	trackingLooper := director.NewTimedLooper(
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
+	discoLooper := director.NewTimedLooper(
+		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
+	)
 
 	configureMetrics(&config)
 
 	disco := configureDiscovery(&config)
-	disco.Run(quitDiscovery)
+	disco.Run(discoLooper)
 
 	go announceMembers(list, state)
 	go state.BroadcastServices(disco.Services, servicesLooper)

@@ -1,7 +1,14 @@
 package discovery
 
 import (
+	"time"
+
+	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
+)
+
+const (
+	SLEEP_INTERVAL = 1 * time.Second
 )
 
 // A Discoverer is responsible for findind services that we care
@@ -13,7 +20,7 @@ type Discoverer interface {
 	Services() []service.Service
 	// A non-blocking method that runs a discovery loop.
 	// The controlling process kicks it off to start discovery.
-	Run(chan bool)
+	Run(director.Looper)
 }
 
 // A MultiDiscovery is a wrapper around zero or more Discoverers.
@@ -37,22 +44,20 @@ func (d *MultiDiscovery) Services() []service.Service {
 }
 
 // Kicks off the Run() method for all the discoverers.
-func (d *MultiDiscovery) Run(quit chan bool) {
-	var quitChans []chan bool
+func (d *MultiDiscovery) Run(looper director.Looper) {
+	var loopers []director.Looper
 
 	for _, disco := range d.Discoverers {
-		q := make(chan bool)
-		quitChans = append(quitChans, q)
-		disco.Run(q)
+		l := director.NewTimedLooper(director.FOREVER, SLEEP_INTERVAL, make(chan error))
+		loopers = append(loopers, l)
+		disco.Run(l)
 	}
 
-	go func() {
-		<-quit
-		for _, q := range quitChans {
-			// Copy q so we don't change it out from under the goroutine
-			go func(q chan bool) {
-				q <- true
-			}(q)
-		}
-	}()
+	looper.Loop(func() error {
+		return nil
+	})
+
+	for _, l := range loopers {
+		l.Quit()
+	}
 }

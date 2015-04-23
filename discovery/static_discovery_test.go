@@ -3,6 +3,7 @@ package discovery
 import (
 	"testing"
 
+	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/newrelic/bosun/healthy"
 	"github.com/newrelic/bosun/service"
@@ -70,10 +71,11 @@ func Test_Services(t *testing.T) {
 func Test_Run(t *testing.T) {
 	Convey("Run()", t, func() {
 		disco := NewStaticDiscovery(STATIC_JSON)
+		looper := director.NewFreeLooper(1, make(chan error))
 
 		Convey("Parses the specified config file", func() {
 			So(len(disco.Targets), ShouldEqual, 0)
-			disco.Run(make(chan bool))
+			disco.Run(looper)
 			So(len(disco.Targets), ShouldEqual, 1)
 		})
 	})

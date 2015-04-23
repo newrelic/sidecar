@@ -3,6 +3,7 @@ package discovery
 import (
 	"testing"
 
+	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/newrelic/bosun/service"
 )
@@ -11,7 +12,7 @@ type mockDiscoverer struct {
 	ServicesList    []service.Service
 	RunInvoked      bool
 	ServicesInvoked bool
-	Quit            chan bool
+	Done            chan error
 }
 
 func (m *mockDiscoverer) Services() []service.Service {
@@ -19,42 +20,44 @@ func (m *mockDiscoverer) Services() []service.Service {
 	return m.ServicesList
 }
 
-func (m *mockDiscoverer) Run(quit chan bool) {
-	m.Quit = quit
+func (m *mockDiscoverer) Run(looper director.Looper) {
 	m.RunInvoked = true
 }
 
 func Test_MultiDiscovery(t *testing.T) {
 	Convey("MultiDiscovery", t, func() {
+		looper := director.NewFreeLooper(director.ONCE, nil)
+
+		done1 := make(chan error, 1)
+		done2 := make(chan error, 1)
+
 		disco1 := &mockDiscoverer{
 			[]service.Service{
 				service.Service{Name: "svc1"},
-			}, false, false, make(chan bool),
+			}, false, false, done1,
 		}
 		disco2 := &mockDiscoverer{
 			[]service.Service{
 				service.Service{Name: "svc2"},
-			}, false, false, make(chan bool),
+			}, false, false, done2,
 		}
 
 		multi := &MultiDiscovery{[]Discoverer{disco1, disco2}}
 
 		Convey("Run() invokes the Run() method for all the discoverers", func() {
-			multi.Run(make(chan bool))
+			multi.Run(looper)
 
 			So(disco1.RunInvoked, ShouldBeTrue)
 			So(disco2.RunInvoked, ShouldBeTrue)
 		})
 
-		Convey("Run() propagates the quit signal", func() {
-			quit := make(chan bool, 1)
-			multi.Run(quit)
-			quit <- true
+		SkipConvey("Run() propagates the quit signal", func() {
+			multi.Run(looper)
 
 			So(disco1.RunInvoked, ShouldBeTrue)
 			So(disco2.RunInvoked, ShouldBeTrue)
-			So(<-disco1.Quit, ShouldBeTrue)
-			So(<-disco2.Quit, ShouldBeTrue)
+			So(<-done1, ShouldBeNil)
+			So(<-done2, ShouldBeNil)
 		})
 
 		Convey("Services() invokes the Services() method for all the discoverers", func() {
