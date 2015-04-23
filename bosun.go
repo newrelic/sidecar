@@ -119,7 +119,7 @@ func configureSignalHandler(opts *CliOpts) {
 		return
 	}
 
-	// Capture CTRL-C and stop the CPU profiler                            
+	// Capture CTRL-C and stop the CPU profiler
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt)
 	go func() {
