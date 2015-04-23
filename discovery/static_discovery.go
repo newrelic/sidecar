@@ -21,7 +21,7 @@ type Target struct {
 type StaticDiscovery struct {
 	Targets    []*Target
 	ConfigFile string
-	Hostname string
+	Hostname   string
 }
 
 func NewStaticDiscovery(filename string) *StaticDiscovery {
@@ -31,7 +31,7 @@ func NewStaticDiscovery(filename string) *StaticDiscovery {
 	}
 	return &StaticDiscovery{
 		ConfigFile: filename,
-		Hostname: hostname,
+		Hostname:   hostname,
 	}
 }
 
