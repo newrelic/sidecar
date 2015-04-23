@@ -39,6 +39,7 @@ func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.S
 		// Add checks when new services are found
 		for _, svc := range services {
 			if nameFun(&svc) == "" {
+				log.Printf("Cannot extract name for service: %s", svc.Name)
 				continue
 			}
 
