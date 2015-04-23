@@ -12,6 +12,10 @@ import (
 	"sync"
 )
 
+const (
+	MAX_PENDING_LENGTH = 100 // Number of messages we can replace into the pending queue
+)
+
 type servicesDelegate struct {
 	state             *catalog.ServicesState
 	pendingBroadcasts [][]byte
@@ -101,7 +105,12 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 	broadcast, leftover := packPacket(broadcast, limit, overhead)
 	if len(leftover) > 0 {
-		d.pendingBroadcasts = leftover
+		// We don't want to store old messages forever, or starve ourselves to death
+		if len(leftover) > MAX_PENDING_LENGTH {
+			d.pendingBroadcasts = leftover[:MAX_PENDING_LENGTH]
+		} else {
+			d.pendingBroadcasts = leftover
+		}
 	}
 
 	if broadcast == nil || len(broadcast) < 1 {
