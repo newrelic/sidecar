@@ -16,7 +16,10 @@ func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
 
 	for _, check := range m.Checks {
 		if check.Status == HEALTHY && check.ID != "" {
-			svcList = append(svcList, *state.GetLocalService(check.ID))
+			svc := *state.GetLocalService(check.ID)
+			if svc.ID != "" {
+				svcList = append(svcList, svc)
+			}
 		}
 	}
 
@@ -59,7 +62,6 @@ func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.S
 		m.Lock()
 	OUTER:
 		for _, check := range m.Checks {
-			found := false
 			for _, svc := range services {
 				if svc.ID == check.ID {
 					continue OUTER
@@ -67,9 +69,7 @@ func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.S
 			}
 
 			// Remove checks for services that are no longer running
-			if !found {
-				delete(m.Checks, check.ID)
-			}
+			delete(m.Checks, check.ID)
 		}
 		m.Unlock()
 

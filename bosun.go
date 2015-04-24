@@ -15,6 +15,8 @@ import (
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/discovery"
 	"github.com/newrelic/bosun/haproxy"
+	"github.com/newrelic/bosun/healthy"
+	"github.com/newrelic/bosun/service"
 )
 
 var (
@@ -200,16 +202,28 @@ func main() {
 	discoLooper := director.NewTimedLooper(
 		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
 	)
+	healthWatchLooper := director.NewTimedLooper(
+		director.FOREVER, healthy.WATCH_INTERVAL, make(chan error),
+	)
+	healthLooper := director.NewTimedLooper(
+		director.FOREVER, healthy.HEALTH_INTERVAL, make(chan error),
+	)
 
 	configureMetrics(&config)
+
+	monitor := healthy.NewMonitor()
 
 	disco := configureDiscovery(&config)
 	disco.Run(discoLooper)
 
+	serviceFunc := func() []service.Service { return monitor.Services(state) }
+
 	go announceMembers(list, state)
-	go state.BroadcastServices(disco.Services, servicesLooper)
-	go state.BroadcastTombstones(disco.Services, tombstoneLooper)
-	go state.TrackNewServices(disco.Services, trackingLooper)
+	go state.BroadcastServices(serviceFunc, servicesLooper)
+	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
+	go state.TrackNewServices(serviceFunc, trackingLooper)
+	go monitor.Watch(disco.Services, state.ServiceName, healthWatchLooper)
+	go monitor.Run(healthLooper)
 	//go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {

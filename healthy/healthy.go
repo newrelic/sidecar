@@ -24,7 +24,9 @@ const (
 )
 
 const (
-	FOREVER = -1
+	FOREVER         = -1
+	WATCH_INTERVAL  = 200 * time.Millisecond
+	HEALTH_INTERVAL = 3 * time.Second
 )
 
 // The Monitor is responsible for managing and running Checks.
@@ -32,9 +34,9 @@ const (
 // Access must be synchronized so direct access to struct
 // members is possible but requires use of the RWMutex.
 type Monitor struct {
-	CheckInterval time.Duration
 	Checks        map[string]*Check
 	ServiceChecks map[string]*Check
+	CheckInterval time.Duration
 	sync.RWMutex
 }
 
@@ -120,9 +122,9 @@ func (check *Check) ServiceStatus() int {
 
 func NewMonitor() *Monitor {
 	monitor := Monitor{
-		CheckInterval: 3 * time.Second,
 		Checks:        make(map[string]*Check, 5),
 		ServiceChecks: make(map[string]*Check, 5),
+		CheckInterval: HEALTH_INTERVAL,
 	}
 	return &monitor
 }
@@ -219,7 +221,7 @@ func (m *Monitor) Run(looper director.Looper) {
 
 			go func(check *Check) {
 				// We make the call but we time out if it gets too close to the
-				// Monitor's CheckInterval.
+				// m.CheckInterval.
 				select {
 				case result := <-resultChan:
 					check.UpdateStatus(result.status, result.err)

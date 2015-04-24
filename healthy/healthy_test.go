@@ -26,7 +26,7 @@ func Test_NewMonitor(t *testing.T) {
 	Convey("Returns a properly configured Monitor", t, func() {
 		monitor := NewMonitor()
 
-		So(monitor.CheckInterval, ShouldEqual, 3*time.Second)
+		So(monitor.CheckInterval, ShouldEqual, HEALTH_INTERVAL)
 		So(len(monitor.Checks), ShouldEqual, 0)
 	})
 }
@@ -97,7 +97,6 @@ func (s *slowCommand) Run(args string) (int, error) {
 func Test_RunningChecks(t *testing.T) {
 	Convey("Working with health checks", t, func() {
 		monitor := NewMonitor()
-		monitor.CheckInterval = 1 * time.Nanosecond
 		cmd := mockCommand{DesiredResult: HEALTHY}
 		check := &Check{
 			Type:    "mock",
@@ -194,6 +193,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(check)
+			monitor.CheckInterval = 1 * time.Millisecond
 			monitor.Run(looper)
 
 			So(check.Status, ShouldEqual, UNKNOWN)
@@ -203,7 +203,6 @@ func Test_RunningChecks(t *testing.T) {
 		Convey("Checks that had an error become UNKNOWN on first pass", func() {
 			check := NewCheck("test")
 			check.Command = &slowCommand{}
-			monitor.CheckInterval = 2 * time.Millisecond
 			check.MaxCount = 3
 			check.UpdateStatus(1, errors.New("Borked!"))
 
@@ -218,7 +217,6 @@ func Test_MarkServices(t *testing.T) {
 		// Set up a bunch of services in various states and some checks.
 		// Then we health check them and look at the results carefully.
 		monitor := NewMonitor()
-		monitor.CheckInterval = 1 * time.Nanosecond
 		services := []*service.Service{
 			&service.Service{ID: "test", Status: service.ALIVE},
 			&service.Service{ID: "bad", Status: service.ALIVE},
