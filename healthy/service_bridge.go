@@ -1,11 +1,17 @@
 package healthy
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
+)
+
+const (
+	DEFAULT_STATUS_HOST     = "localhost"
+	DEFAULT_STATUS_ENDPOINT = "/status/check"
 )
 
 func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
@@ -26,28 +32,39 @@ func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
 	return svcList
 }
 
-func (m *Monitor) CheckForService(name string) Check {
-	if _, ok := m.ServiceChecks[name]; !ok {
-		return Check{}
+func findFirstTCPPort(svc *service.Service) *service.Port {
+	for _, port := range svc.Ports {
+		if port.Type == "tcp" {
+			return &port
+		}
 	}
-
-	return *m.ServiceChecks[name]
+	return nil
 }
 
-func (m *Monitor) Watch(svcFun func() []service.Service, nameFun func(*service.Service) string, looper director.Looper) {
+func (m *Monitor) CheckForService(svc *service.Service) Check {
+	port := findFirstTCPPort(svc)
+	if port == nil {
+		return Check{ID: svc.ID}
+	}
+
+	url := fmt.Sprintf("http://%v:%v%v", DEFAULT_STATUS_HOST, port.Port, DEFAULT_STATUS_ENDPOINT)
+	return Check{
+		ID:      svc.ID,
+		Type:    "HttpGet",
+		Args:    url,
+		Command: &HttpGetCmd{},
+	}
+}
+
+func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper) {
 
 	looper.Loop(func() error {
 		services := svcFun()
 
 		// Add checks when new services are found
 		for _, svc := range services {
-			if nameFun(&svc) == "" {
-				log.Printf("Cannot extract name for service: %s", svc.Name)
-				continue
-			}
-
 			if m.Checks[svc.ID] == nil {
-				check := m.CheckForService(nameFun(&svc))
+				check := m.CheckForService(&svc)
 				if check.Command == nil {
 					log.Printf(
 						"Error: Attempted to add %s (id: %s) but no check configured!",

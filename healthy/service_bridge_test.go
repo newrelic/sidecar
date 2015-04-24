@@ -50,23 +50,42 @@ func Test_ServicesBridge(t *testing.T) {
 
 		Convey("Responds to changes in a list of services", func() {
 			So(len(monitor.Checks), ShouldEqual, 2)
-			svcList := []service.Service{}
+
+			ports := []service.Port{service.Port{"udp", 11234}, service.Port{"tcp", 1234}}
+			svc := service.Service{ID: "babbacabba", Name: "testing-12312312", Ports: ports}
+			svcList := []service.Service{svc}
 			listFn := func() []service.Service { return svcList }
-			svc := service.Service{ID: "babbacabba", Name: "testing-12312312"}
 
-			cmd := mockCommand{DesiredResult: HEALTHY}
-			check := &Check{ID: svc.ID, Command: &cmd}
-			monitor.ServiceChecks[state.ServiceName(&svc)] = check
+			cmd := HttpGetCmd{}
+			check := &Check{ID: svc.ID, Command: &cmd, Type: "HttpGet", Args: "http://localhost:1234/status/check"}
+			looper := director.NewTimedLooper(5, 5*time.Nanosecond, nil)
 
-			waitChan := make(chan error)
-			looper := director.NewTimedLooper(5, 5*time.Nanosecond, waitChan)
-			go monitor.Watch(listFn, state.ServiceName, looper)
-
-			svcList = append(svcList, svc)
-			<-waitChan
+			monitor.Watch(listFn, looper)
 
 			So(len(monitor.Checks), ShouldEqual, 1)
 			So(monitor.Checks[svc.ID], ShouldResemble, check)
+		})
+	})
+}
+
+func Test_NewDefaultCheck(t *testing.T) {
+	Convey("When building a default check", t, func() {
+		svcId1 := "deadbeef123"
+		baseTime := time.Now().UTC().Round(time.Second)
+		ports := []service.Port{service.Port{"udp", 11234}, service.Port{"tcp", 1234}}
+		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime, Ports: ports}
+
+		Convey("Find the first tcp port", func() {
+			port := findFirstTCPPort(&service1)
+			So(port, ShouldNotBeNil)
+			So(port.Port, ShouldEqual, 1234)
+			So(port.Type, ShouldEqual, "tcp")
+		})
+
+		Convey("Returns proper check", func() {
+			monitor := NewMonitor()
+			check := monitor.CheckForService(&service1)
+			So(check.ID, ShouldEqual, service1.ID)
 		})
 	})
 }

@@ -222,7 +222,7 @@ func main() {
 	go state.BroadcastServices(serviceFunc, servicesLooper)
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
 	go state.TrackNewServices(serviceFunc, trackingLooper)
-	go monitor.Watch(disco.Services, state.ServiceName, healthWatchLooper)
+	go monitor.Watch(disco.Services, healthWatchLooper)
 	go monitor.Run(healthLooper)
 	//go updateMetaData(list, metaUpdates)
 

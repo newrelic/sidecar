@@ -35,7 +35,6 @@ const (
 // members is possible but requires use of the RWMutex.
 type Monitor struct {
 	Checks        map[string]*Check
-	ServiceChecks map[string]*Check
 	CheckInterval time.Duration
 	sync.RWMutex
 }
@@ -123,7 +122,6 @@ func (check *Check) ServiceStatus() int {
 func NewMonitor() *Monitor {
 	monitor := Monitor{
 		Checks:        make(map[string]*Check, 5),
-		ServiceChecks: make(map[string]*Check, 5),
 		CheckInterval: HEALTH_INTERVAL,
 	}
 	return &monitor
