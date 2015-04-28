@@ -265,6 +265,15 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 		looper := director.NewFreeLooper(1, nil)
 
+		Convey("The correct number of messages are sent", func() {
+			looper := director.NewFreeLooper(5, make(chan error))
+			state.Broadcasts = make(chan [][]byte, 5)
+			state.SendServices(services, looper)
+			looper.Wait()
+
+			So(len(state.Broadcasts), ShouldEqual, 5)
+		})
+
 		Convey("All of the services are added to state", func() {
 			looper := director.NewFreeLooper(1, make(chan error))
 

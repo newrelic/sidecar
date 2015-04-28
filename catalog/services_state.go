@@ -25,7 +25,7 @@ const (
 	ALIVE_COUNT              = 5                              // Send new services at 1 per second 5 times
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second                // Sleep between local service checks
 	TOMBSTONE_RETRANSMIT     = 1 * time.Second                // Time between tombstone retranmission
-	ALIVE_LIFESPAN           = 1*time.Minute + 20*time.Second // Down if not heard from in 20 seconds
+	ALIVE_LIFESPAN           = 1*time.Minute + 20*time.Second // Down if not heard from in 80 seconds
 	ALIVE_SLEEP_INTERVAL     = 1 * time.Second                // Sleep between local service checks
 	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute                // Broadcast Alive messages every minute
 )
