@@ -93,7 +93,7 @@
 		},
 		{
 			"ImportPath": "github.com/newrelic-forks/memberlist",
-			"Rev": "14d5cc34918b73cbbb231ea300a225201c2845a5"
+			"Rev": "b90483dfb711d7ba315ebc3b833caa7fde3ce47a"
 		},
 		{
 			"ImportPath": "github.com/prometheus/client_golang/model",

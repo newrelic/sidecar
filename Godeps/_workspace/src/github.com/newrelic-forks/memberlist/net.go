@@ -150,6 +150,16 @@ type msgHandoff struct {
 	from    net.Addr
 }
 
+func NewPushPullHeader(Nodes int, ClusterName string,
+	UserStateLen int, Join bool) *pushPullHeader {
+
+	if len(ClusterName) < 1 {
+		fmt.Println("[Err] memberlist: No cluster name passed!")
+	}
+
+	return &pushPullHeader{Nodes, ClusterName, UserStateLen, Join}
+}
+
 // encryptionVersion returns the encryption version to use
 func (m *Memberlist) encryptionVersion() encryptionVersion {
 	switch m.ProtocolVersion() {
@@ -661,8 +671,12 @@ func (m *Memberlist) sendLocalState(conn net.Conn, join bool) error {
 	bufConn := bytes.NewBuffer(nil)
 
 	// Send our node state
-	header := pushPullHeader{Nodes: len(localNodes), UserStateLen: len(userData), Join: join,
-		ClusterName: m.config.ClusterName}
+	header := NewPushPullHeader(
+		len(localNodes),
+		m.config.ClusterName,
+		len(userData),
+		join,
+	)
 	hd := codec.MsgpackHandle{}
 	enc := codec.NewEncoder(bufConn, &hd)
 
@@ -671,7 +685,7 @@ func (m *Memberlist) sendLocalState(conn net.Conn, join bool) error {
 		return err
 	}
 
-	if err := enc.Encode(&header); err != nil {
+	if err := enc.Encode(header); err != nil {
 		return err
 	}
 	for i := 0; i < header.Nodes; i++ {
