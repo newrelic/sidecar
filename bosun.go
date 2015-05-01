@@ -142,6 +142,7 @@ func main() {
 		profilerFile, err := os.Create("bosun.cpu.prof")
 		exitWithError(err, "Can't write profiling file")
 		pprof.StartCPUProfile(profilerFile)
+		log.Println("Profiling!")
 	}
 	state := catalog.NewServicesState()
 	delegate := configureDelegate(state, opts)
@@ -214,7 +215,7 @@ func main() {
 	monitor := healthy.NewMonitor()
 
 	disco := configureDiscovery(&config)
-	disco.Run(discoLooper)
+	go disco.Run(discoLooper)
 
 	serviceFunc := func() []service.Service { return monitor.Services(state) }
 

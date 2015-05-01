@@ -21,11 +21,25 @@ func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
 	defer m.RUnlock()
 
 	for _, check := range m.Checks {
+		if check == nil {
+			log.Printf("Error: got nil check!")
+			continue
+		}
+
+		if state == nil {
+			log.Printf("Skipping checking for service, catalog is nil")
+		}
+
 		if check.Status == HEALTHY && check.ID != "" {
-			svc := *state.GetLocalService(check.ID)
-			if svc.ID != "" {
-				svcList = append(svcList, svc)
+			svc := state.GetLocalService(check.ID)
+			if svc == nil {
+				continue
 			}
+			if svc.ID != "" {
+				svcList = append(svcList, *svc)
+			}
+		} else {
+			log.Printf("Unhealthy service: %s\n", check.ID)
 		}
 	}
 
@@ -57,7 +71,6 @@ func (m *Monitor) CheckForService(svc *service.Service) Check {
 }
 
 func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper) {
-
 	looper.Loop(func() error {
 		services := svcFun()
 
@@ -77,6 +90,7 @@ func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper)
 		}
 
 		m.Lock()
+		defer m.Unlock()
 	OUTER:
 		for _, check := range m.Checks {
 			for _, svc := range services {
@@ -88,7 +102,6 @@ func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper)
 			// Remove checks for services that are no longer running
 			delete(m.Checks, check.ID)
 		}
-		m.Unlock()
 
 		return nil
 	})

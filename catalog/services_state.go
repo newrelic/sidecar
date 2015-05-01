@@ -116,7 +116,14 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 		return nil
 	}
 
-	return state.Servers[state.Hostname].Services[id]
+	if state.Servers != nil &&
+		state.Servers[state.Hostname] != nil &&
+			state.Servers[state.Hostname].Services != nil {
+
+		return state.Servers[state.Hostname].Services[id]
+	}
+
+	return nil
 }
 
 // A server has left the cluster, so tombstone all of its records

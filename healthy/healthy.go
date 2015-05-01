@@ -160,6 +160,7 @@ func (m *Monitor) Healthy() []*Check {
 func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
+	log.Printf("Adding health check: %s\n", check.ID)
 	m.Checks[check.ID] = check
 }
 
