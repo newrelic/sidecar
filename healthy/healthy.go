@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/relistan/go-director"
-
 	"github.com/newrelic/bosun/service"
 )
 
