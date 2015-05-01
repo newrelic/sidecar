@@ -212,7 +212,9 @@ func main() {
 
 	configureMetrics(&config)
 
-	monitor := healthy.NewMonitor()
+	// Configure the monitor and use the public address as the default
+	// check address.
+	monitor := healthy.NewMonitor(publishedIP)
 
 	disco := configureDiscovery(&config)
 	go disco.Run(discoLooper)

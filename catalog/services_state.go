@@ -112,7 +112,7 @@ func (state *ServicesState) HasServer(hostname string) bool {
 // Looks up a service from *only this host* by ID
 func (state *ServicesState) GetLocalService(id string) *service.Service {
 	if !state.HasServer(state.Hostname) {
-		log.Printf("GetLocalService(): Error, bad hostname (%s)\n", state.Hostname)
+		// This can happen a lot on startup, so we're not logging it
 		return nil
 	}
 

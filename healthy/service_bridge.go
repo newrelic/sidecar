@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	DEFAULT_STATUS_HOST     = "localhost"
 	DEFAULT_STATUS_ENDPOINT = "/status/check"
 )
 
@@ -61,7 +60,7 @@ func (m *Monitor) CheckForService(svc *service.Service) Check {
 		return Check{ID: svc.ID}
 	}
 
-	url := fmt.Sprintf("http://%v:%v%v", DEFAULT_STATUS_HOST, port.Port, DEFAULT_STATUS_ENDPOINT)
+	url := fmt.Sprintf("http://%v:%v%v", m.DefaultCheckHost, port.Port, DEFAULT_STATUS_ENDPOINT)
 	return Check{
 		ID:      svc.ID,
 		Type:    "HttpGet",

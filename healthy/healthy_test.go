@@ -24,7 +24,7 @@ func Test_NewCheck(t *testing.T) {
 
 func Test_NewMonitor(t *testing.T) {
 	Convey("Returns a properly configured Monitor", t, func() {
-		monitor := NewMonitor()
+		monitor := NewMonitor(hostname)
 
 		So(monitor.CheckInterval, ShouldEqual, HEALTH_INTERVAL)
 		So(len(monitor.Checks), ShouldEqual, 0)
@@ -33,7 +33,7 @@ func Test_NewMonitor(t *testing.T) {
 
 func Test_Status(t *testing.T) {
 	Convey("Testing Status", t, func() {
-		monitor := NewMonitor()
+		monitor := NewMonitor(hostname)
 		monitor.Checks = map[string]*Check{
 			"12345a": &Check{Status: HEALTHY},
 			"23456b": &Check{Status: HEALTHY},
@@ -55,7 +55,7 @@ func Test_Status(t *testing.T) {
 
 func Test_AddCheck(t *testing.T) {
 	Convey("Adds a check to the list", t, func() {
-		monitor := NewMonitor()
+		monitor := NewMonitor(hostname)
 		So(len(monitor.Checks), ShouldEqual, 0)
 		monitor.AddCheck(&Check{ID: "123"})
 		So(len(monitor.Checks), ShouldEqual, 1)
@@ -66,7 +66,7 @@ func Test_AddCheck(t *testing.T) {
 
 func Test_RemoveCheck(t *testing.T) {
 	Convey("Removes a check from the list", t, func() {
-		monitor := NewMonitor()
+		monitor := NewMonitor(hostname)
 		monitor.AddCheck(&Check{ID: "123"})
 		So(len(monitor.Checks), ShouldEqual, 1)
 		monitor.RemoveCheck("123")
@@ -96,7 +96,7 @@ func (s *slowCommand) Run(args string) (int, error) {
 
 func Test_RunningChecks(t *testing.T) {
 	Convey("Working with health checks", t, func() {
-		monitor := NewMonitor()
+		monitor := NewMonitor(hostname)
 		cmd := mockCommand{DesiredResult: HEALTHY}
 		check := &Check{
 			Type:    "mock",
@@ -216,7 +216,7 @@ func Test_MarkServices(t *testing.T) {
 	Convey("MarkServices()", t, func() {
 		// Set up a bunch of services in various states and some checks.
 		// Then we health check them and look at the results carefully.
-		monitor := NewMonitor()
+		monitor := NewMonitor(hostname)
 		services := []*service.Service{
 			&service.Service{ID: "test", Status: service.ALIVE},
 			&service.Service{ID: "bad", Status: service.ALIVE},

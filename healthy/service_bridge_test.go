@@ -22,7 +22,7 @@ func Test_ServicesBridge(t *testing.T) {
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 
-		monitor := NewMonitor()
+		monitor := NewMonitor(hostname)
 		state := catalog.NewServicesState()
 		state.Hostname = hostname
 		state.ServiceNameMatch = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
@@ -57,7 +57,7 @@ func Test_ServicesBridge(t *testing.T) {
 			listFn := func() []service.Service { return svcList }
 
 			cmd := HttpGetCmd{}
-			check := &Check{ID: svc.ID, Command: &cmd, Type: "HttpGet", Args: "http://localhost:1234/status/check"}
+			check := &Check{ID: svc.ID, Command: &cmd, Type: "HttpGet", Args: "http://" + hostname + ":1234/status/check"}
 			looper := director.NewTimedLooper(5, 5*time.Nanosecond, nil)
 
 			monitor.Watch(listFn, looper)
@@ -83,7 +83,7 @@ func Test_NewDefaultCheck(t *testing.T) {
 		})
 
 		Convey("Returns proper check", func() {
-			monitor := NewMonitor()
+			monitor := NewMonitor(hostname)
 			check := monitor.CheckForService(&service1)
 			So(check.ID, ShouldEqual, service1.ID)
 		})

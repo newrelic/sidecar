@@ -33,8 +33,9 @@ const (
 // Access must be synchronized so direct access to struct
 // members is possible but requires use of the RWMutex.
 type Monitor struct {
-	Checks        map[string]*Check
-	CheckInterval time.Duration
+	Checks           map[string]*Check
+	CheckInterval    time.Duration
+	DefaultCheckHost string
 	sync.RWMutex
 }
 
@@ -118,10 +119,11 @@ func (check *Check) ServiceStatus() int {
 	}
 }
 
-func NewMonitor() *Monitor {
+func NewMonitor(defaultCheckHost string) *Monitor {
 	monitor := Monitor{
-		Checks:        make(map[string]*Check, 5),
-		CheckInterval: HEALTH_INTERVAL,
+		Checks:           make(map[string]*Check, 5),
+		CheckInterval:    HEALTH_INTERVAL,
+		DefaultCheckHost: defaultCheckHost,
 	}
 	return &monitor
 }
