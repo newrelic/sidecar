@@ -17,10 +17,14 @@ func Test_ServicesBridge(t *testing.T) {
 	Convey("The services bridge", t, func() {
 		svcId1 := "deadbeef123"
 		svcId2 := "deadbeef101"
+		svcId3 := "deadbeef102"
+		svcId4 := "deadbeef103"
 		baseTime := time.Now().UTC().Round(time.Second)
 
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
+		service3 := service.Service{ID: svcId3, Hostname: hostname, Updated: baseTime}
+		service4 := service.Service{ID: svcId4, Hostname: hostname, Updated: baseTime}
 
 		monitor := NewMonitor(hostname)
 		state := catalog.NewServicesState()
@@ -35,21 +39,62 @@ func Test_ServicesBridge(t *testing.T) {
 			ID:     svcId2,
 			Status: UNKNOWN,
 		}
+		check3 := Check{
+			ID:     svcId3,
+			Status: SICKLY,
+		}
+		check4 := Check{
+			ID:     svcId4,
+			Status: FAILED,
+		}
 		monitor.AddCheck(&check1)
 		monitor.AddCheck(&check2)
+		monitor.AddCheck(&check3)
+		monitor.AddCheck(&check4)
 
 		state.AddServiceEntry(service1)
 		state.AddServiceEntry(service2)
+		state.AddServiceEntry(service3)
+		state.AddServiceEntry(service4)
 
-		Convey("Returns the services for each healthy check", func() {
+		Convey("Returns services that are healthy", func() {
 			svcList := monitor.Services(state)
 
-			So(len(svcList), ShouldEqual, 1)
-			So(svcList[0].ID, ShouldEqual, svcId1)
+			var found bool
+
+			for _, svc := range svcList {
+				if svc.ID == svcId1 {
+					found = true
+					break
+				}
+			}
+
+			So(found, ShouldBeTrue)
+		})
+
+		Convey("Does not return services that have failed or are unknown", func() {
+			svcList := monitor.Services(state)
+
+			So(len(svcList), ShouldEqual, 2) // healthy + sickly
+		})
+
+		Convey("Returns services that are sickly", func() {
+			svcList := monitor.Services(state)
+
+			var found bool
+
+			for _, svc := range svcList {
+				if svc.ID == svcId3 {
+					found = true
+					break
+				}
+			}
+
+			So(found, ShouldBeTrue)
 		})
 
 		Convey("Responds to changes in a list of services", func() {
-			So(len(monitor.Checks), ShouldEqual, 2)
+			So(len(monitor.Checks), ShouldEqual, 4)
 
 			ports := []service.Port{service.Port{"udp", 11234}, service.Port{"tcp", 1234}}
 			svc := service.Service{ID: "babbacabba", Name: "testing-12312312", Ports: ports}

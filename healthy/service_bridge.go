@@ -27,18 +27,23 @@ func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
 
 		if state == nil {
 			log.Printf("Skipping checking for service, catalog is nil")
+			continue
 		}
 
-		if check.Status == HEALTHY && check.ID != "" {
+		if check.ID == "" {
+			continue
+		}
+
+		// We return all services that are not FAILED
+		if check.Status == HEALTHY || check.Status == SICKLY {
 			svc := state.GetLocalService(check.ID)
 			if svc == nil {
 				continue
 			}
+
 			if svc.ID != "" {
 				svcList = append(svcList, *svc)
 			}
-		} else {
-			log.Printf("Unhealthy service (id: %s)\n", check.ID)
 		}
 	}
 
