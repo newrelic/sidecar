@@ -128,6 +128,7 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 		"statusStr": statusStr,
 		"timeAgo":   timeAgo,
 		"portsStr":  portsStr,
+		"clusterName": func() string { return list.ClusterName() },
 	}
 
 	t, err := template.New("services").Funcs(funcMap).ParseFiles("views/services.html")

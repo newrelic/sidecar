@@ -531,3 +531,8 @@ func (m *Memberlist) Shutdown() error {
 	m.tcpListener.Close()
 	return nil
 }
+
+// ClusterName returns the ClusterName from the config struct
+func (m *Memberlist) ClusterName() string {
+	return m.config.ClusterName
+}
