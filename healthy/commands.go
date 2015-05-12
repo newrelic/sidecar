@@ -22,7 +22,7 @@ func (h *HttpGetCmd) Run(args string) (int, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode > 200 && resp.StatusCode < 300 {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return HEALTHY, nil
 	}
 
