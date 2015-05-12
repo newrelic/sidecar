@@ -79,8 +79,10 @@ func statusStr(status int) string {
 		return "Alive"
 	case 1:
 		return "Tombstone"
+	case 2:
+		return "Unhealthy"
 	default:
-		return ""
+		return "Unknown"
 	}
 }
 

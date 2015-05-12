@@ -63,8 +63,12 @@
         {{ range $services }}
           {{ if eq .Status 0 }}
           <tr>
-          {{ else }}
+          {{ else if eq .Status 1 }}
+          <tr class="warning">
+		  {{ else if eq .Status 2 }}
           <tr class="danger">
+		  {{ else }}
+          <tr class="info">
           {{ end }}
             <td>{{ .Hostname }}</td>
 	    	<td>{{ .ID }}</td>
