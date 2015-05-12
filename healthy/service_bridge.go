@@ -94,7 +94,6 @@ func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper)
 						svc.Name, svc.ID,
 					)
 				} else {
-					fmt.Printf("Check: %#v\n", check)
 					m.AddCheck(&check)
 				}
 			}

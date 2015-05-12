@@ -225,7 +225,6 @@ func (m *Monitor) Run(state *catalog.ServicesState, looper director.Looper) {
 				// m.CheckInterval.
 				select {
 				case result := <-resultChan:
-					log.Printf("%s: %#v\n", check.ID, result)
 					check.UpdateStatus(result.status, result.err)
 				case <-time.After(m.CheckInterval - 1*time.Millisecond):
 					log.Printf("Error, check %s timed out!", check.ID)
