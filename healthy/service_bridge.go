@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/relistan/go-director"
-	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -13,38 +12,22 @@ const (
 	DEFAULT_STATUS_ENDPOINT = "/status/check"
 )
 
-func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
+func (m *Monitor) Services() []service.Service {
 	var svcList []service.Service
 
-	m.RLock()
-	defer m.RUnlock()
+	if m.DiscoveryFn == nil {
+		log.Printf("Error: DiscoveryFn not defined!")
+		return []service.Service{service.Service{}}
+	}
 
-	for _, check := range m.Checks {
-		if check == nil {
-			log.Printf("Error: got nil check!")
+	for _, svc := range m.DiscoveryFn() {
+		if svc.ID == "" {
+			log.Printf("Error: monitor found empty service ID")
 			continue
 		}
 
-		if state == nil {
-			log.Printf("Skipping checking for service, catalog is nil")
-			continue
-		}
-
-		if check.ID == "" {
-			continue
-		}
-
-		// We return all services that are not FAILED
-		if check.Status == HEALTHY || check.Status == SICKLY {
-			svc := state.GetLocalService(check.ID)
-			if svc == nil {
-				continue
-			}
-
-			if svc.ID != "" {
-				svcList = append(svcList, *svc)
-			}
-		}
+		m.MarkService(&svc)
+		svcList = append(svcList, svc)
 	}
 
 	return svcList
@@ -81,6 +64,8 @@ func (m *Monitor) CheckForService(svc *service.Service) Check {
 // know about. It then removes any checks for services which have gone away. All
 // services are expected to be local to this node.
 func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper) {
+	m.DiscoveryFn = svcFun // Store this so we can use it from Services()
+
 	looper.Loop(func() error {
 		services := svcFun()
 
@@ -102,15 +87,13 @@ func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper)
 		m.Lock()
 		defer m.Unlock()
 	OUTER:
-		// We remove checks when encountering a Tombstone record. This
-		// prevents us from storing up checks forever. The discovery
-		// mechanism must create tombstones when services go away, so
-		// this is the best signal we'll get that a check is no longer
-		// needed. Assumes we're only health checking _our own_ services.
+		// We remove checks when encountering a missing service. This
+		// prevents us from storing up checks forever. This is the only
+		// way we'll find out about a service going away.
 		for _, check := range m.Checks {
 			for _, svc := range services {
-				// If it's gone, or tombstoned...
-				if svc.ID == check.ID && !svc.IsTombstone() {
+				// Continue if we have a matching service/check pair
+				if svc.ID == check.ID {
 					continue OUTER
 				}
 			}

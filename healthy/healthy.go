@@ -13,7 +13,6 @@ import (
 
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
-	"github.com/newrelic/bosun/catalog"
 )
 
 const (
@@ -37,6 +36,7 @@ type Monitor struct {
 	Checks           map[string]*Check
 	CheckInterval    time.Duration
 	DefaultCheckHost string
+	DiscoveryFn      func() []service.Service
 	sync.RWMutex
 }
 
@@ -135,48 +135,12 @@ func NewMonitor(defaultCheckHost string) *Monitor {
 	return &monitor
 }
 
-// Returns a list of all checks that are in a status other
-// than HEALTHY.
-func (m *Monitor) Unhealthy() []*Check {
-	var list []*Check
-	m.RLock()
-	defer m.RUnlock()
-
-	for _, check := range m.Checks {
-		if check.Status != HEALTHY {
-			list = append(list, check)
-		}
-	}
-	return list
-}
-
-// Returns a slice of checks that are in the HEALTHY status.
-func (m *Monitor) Healthy() []*Check {
-	var list []*Check
-	m.RLock()
-	defer m.RUnlock()
-
-	for _, check := range m.Checks {
-		if check.Status == HEALTHY {
-			list = append(list, check)
-		}
-	}
-	return list
-}
-
 // Add a Check to the list. Handles synchronization.
 func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
 	log.Printf("Adding health check: %s %s\n", check.ID, check.Args)
 	m.Checks[check.ID] = check
-}
-
-// Removes a Check from the list. Handles synchronization.
-func (m *Monitor) RemoveCheck(name string) {
-	m.Lock()
-	defer m.Unlock()
-	delete(m.Checks, name)
 }
 
 // MarkService takes a service and mark its Status appropriately based on the
@@ -187,25 +151,17 @@ func (m *Monitor) MarkService(svc *service.Service) {
 	// mechanism must create tombstones when services go away, so
 	// this is the best signal we'll get that a check is no longer
 	// needed. Assumes we're only health checking _our own_ services.
-	if svc.IsTombstone() {
-		if _, ok := m.Checks[svc.ID]; ok {
-			m.Lock()
-			delete(m.Checks, svc.ID)
-			m.Unlock()
-		}
+	m.RLock()
+	if _, ok := m.Checks[svc.ID]; ok {
+		svc.Status = m.Checks[svc.ID].ServiceStatus()
 	} else {
-		m.RLock()
-		if _, ok := m.Checks[svc.ID]; ok {
-			svc.Status = m.Checks[svc.ID].ServiceStatus()
-		} else {
-			svc.Status = service.UNKNOWN
-		}
-		m.RUnlock()
+		svc.Status = service.UNKNOWN
 	}
+	m.RUnlock()
 }
 
 // Run runs the main monitoring loop. The looper controls the actual run behavior.
-func (m *Monitor) Run(state *catalog.ServicesState, looper director.Looper) {
+func (m *Monitor) Run(looper director.Looper) {
 	looper.Loop(func() error {
 		log.Printf("Running checks")
 
@@ -227,7 +183,7 @@ func (m *Monitor) Run(state *catalog.ServicesState, looper director.Looper) {
 				case result := <-resultChan:
 					check.UpdateStatus(result.status, result.err)
 				case <-time.After(m.CheckInterval - 1*time.Millisecond):
-					log.Printf("Error, check %s timed out!", check.ID)
+					log.Printf("Error, check %s timed out! (%v)", check.ID, check.Args)
 					check.UpdateStatus(UNKNOWN, errors.New("Timed out!"))
 				}
 				wg.Done()
@@ -239,12 +195,6 @@ func (m *Monitor) Run(state *catalog.ServicesState, looper director.Looper) {
 		// to complete before moving on. This could slow down
 		// our check loop if something doesn't time out properly.
 		wg.Wait()
-
-		// Actually update the status of all the services we know
-		// about. This works against only the local services.
-		state.EachLocalService(func(hostname *string, id *string, svc *service.Service){
-			m.MarkService(svc)
-		})
 
 		return nil
 	})

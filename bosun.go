@@ -219,14 +219,14 @@ func main() {
 	disco := configureDiscovery(&config)
 	go disco.Run(discoLooper)
 
-	serviceFunc := func() []service.Service { return monitor.Services(state) }
+	serviceFunc := func() []service.Service { return monitor.Services() }
 
 	go announceMembers(list, state)
 	go state.BroadcastServices(serviceFunc, servicesLooper)
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
 	go state.TrackNewServices(serviceFunc, trackingLooper)
 	go monitor.Watch(disco.Services, healthWatchLooper)
-	go monitor.Run(state, healthLooper)
+	go monitor.Run(healthLooper)
 	//go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {

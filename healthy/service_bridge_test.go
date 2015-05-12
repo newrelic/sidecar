@@ -1,13 +1,11 @@
 package healthy
 
 import (
-	"regexp"
 	"testing"
 	"time"
 
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -26,10 +24,10 @@ func Test_ServicesBridge(t *testing.T) {
 		service3 := service.Service{ID: svcId3, Hostname: hostname, Updated: baseTime}
 		service4 := service.Service{ID: svcId4, Hostname: hostname, Updated: baseTime}
 
+		services := []service.Service{service1, service2, service3, service4}
+
 		monitor := NewMonitor(hostname)
-		state := catalog.NewServicesState()
-		state.Hostname = hostname
-		state.ServiceNameMatch = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
+		monitor.DiscoveryFn = func() []service.Service { return services }
 
 		check1 := Check{
 			ID:     svcId1,
@@ -52,13 +50,13 @@ func Test_ServicesBridge(t *testing.T) {
 		monitor.AddCheck(&check3)
 		monitor.AddCheck(&check4)
 
-		state.AddServiceEntry(service1)
-		state.AddServiceEntry(service2)
-		state.AddServiceEntry(service3)
-		state.AddServiceEntry(service4)
+		Convey("Returns all the services, marked appropriately", func() {
+			svcList := monitor.Services()
+			So(len(svcList), ShouldEqual, 4)
+		})
 
 		Convey("Returns services that are healthy", func() {
-			svcList := monitor.Services(state)
+			svcList := monitor.Services()
 
 			var found bool
 
@@ -72,19 +70,28 @@ func Test_ServicesBridge(t *testing.T) {
 			So(found, ShouldBeTrue)
 		})
 
-		Convey("Does not return services that have failed or are unknown", func() {
-			svcList := monitor.Services(state)
-
-			So(len(svcList), ShouldEqual, 2) // healthy + sickly
-		})
-
 		Convey("Returns services that are sickly", func() {
-			svcList := monitor.Services(state)
+			svcList := monitor.Services()
 
 			var found bool
 
 			for _, svc := range svcList {
 				if svc.ID == svcId3 {
+					found = true
+					break
+				}
+			}
+
+			So(found, ShouldBeTrue)
+		})
+
+		Convey("Returns services that are unknown", func() {
+			svcList := monitor.Services()
+
+			var found bool
+
+			for _, svc := range svcList {
+				if svc.ID == svcId2 {
 					found = true
 					break
 				}
