@@ -116,6 +116,8 @@ func (check *Check) ServiceStatus() int {
 	switch check.Status {
 	case HEALTHY:
 		return service.ALIVE
+	case SICKLY:
+		return service.ALIVE
 	case UNKNOWN:
 		return service.UNKNOWN
 	default:
