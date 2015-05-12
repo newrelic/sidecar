@@ -42,6 +42,8 @@ func (svc Service) Encode() ([]byte, error) {
 func (svc *Service) AliveOrDead() string {
 	if svc.Status == ALIVE {
 		return "Alive"
+	} else if svc.Status == UNHEALTHY {
+		return "Unhealthy"
 	}
 
 	return "Tombstone"

@@ -23,6 +23,14 @@ func (state *ServicesState) EachServiceSorted(fn func(hostname *string, serviceI
 	}
 }
 
+func (state *ServicesState) EachLocalService(fn func(hostname *string, serviceId *string, svc *service.Service)) {
+	state.EachService(func(hostname *string, serviceId *string, svc *service.Service) {
+		if state.Hostname == *hostname {
+			fn(hostname, serviceId, svc)
+		}
+	})
+}
+
 // Services -------------------------------
 type ServicesByAge []*service.Service
 

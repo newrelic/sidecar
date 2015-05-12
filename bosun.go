@@ -226,7 +226,7 @@ func main() {
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
 	go state.TrackNewServices(serviceFunc, trackingLooper)
 	go monitor.Watch(disco.Services, healthWatchLooper)
-	go monitor.Run(healthLooper)
+	go monitor.Run(state, healthLooper)
 	//go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {

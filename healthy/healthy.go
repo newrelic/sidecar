@@ -13,6 +13,7 @@ import (
 
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/bosun/catalog"
 )
 
 const (
@@ -75,6 +76,7 @@ type Checker interface {
 	Run(args string) (int, error)
 }
 
+// NewCheck returns a properly configured default Check
 func NewCheck(id string) *Check {
 	check := Check{
 		ID:       id,
@@ -87,6 +89,8 @@ func NewCheck(id string) *Check {
 	return &check
 }
 
+// UpdateStatus take the status integer and error and applies them to the status
+// of the current Check.
 func (check *Check) UpdateStatus(status int, err error) {
 	if err != nil {
 		log.Printf("Error executing check, status UNKNOWN")
@@ -119,6 +123,7 @@ func (check *Check) ServiceStatus() int {
 	}
 }
 
+// NewMonitor returns a properly configured default configuration of a Monitor.
 func NewMonitor(defaultCheckHost string) *Monitor {
 	monitor := Monitor{
 		Checks:           make(map[string]*Check, 5),
@@ -161,7 +166,7 @@ func (m *Monitor) Healthy() []*Check {
 func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
-	log.Printf("Adding health check: %s\n", check.ID)
+	log.Printf("Adding health check: %s %s\n", check.ID, check.Args)
 	m.Checks[check.ID] = check
 }
 
@@ -172,39 +177,33 @@ func (m *Monitor) RemoveCheck(name string) {
 	delete(m.Checks, name)
 }
 
-// Take a list of services and mark their Status appropriately based on
-// the current checks we have configured. Prunes checks when encountering
-// a Tombstone record for a service.
-func (m *Monitor) MarkServices(services []*service.Service) {
-	for _, svc := range services {
-		// We remove checks when encountering a Tombstone record. This
-		// prevents us from storing up checks forever. The discovery
-		// mechanism must create tombstones when services go away, so
-		// this is the best signal we'll get that a check is no longer
-		// needed. Assumes we're only health checking _our own_ services.
-		if svc.IsTombstone() {
-			if _, ok := m.Checks[svc.ID]; ok {
-				m.Lock()
-				delete(m.Checks, svc.ID)
-				m.Unlock()
-			}
-			// When a service is anything else, we mark it based on the current
-			// check status.
-		} else {
-			m.RLock()
-			if _, ok := m.Checks[svc.ID]; ok {
-				svc.Status = m.Checks[svc.ID].ServiceStatus()
-			} else {
-				svc.Status = service.UNKNOWN
-			}
-			m.RUnlock()
+// MarkService takes a service and mark its Status appropriately based on the
+// current check we have configured.
+func (m *Monitor) MarkService(svc *service.Service) {
+	// We remove checks when encountering a Tombstone record. This
+	// prevents us from storing up checks forever. The discovery
+	// mechanism must create tombstones when services go away, so
+	// this is the best signal we'll get that a check is no longer
+	// needed. Assumes we're only health checking _our own_ services.
+	if svc.IsTombstone() {
+		if _, ok := m.Checks[svc.ID]; ok {
+			m.Lock()
+			delete(m.Checks, svc.ID)
+			m.Unlock()
 		}
+	} else {
+		m.RLock()
+		if _, ok := m.Checks[svc.ID]; ok {
+			svc.Status = m.Checks[svc.ID].ServiceStatus()
+		} else {
+			svc.Status = service.UNKNOWN
+		}
+		m.RUnlock()
 	}
 }
 
-// Run the monitoring loop. Takes an argument of how many
-// times to run. FOREVER means to run forever.
-func (m *Monitor) Run(looper director.Looper) {
+// Run runs the main monitoring loop. The looper controls the actual run behavior.
+func (m *Monitor) Run(state *catalog.ServicesState, looper director.Looper) {
 	looper.Loop(func() error {
 		log.Printf("Running checks")
 
@@ -224,6 +223,7 @@ func (m *Monitor) Run(looper director.Looper) {
 				// m.CheckInterval.
 				select {
 				case result := <-resultChan:
+					log.Printf("%s: %#v\n", check.ID, result)
 					check.UpdateStatus(result.status, result.err)
 				case <-time.After(m.CheckInterval - 1*time.Millisecond):
 					log.Printf("Error, check %s timed out!", check.ID)
@@ -234,10 +234,16 @@ func (m *Monitor) Run(looper director.Looper) {
 		}
 
 		// Let's make sure we don't continue to spool up
-		// huge quantities of goroutines by waiting on all of them
+		// huge quantities of goroutines. Wait on all of them
 		// to complete before moving on. This could slow down
 		// our check loop if something doesn't time out properly.
 		wg.Wait()
+
+		// Actually update the status of all the services we know
+		// about. This works against only the local services.
+		state.EachLocalService(func(hostname *string, id *string, svc *service.Service){
+			m.MarkService(svc)
+		})
 
 		return nil
 	})

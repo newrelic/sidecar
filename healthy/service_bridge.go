@@ -38,7 +38,7 @@ func (m *Monitor) Services(state *catalog.ServicesState) []service.Service {
 				svcList = append(svcList, *svc)
 			}
 		} else {
-			log.Printf("Unhealthy service: %s\n", check.ID)
+			log.Printf("Unhealthy service (id: %s)\n", check.ID)
 		}
 	}
 
@@ -54,6 +54,9 @@ func findFirstTCPPort(svc *service.Service) *service.Port {
 	return nil
 }
 
+// CheckForService returns a Check that has been properly configured for this
+// particular service. The default is to return an HTTP check on the first
+// TCP port on the endpoint set in DEFAULT_STATUS_ENDPOINT.
 func (m *Monitor) CheckForService(svc *service.Service) Check {
 	port := findFirstTCPPort(svc)
 	if port == nil {
@@ -69,6 +72,9 @@ func (m *Monitor) CheckForService(svc *service.Service) Check {
 	}
 }
 
+// Watch loops over a list of services and adds checks for services we don't already
+// know about. It then removes any checks for services which have gone away. All
+// services are expected to be local to this node.
 func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
 		services := svcFun()
@@ -79,10 +85,11 @@ func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper)
 				check := m.CheckForService(&svc)
 				if check.Command == nil {
 					log.Printf(
-						"Error: Attempted to add %s (id: %s) but no check configured!",
+						"Attempted to add %s (id: %s) but no check configured!",
 						svc.Name, svc.ID,
 					)
 				} else {
+					fmt.Printf("Check: %#v\n", check)
 					m.AddCheck(&check)
 				}
 			}
@@ -91,9 +98,15 @@ func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper)
 		m.Lock()
 		defer m.Unlock()
 	OUTER:
+		// We remove checks when encountering a Tombstone record. This
+		// prevents us from storing up checks forever. The discovery
+		// mechanism must create tombstones when services go away, so
+		// this is the best signal we'll get that a check is no longer
+		// needed. Assumes we're only health checking _our own_ services.
 		for _, check := range m.Checks {
 			for _, svc := range services {
-				if svc.ID == check.ID {
+				// If it's gone, or tombstoned...
+				if svc.ID == check.ID && !svc.IsTombstone() {
 					continue OUTER
 				}
 			}

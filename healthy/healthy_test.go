@@ -7,6 +7,7 @@ import (
 
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -104,18 +105,19 @@ func Test_RunningChecks(t *testing.T) {
 			Command: &cmd,
 		}
 		monitor.AddCheck(check)
+		state := catalog.NewServicesState()
 
 		looper := director.NewFreeLooper(director.ONCE, nil)
 
 		Convey("The Check Command gets evaluated", func() {
-			monitor.Run(looper)
+			monitor.Run(state, looper)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(cmd.DesiredResult, ShouldEqual, HEALTHY) // We know it's our cmd
 		})
 
 		Convey("Healthy Checks are marked healthy", func() {
-			monitor.Run(looper)
+			monitor.Run(state, looper)
 			So(cmd.CallCount, ShouldEqual, 1)
 			So(cmd.LastArgs, ShouldEqual, "testing")
 			So(check.Status, ShouldEqual, HEALTHY)
@@ -130,7 +132,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(looper)
+			monitor.Run(state, looper)
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, SICKLY)
@@ -145,7 +147,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: 3,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(looper)
+			monitor.Run(state, looper)
 
 			So(fail.CallCount, ShouldEqual, 1)
 			So(badCheck.Status, ShouldEqual, UNKNOWN)
@@ -161,7 +163,7 @@ func Test_RunningChecks(t *testing.T) {
 				MaxCount: maxCount,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(director.NewFreeLooper(maxCount, nil))
+			monitor.Run(state, director.NewFreeLooper(maxCount, nil))
 			So(fail.CallCount, ShouldEqual, maxCount)
 			So(badCheck.Count, ShouldEqual, maxCount)
 			So(badCheck.Status, ShouldEqual, FAILED)
@@ -177,7 +179,7 @@ func Test_RunningChecks(t *testing.T) {
 				Count:   2,
 			}
 			monitor.AddCheck(badCheck)
-			monitor.Run(looper)
+			monitor.Run(state, looper)
 			So(badCheck.Count, ShouldEqual, 0)
 			So(badCheck.Status, ShouldEqual, HEALTHY)
 
@@ -194,7 +196,7 @@ func Test_RunningChecks(t *testing.T) {
 			}
 			monitor.AddCheck(check)
 			monitor.CheckInterval = 1 * time.Millisecond
-			monitor.Run(looper)
+			monitor.Run(state, looper)
 
 			So(check.Status, ShouldEqual, UNKNOWN)
 			So(check.LastError.Error(), ShouldEqual, "Timed out!")
@@ -211,9 +213,9 @@ func Test_RunningChecks(t *testing.T) {
 	})
 }
 
-func Test_MarkServices(t *testing.T) {
+func Test_MarkingServices(t *testing.T) {
 
-	Convey("MarkServices()", t, func() {
+	Convey("When marking services", t, func() {
 		// Set up a bunch of services in various states and some checks.
 		// Then we health check them and look at the results carefully.
 		monitor := NewMonitor(hostname)
@@ -225,8 +227,12 @@ func Test_MarkServices(t *testing.T) {
 			&service.Service{ID: "unknown2", Status: service.UNKNOWN},
 		}
 
-		cmd := mockCommand{DesiredResult: HEALTHY}
-		badCmd := mockCommand{DesiredResult: SICKLY}
+		state := catalog.NewServicesState()
+		state.Hostname = hostname
+		for _, svc := range services {
+			svc.Hostname = hostname
+			state.AddServiceEntry(*svc)
+		}
 
 		looper := director.NewFreeLooper(director.ONCE, nil)
 
@@ -236,7 +242,7 @@ func Test_MarkServices(t *testing.T) {
 				Type:    "mock",
 				Status:  HEALTHY,
 				Args:    "testing123",
-				Command: &cmd,
+				Command: &mockCommand{DesiredResult: HEALTHY},
 			},
 		)
 		monitor.AddCheck(
@@ -245,7 +251,7 @@ func Test_MarkServices(t *testing.T) {
 				Type:    "mock",
 				Status:  HEALTHY,
 				Args:    "testing123",
-				Command: &badCmd,
+				Command: &mockCommand{DesiredResult: SICKLY},
 			},
 		)
 		monitor.AddCheck(
@@ -254,7 +260,7 @@ func Test_MarkServices(t *testing.T) {
 				Type:    "mock",
 				Status:  HEALTHY,
 				Args:    "foofoofoo",
-				Command: &cmd,
+				Command: &mockCommand{DesiredResult: HEALTHY},
 			},
 		)
 		monitor.AddCheck(
@@ -263,30 +269,35 @@ func Test_MarkServices(t *testing.T) {
 				Type:    "mock",
 				Status:  HEALTHY,
 				Args:    "foofoofoo",
-				Command: &cmd,
+				Command: &mockCommand{DesiredResult: HEALTHY},
 			},
 		)
-		monitor.Run(looper)
-		monitor.MarkServices(services)
+
+		monitor.Run(state, looper)
 
 		Convey("When healthy, marks the service as ALIVE", func() {
-			So(services[0].Status, ShouldEqual, service.ALIVE)
+			So(state.GetLocalService(services[0].ID).Status,
+				ShouldEqual, service.ALIVE)
 		})
 
 		Convey("When not healthy, marks the service as UNHEALTHY", func() {
-			So(services[1].Status, ShouldEqual, service.UNHEALTHY)
+			So(state.GetLocalService(services[1].ID).Status,
+				ShouldEqual, service.UNHEALTHY)
 		})
 
 		Convey("When there is no check, marks the service as UNKNOWN", func() {
-			So(services[2].Status, ShouldEqual, service.UNKNOWN)
+			So(state.GetLocalService(services[2].ID).Status,
+				ShouldEqual, service.UNKNOWN)
 		})
 
 		Convey("Removes a check when encountering a Tombstone", func() {
-			So(services[3].Status, ShouldEqual, service.TOMBSTONE)
+			So(state.GetLocalService(services[3].ID).Status,
+				ShouldEqual, service.TOMBSTONE)
 		})
 
 		Convey("Transitions services to healthy when they are", func() {
-			So(services[4].Status, ShouldEqual, service.ALIVE)
+			So(state.GetLocalService(services[4].ID).Status,
+				ShouldEqual, service.ALIVE)
 		})
 	})
 }
