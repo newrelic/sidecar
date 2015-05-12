@@ -25,7 +25,7 @@ const (
 
 const (
 	FOREVER         = -1
-	WATCH_INTERVAL  = 200 * time.Millisecond
+	WATCH_INTERVAL  = 500 * time.Millisecond
 	HEALTH_INTERVAL = 3 * time.Second
 )
 
