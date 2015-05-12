@@ -118,7 +118,7 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 
 	if state.Servers != nil &&
 		state.Servers[state.Hostname] != nil &&
-			state.Servers[state.Hostname].Services != nil {
+		state.Servers[state.Hostname].Services != nil {
 
 		return state.Servers[state.Hostname].Services[id]
 	}

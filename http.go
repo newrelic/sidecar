@@ -16,7 +16,10 @@ import (
 	"github.com/newrelic/bosun/service"
 )
 
-func makeHandler(fn func(http.ResponseWriter, *http.Request, *memberlist.Memberlist, *catalog.ServicesState), list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
+func makeHandler(fn func(http.ResponseWriter, *http.Request,
+	*memberlist.Memberlist, *catalog.ServicesState),
+	list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
+
 	return func(response http.ResponseWriter, req *http.Request) {
 		fn(response, req, list, state)
 	}
@@ -66,7 +69,7 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 		[]byte(`
  			<head>
  			<meta http-equiv="refresh" content="4">
- 			</head> 
+ 			</head>
 	    	<pre>` + state.Format(list) + "</pre>"))
 }
 
