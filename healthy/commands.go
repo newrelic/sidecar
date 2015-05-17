@@ -5,8 +5,10 @@ package healthy
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"os/exec"
+	"strings"
 )
 
 // A Checker that makes an HTTP get call and expects to get
@@ -39,11 +41,14 @@ func (h *HttpGetCmd) Run(args string) (int, error) {
 type ExternalCmd struct{}
 
 func (e *ExternalCmd) Run(args string) (int, error) {
-	cmd := exec.Command(args)
-	err := cmd.Run()
+	cliArgs := strings.Split(args, " ")
+	cmd := exec.Command(cliArgs[0], cliArgs[1:]...)
+
+	output, err := cmd.CombinedOutput()
 	if err == nil {
 		return HEALTHY, nil
 	}
 
+	log.Printf("Error running command: %s (%s)\n", err.Error(), output)
 	return SICKLY, err
 }
