@@ -59,7 +59,7 @@ func (m *Monitor) defaultCheckForService(svc *service.Service) Check {
 		ID:      svc.ID,
 		Type:    "HttpGet",
 		Args:    url,
-		Status:  UNHEALTHY,
+		Status:  FAILED,
 		Command: &HttpGetCmd{},
 	}
 }
@@ -127,7 +127,7 @@ func (m *Monitor) fetchCheckForService(svc *service.Service) Check {
 		m.DefaultCheckHost,
 		1,
 	)
-	check.Status = UNHEALTHY
+	check.Status = FAILED
 
 	return check
 }
