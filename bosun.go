@@ -212,12 +212,17 @@ func main() {
 
 	configureMetrics(&config)
 
-	// Configure the monitor and use the public address as the default
-	// check address.
-	monitor := healthy.NewMonitor(publishedIP)
-
 	disco := configureDiscovery(&config)
 	go disco.Run(discoLooper)
+
+	nameFunc := func(svc *service.Service) string {
+		return state.ServiceName(svc)
+	}
+
+	// Configure the monitor and use the public address as the default
+	// check address.
+	monitor := healthy.NewMonitor(publishedIP, "172.16.110.1:7776")
+	monitor.ServiceNameFn = nameFunc
 
 	serviceFunc := func() []service.Service { return monitor.Services() }
 

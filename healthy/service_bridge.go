@@ -1,8 +1,12 @@
 package healthy
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"strings"
 
 	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
@@ -17,7 +21,7 @@ func (m *Monitor) Services() []service.Service {
 
 	if m.DiscoveryFn == nil {
 		log.Printf("Error: DiscoveryFn not defined!")
-		return []service.Service{service.Service{}}
+		return []service.Service{}
 	}
 
 	for _, svc := range m.DiscoveryFn() {
@@ -42,10 +46,9 @@ func findFirstTCPPort(svc *service.Service) *service.Port {
 	return nil
 }
 
-// CheckForService returns a Check that has been properly configured for this
-// particular service. The default is to return an HTTP check on the first
-// TCP port on the endpoint set in DEFAULT_STATUS_ENDPOINT.
-func (m *Monitor) CheckForService(svc *service.Service) Check {
+// Configure a default check for a service. The default is to return an HTTP
+// check on the first TCP port on the endpoint set in DEFAULT_STATUS_ENDPOINT.
+func (m *Monitor) defaultCheckForService(svc *service.Service) Check {
 	port := findFirstTCPPort(svc)
 	if port == nil {
 		return Check{ID: svc.ID}
@@ -56,8 +59,89 @@ func (m *Monitor) CheckForService(svc *service.Service) Check {
 		ID:      svc.ID,
 		Type:    "HttpGet",
 		Args:    url,
+		Status:  UNKNOWN,
 		Command: &HttpGetCmd{},
 	}
+}
+
+func (m *Monitor) GetCommandNamed(name string) Checker {
+	switch name {
+	case "HttpGet":
+		return &HttpGetCmd{}
+	case "External":
+		return &ExternalCmd{}
+	default:
+		return &HttpGetCmd{}
+	}
+}
+
+// Figure out the Tome URL for a service if we can
+func (m *Monitor) urlForService(svc *service.Service) string {
+	if m.TomeAddr == "" {
+		return ""
+	}
+
+	if m.ServiceNameFn == nil {
+		log.Printf("No naming function defined!")
+		return ""
+	}
+
+	svcName := m.ServiceNameFn(svc)
+	if svcName == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("http://%s/checks/%s", m.TomeAddr, svcName)
+}
+
+// Talks to a Tome service and returns the configured check
+func (m *Monitor) fetchCheckForService(svc *service.Service) Check {
+	url := m.urlForService(svc)
+	if url == "" {
+		return Check{}
+	}
+
+	resp, err := http.Get(url)
+
+	if err != nil {
+		log.Printf("Error fetching '%s'! (%s)\n", url, err.Error())
+		return Check{}
+	}
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	var check Check
+	err = json.Unmarshal(data, &check)
+
+	if err != nil {
+		log.Printf("Error decoding check response! (%s)\n", err.Error())
+		return Check{}
+	}
+
+	// Setup some other parts of the check that don't come from the JSON
+	check.ID = svc.ID
+	check.Command = m.GetCommandNamed(check.Type)
+	check.Args = strings.Replace(
+		check.Args,
+		"%CHECK_ADDR%",
+		m.DefaultCheckHost,
+		1,
+	)
+	check.Status = UNKNOWN
+
+	return check
+}
+
+// CheckForService returns a Check that has been properly configured for this
+// particular service.
+func (m *Monitor) CheckForService(svc *service.Service) Check {
+	check := m.fetchCheckForService(svc)
+	if check.ID == "" { // We got nothing
+		log.Printf("Using default check for %s\n", svc.ID)
+		return m.defaultCheckForService(svc)
+	}
+
+	return check
 }
 
 // Watch loops over a list of services and adds checks for services we don't already
