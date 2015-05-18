@@ -39,18 +39,21 @@ func (svc Service) Encode() ([]byte, error) {
 	return json.Marshal(svc)
 }
 
-func (svc *Service) AliveOrDead() string {
-	if svc.Status == ALIVE {
+func (svc *Service) StatusString() string {
+	switch svc.Status {
+	case ALIVE:
 		return "Alive"
-	} else if svc.Status == UNHEALTHY {
+	case UNHEALTHY:
 		return "Unhealthy"
+	case UNKNOWN:
+		return "Unknown"
+	default:
+		return "Tombstone"
 	}
-
-	return "Tombstone"
 }
 
 func (svc *Service) IsAlive() bool {
-	return svc.Status == ALIVE
+	return !svc.IsTombstone()
 }
 
 func (svc *Service) IsTombstone() bool {
@@ -72,7 +75,7 @@ func (svc *Service) Format() string {
 		strings.Join(ports, ","),
 		svc.Image,
 		output.TimeAgo(svc.Updated, time.Now().UTC()),
-		svc.AliveOrDead(),
+		svc.StatusString(),
 	)
 }
 

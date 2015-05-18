@@ -409,6 +409,24 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
 			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
 		})
+
+		Convey("Can detect new services or newly changed services", func() {
+			// service1 and services[0] are copies of the same service
+			service1.Status = service.UNHEALTHY
+			services[0].Status = service.ALIVE
+			state.AddServiceEntry(service1)
+
+			So(state.IsNewService(&services[0]), ShouldBeTrue)
+		})
+
+		Convey("Doesn't call tombstones new services", func() {
+			// service1 and services[0] are copies of the same service
+			service1.Status = service.UNHEALTHY
+			services[0].Status = service.TOMBSTONE
+			state.AddServiceEntry(service1)
+
+			So(state.IsNewService(&services[0]), ShouldBeFalse)
+		})
 	})
 }
 

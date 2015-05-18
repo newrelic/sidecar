@@ -305,7 +305,7 @@ func (state *ServicesState) IsNewService(svc *service.Service) bool {
 		found = state.Servers[svc.Hostname].Services[svc.ID]
 	}
 
-	if found == nil || (svc.IsAlive() && found.IsTombstone()) {
+	if found == nil || (!svc.IsTombstone() && svc.Status != found.Status) {
 		return true
 	}
 
@@ -328,7 +328,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 			isNew := state.IsNewService(&svc)
 
 			if isNew {
-				log.Println("Found new services!")
+				log.Println("Found service changes!")
 				haveNewServices = true
 				services = append(services, svc)
 				// We'll broadcast it now if it's new or we've hit refresh window
