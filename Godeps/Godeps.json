@@ -13,8 +13,8 @@
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.6.4-16-g38a6ff9",
-			"Rev": "38a6ff9215d472ce953bb9aa37b5327715c0f940"
+			"Comment": "v0.7.3-8-g52919f1",
+			"Rev": "52919f182f9c314f8a38c5afe96506f73d02b4b2"
 		},
 		{
 			"ImportPath": "github.com/alecthomas/units",
