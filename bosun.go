@@ -137,12 +137,16 @@ func configureSignalHandler(opts *CliOpts) {
 func main() {
 	opts := parseCommandLine()
 	configureSignalHandler(opts)
+
+	// Default to verbose timestamping
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+
 	// Enable CPU profiling support if requested
 	if *opts.CpuProfile {
 		profilerFile, err := os.Create("bosun.cpu.prof")
 		exitWithError(err, "Can't write profiling file")
 		pprof.StartCPUProfile(profilerFile)
-		log.Println("Profiling!")
+		log.Debug("Profiling!")
 	}
 	state := catalog.NewServicesState()
 	delegate := configureDelegate(state, opts)
