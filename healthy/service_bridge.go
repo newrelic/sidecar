@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/relistan/go-director"
+	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -20,13 +20,13 @@ func (m *Monitor) Services() []service.Service {
 	var svcList []service.Service
 
 	if m.DiscoveryFn == nil {
-		log.Printf("Error: DiscoveryFn not defined!")
+		log.Errorf("Error: DiscoveryFn not defined!")
 		return []service.Service{}
 	}
 
 	for _, svc := range m.DiscoveryFn() {
 		if svc.ID == "" {
-			log.Printf("Error: monitor found empty service ID")
+			log.Errorf("Error: monitor found empty service ID")
 			continue
 		}
 
@@ -82,7 +82,7 @@ func (m *Monitor) urlForService(svc *service.Service) string {
 	}
 
 	if m.ServiceNameFn == nil {
-		log.Printf("No naming function defined!")
+		log.Errorf("No naming function defined!")
 		return ""
 	}
 
@@ -104,7 +104,7 @@ func (m *Monitor) fetchCheckForService(svc *service.Service) Check {
 	resp, err := http.Get(url)
 
 	if err != nil {
-		log.Printf("Error fetching '%s'! (%s)\n", url, err.Error())
+		log.Errorf("Error fetching '%s'! (%s)", url, err.Error())
 		return Check{}
 	}
 	defer resp.Body.Close()
@@ -114,7 +114,7 @@ func (m *Monitor) fetchCheckForService(svc *service.Service) Check {
 	err = json.Unmarshal(data, &check)
 
 	if err != nil {
-		log.Printf("Error decoding check response! (%s)\n", err.Error())
+		log.Errorf("Error decoding check response! (%s)", err.Error())
 		return Check{}
 	}
 
@@ -137,7 +137,7 @@ func (m *Monitor) fetchCheckForService(svc *service.Service) Check {
 func (m *Monitor) CheckForService(svc *service.Service) Check {
 	check := m.fetchCheckForService(svc)
 	if check.ID == "" { // We got nothing
-		log.Printf("Using default check for %s\n", svc.ID)
+		log.Warnf("Using default check for %s\n", svc.ID)
 		return m.defaultCheckForService(svc)
 	}
 
@@ -158,7 +158,7 @@ func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper)
 			if m.Checks[svc.ID] == nil {
 				check := m.CheckForService(&svc)
 				if check.Command == nil {
-					log.Printf(
+					log.Errorf(
 						"Attempted to add %s (id: %s) but no check configured!",
 						svc.Name, svc.ID,
 					)

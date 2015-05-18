@@ -2,7 +2,6 @@ package haproxy
 
 import (
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -12,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
 )
@@ -96,7 +96,7 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 
 	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles(h.Template)
 	if err != nil {
-		log.Printf("Error Parsing template '%s': %s\n", h.Template, err.Error())
+		log.Errorf("Error Parsing template '%s': %s", h.Template, err.Error())
 		return
 	}
 	t.ExecuteTemplate(output, path.Base(h.Template), data)
@@ -107,7 +107,7 @@ func (h *HAproxy) run(command string) error {
 	cmd := exec.Command("/bin/bash", "-c", command)
 	err := cmd.Run()
 	if err != nil {
-		log.Printf("Error running '%s': %s", command, err.Error())
+		log.Errorf("Error running '%s': %s", command, err.Error())
 	}
 
 	return err
@@ -139,13 +139,13 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 		log.Println("State change event from " + event.Hostname)
 		outfile, err := os.Create(h.ConfigFile)
 		if err != nil {
-			log.Printf("Error: unable to write to %s! (%s)", h.ConfigFile, err.Error())
+			log.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
 			continue
 		}
 
 		h.WriteConfig(state, outfile)
 		if err := h.Verify(); err != nil {
-			log.Printf("Error: failed to verify HAproxy config! (%s)", err.Error())
+			log.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
 			continue
 		}
 
@@ -182,7 +182,7 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 			} else {
 				// TODO should we just add another service with this port added
 				// to the name? We have to find out which port.
-				log.Printf("%s service from %s not added: non-matching ports!",
+				log.Warnf("%s service from %s not added: non-matching ports!",
 					state.ServiceName(svc), svc.Hostname)
 			}
 		},

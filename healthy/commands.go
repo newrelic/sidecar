@@ -5,10 +5,11 @@ package healthy
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"os/exec"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // A Checker that makes an HTTP get call and expects to get
@@ -49,6 +50,6 @@ func (e *ExternalCmd) Run(args string) (int, error) {
 		return HEALTHY, nil
 	}
 
-	log.Printf("Error running command: %s (%s)\n", err.Error(), output)
+	log.Errorf("Error running command: %s (%s)\n", err.Error(), output)
 	return SICKLY, err
 }

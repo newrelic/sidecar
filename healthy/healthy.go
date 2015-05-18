@@ -7,11 +7,11 @@ package healthy
 
 import (
 	"errors"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/relistan/go-director"
+	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/service"
 )
 
@@ -95,7 +95,7 @@ func NewCheck(id string) *Check {
 // of the current Check.
 func (check *Check) UpdateStatus(status int, err error) {
 	if err != nil {
-		log.Printf("Error executing check, status UNKNOWN")
+		log.Errorf("Error executing check, status UNKNOWN")
 		check.Status = UNKNOWN
 		check.LastError = err
 	} else {
@@ -142,7 +142,7 @@ func NewMonitor(defaultCheckHost string, tomeAddr string) *Monitor {
 func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
-	log.Printf("Adding health check: %s %s\n", check.ID, check.Args)
+	log.Printf("Adding health check: %s %s", check.ID, check.Args)
 	m.Checks[check.ID] = check
 }
 
@@ -166,7 +166,7 @@ func (m *Monitor) MarkService(svc *service.Service) {
 // Run runs the main monitoring loop. The looper controls the actual run behavior.
 func (m *Monitor) Run(looper director.Looper) {
 	looper.Loop(func() error {
-		log.Printf("Running checks")
+		log.Debugf("Running checks")
 
 		var wg sync.WaitGroup
 
@@ -186,7 +186,7 @@ func (m *Monitor) Run(looper director.Looper) {
 				case result := <-resultChan:
 					check.UpdateStatus(result.status, result.err)
 				case <-time.After(m.CheckInterval - 1*time.Millisecond):
-					log.Printf("Error, check %s timed out! (%v)", check.ID, check.Args)
+					log.Errorf("Error, check %s timed out! (%v)", check.ID, check.Args)
 					check.UpdateStatus(UNKNOWN, errors.New("Timed out!"))
 				}
 				wg.Done()

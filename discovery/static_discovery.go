@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 	"time"
 
 	"github.com/relistan/go-director"
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/newrelic/bosun/healthy"
 	"github.com/newrelic/bosun/service"
@@ -29,7 +29,7 @@ type StaticDiscovery struct {
 func NewStaticDiscovery(filename string) *StaticDiscovery {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Printf("Error getting hostname! %s\n", err.Error())
+		log.Errorf("Error getting hostname! %s", err.Error())
 	}
 	return &StaticDiscovery{
 		ConfigFile: filename,
@@ -55,7 +55,7 @@ func (d *StaticDiscovery) Run(looper director.Looper) {
 
 	d.Targets, err = d.ParseConfig(d.ConfigFile)
 	if err != nil {
-		log.Printf("ERROR StaticDiscovery cannot parse: %s\n", err.Error())
+		log.Errorf("StaticDiscovery cannot parse: %s", err.Error())
 	}
 }
 
@@ -67,7 +67,7 @@ func (d *StaticDiscovery) Run(looper director.Looper) {
 func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Printf("Unable to read announcements file: '%s!'", err.Error())
+		log.Errorf("Unable to read announcements file: '%s!'", err.Error())
 		return nil, err
 	}
 
@@ -78,7 +78,7 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 	for _, target := range targets {
 		idBytes, err := RandomHex(6)
 		if err != nil {
-			log.Printf("ParseConfig(): Unable to get random bytes (%s)", err.Error())
+			log.Errorf("ParseConfig(): Unable to get random bytes (%s)", err.Error())
 			return nil, err
 		}
 
@@ -86,7 +86,7 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 		target.Service.Created = time.Now().UTC()
 		target.Service.Hostname = d.Hostname
 		target.Check.ID = string(idBytes)
-		log.Printf("Discovered service: %s, ID: %s\n",
+		log.Printf("Discovered service: %s, ID: %s",
 			target.Service.Name,
 			target.Service.ID,
 		)
@@ -99,7 +99,7 @@ func RandomHex(count int) ([]byte, error) {
 	raw := make([]byte, count)
 	_, err := rand.Read(raw)
 	if err != nil {
-		log.Printf("RandomBytes(): Error ", err)
+		log.Errorf("RandomBytes(): Error %s", err.Error())
 		return nil, err
 	}
 

@@ -2,7 +2,7 @@ package discovery
 
 import (
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"sync"
 	"time"
 
@@ -87,7 +87,7 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 
 		err := client.Ping()
 		if err != nil {
-			log.Println("Lost connection to Docker, re-connecting")
+			log.Warn("Lost connection to Docker, re-connecting")
 			client.RemoveEventListener(d.events)
 			d.events = make(chan *docker.APIEvents) // RemoveEventListener closes it
 
@@ -95,7 +95,7 @@ func (d *DockerDiscovery) watchEvents(quit chan bool) {
 			if err == nil {
 				client.AddEventListener(d.events)
 			} else {
-				log.Println("Can't reconnect to Docker!")
+				log.Error("Can't reconnect to Docker!")
 			}
 		}
 

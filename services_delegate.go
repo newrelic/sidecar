@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
+	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
 	"sync"
@@ -43,10 +43,10 @@ func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
-	log.Printf("NodeMeta(): %d\n", limit)
+	log.Printf("NodeMeta(): %d", limit)
 	data, err := json.Marshal(d.Metadata)
 	if err != nil {
-		log.Println("Error encoding Node metadata!")
+		log.Error("Error encoding Node metadata!")
 		data = []byte("{}")
 	}
 	return data
@@ -56,11 +56,11 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 	defer metrics.MeasureSince([]string{"delegate", "NotifyMsg"}, time.Now())
 
 	if len(message) < 1 {
-		log.Println("NotifyMsg(): empty")
+		log.Debug("NotifyMsg(): empty")
 		return
 	}
 
-	log.Printf("NotifyMsg(): %s\n", string(message))
+	log.Printf("NotifyMsg(): %s", string(message))
 
 	// TODO don't just send container structs, send message structs
 	d.notifications <- message
@@ -73,7 +73,7 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 			for message := range d.notifications {
 				entry := service.Decode(message)
 				if entry == nil {
-					log.Printf("NotifyMsg(): error decoding!\n")
+					log.Printf("NotifyMsg(): error decoding!")
 					continue
 				}
 				d.state.AddServiceEntry(*entry)
@@ -87,7 +87,7 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	defer metrics.MeasureSince([]string{"delegate", "GetBroadcasts"}, time.Now())
 	metrics.SetGauge([]string{"delegate", "pendingBroadcasts"}, float32(len(d.pendingBroadcasts)))
 
-	log.Printf("GetBroadcasts(): %d %d\n", overhead, limit)
+	log.Debugf("GetBroadcasts(): %d %d", overhead, limit)
 
 	broadcast := make([][]byte, 0, 1)
 
@@ -114,33 +114,33 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	}
 
 	if broadcast == nil || len(broadcast) < 1 {
-		log.Println("Note: Not enough space to fit any messages or message was nil")
+		log.Debug("Note: Not enough space to fit any messages or message was nil")
 		return nil
 	}
 
-	log.Printf("Sending broadcast %d msgs %d 1st length\n",
+	log.Printf("Sending broadcast %d msgs %d 1st length",
 		len(broadcast), len(broadcast[0]),
 	)
 	if len(leftover) > 0 {
-		log.Printf("Leaving %d messages unsent\n", len(leftover))
+		log.Warnf("Leaving %d messages unsent", len(leftover))
 	}
 
 	return broadcast
 }
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
-	log.Printf("LocalState(): %b\n", join)
+	log.Printf("LocalState(): %b", join)
 	return d.state.Encode()
 }
 
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 	defer metrics.MeasureSince([]string{"delegate", "MergeRemoteState"}, time.Now())
 
-	log.Printf("MergeRemoteState(): %s %b\n", string(buf), join)
+	log.Printf("MergeRemoteState(): %s %b", string(buf), join)
 
 	otherState, err := catalog.Decode(buf)
 	if err != nil {
-		log.Printf("Failed to MergeRemoteState(): %s", err.Error())
+		log.Errorf("Failed to MergeRemoteState(): %s", err.Error())
 		return
 	}
 
@@ -150,16 +150,16 @@ func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 }
 
 func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
-	log.Printf("NotifyJoin(): %s %s\n", node.Name, string(node.Meta))
+	log.Debugf("NotifyJoin(): %s %s", node.Name, string(node.Meta))
 }
 
 func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
-	log.Printf("NotifyLeave(): %s\n", node.Name)
+	log.Debugf("NotifyLeave(): %s", node.Name)
 	go d.state.ExpireServer(node.Name)
 }
 
 func (d *servicesDelegate) NotifyUpdate(node *memberlist.Node) {
-	log.Printf("NotifyUpdate(): %s\n", node.Name)
+	log.Debugf("NotifyUpdate(): %s", node.Name)
 }
 
 func packPacket(broadcasts [][]byte, limit int, overhead int) (packet [][]byte, leftover [][]byte) {

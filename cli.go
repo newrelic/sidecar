@@ -1,8 +1,7 @@
 package main
 
 import (
-	"log"
-
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v1"
 )
 

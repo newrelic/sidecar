@@ -2,7 +2,6 @@ package main // import "github.com/newrelic/bosun"
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -12,6 +11,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
+	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/discovery"
 	"github.com/newrelic/bosun/haproxy"
@@ -26,7 +26,7 @@ var (
 func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
 	for {
 		list.LocalNode().Meta = <-metaUpdates // Blocking
-		fmt.Printf("Got update: %s\n", string(list.LocalNode().Meta))
+		log.Printf("Got update: %s", string(list.LocalNode().Meta))
 		err := list.UpdateNode(10 * time.Second)
 		if err != nil {
 			fmt.Printf("Error pushing node update!")
@@ -38,8 +38,8 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 	for {
 		// Ask for members of the cluster
 		for _, member := range list.Members() {
-			fmt.Printf("Member: %s %s\n", member.Name, member.Addr)
-			fmt.Printf("  Meta:\n    %s\n", string(member.Meta))
+			log.Printf("Member: %s %s", member.Name, member.Addr)
+			log.Printf("Meta: %s", string(member.Meta))
 		}
 
 		state.Print(list)
@@ -172,14 +172,14 @@ func main() {
 	mlConfig.AdvertiseAddr = publishedIP
 
 	log.Println("Bosun starting -------------------")
-	log.Printf("Cluster Name: %s\n", *opts.ClusterName)
-	log.Printf("Config File: %s\n", *opts.ConfigFile)
-	log.Printf("Cluster Seeds: %s\n", strings.Join(*opts.ClusterIPs, ", "))
-	log.Printf("Advertised address: %s\n", publishedIP)
-	log.Printf("Service Name Match: %s\n", config.Services.NameMatch)
-	log.Printf("Excluded IPs: %v\n", config.Bosun.ExcludeIPs)
-	log.Printf("Push/Pull Interval: %s\n", config.Bosun.PushPullInterval.Duration.String())
-	log.Printf("Gossip Messages: %d\n", config.Bosun.GossipMessages)
+	log.Printf("Cluster Name: %s", *opts.ClusterName)
+	log.Printf("Config File: %s", *opts.ConfigFile)
+	log.Printf("Cluster Seeds: %s", strings.Join(*opts.ClusterIPs, ", "))
+	log.Printf("Advertised address: %s", publishedIP)
+	log.Printf("Service Name Match: %s", config.Services.NameMatch)
+	log.Printf("Excluded IPs: %v", config.Bosun.ExcludeIPs)
+	log.Printf("Push/Pull Interval: %s", config.Bosun.PushPullInterval.Duration.String())
+	log.Printf("Gossip Messages: %d", config.Bosun.GossipMessages)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)

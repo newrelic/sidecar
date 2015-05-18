@@ -3,7 +3,6 @@ package catalog
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
+	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"
 )
@@ -78,7 +78,7 @@ func NewServicesState() *ServicesState {
 	state.LastChanged = time.Unix(0, 0)
 	state.Hostname, err = os.Hostname()
 	if err != nil {
-		log.Printf("Error getting hostname! %s\n", err.Error())
+		log.Errorf("Error getting hostname! %s", err.Error())
 	}
 	state.tombstoneRetransmit = TOMBSTONE_RETRANSMIT
 	return &state
@@ -95,7 +95,7 @@ func (server *Server) HasService(id string) bool {
 func (state *ServicesState) Encode() []byte {
 	jsonData, err := json.Marshal(state.Servers)
 	if err != nil {
-		log.Println("ERROR: Failed to Marshal state")
+		log.Error("ERROR: Failed to Marshal state")
 		return []byte{}
 	}
 
@@ -129,11 +129,11 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 // A server has left the cluster, so tombstone all of its records
 func (state *ServicesState) ExpireServer(hostname string) {
 	if !state.HasServer(hostname) {
-		log.Printf("No records to expire for %s\n", hostname)
+		log.Printf("No records to expire for %s", hostname)
 		return
 	}
 
-	log.Printf("Expiring %s\n", hostname)
+	log.Printf("Expiring %s", hostname)
 
 	tombstones := make([]service.Service, 0, len(state.Servers[hostname].Services))
 
@@ -154,7 +154,7 @@ func (state *ServicesState) ExpireServer(hostname string) {
 // transitioned state.
 func (state *ServicesState) ServerChanged(hostname string, updated time.Time) {
 	if !state.HasServer(hostname) {
-		log.Printf("Attempt to change a server we don't have! (%s)", hostname)
+		log.Errorf("Attempt to change a server we don't have! (%s)", hostname)
 		return
 	}
 
@@ -169,7 +169,7 @@ func (state *ServicesState) ServerChanged(hostname string, updated time.Time) {
 // must be configured.
 func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Time) {
 	if len(state.listeners) < 1 {
-		log.Printf("Skipping listeners, there are none")
+		log.Debugf("Skipping listeners, there are none")
 		return
 	}
 	event := ChangeEvent{Hostname: hostname, Time: changedTime}
@@ -178,7 +178,7 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 		case listener <- event:
 			continue
 		default:
-			log.Println("NotifyListeners(): Can't send to listener!")
+			log.Error("NotifyListeners(): Can't send to listener!")
 		}
 	}
 }
@@ -188,7 +188,7 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 // or they will block. Channels must be ready to receive input.
 func (state *ServicesState) AddListener(listener chan ChangeEvent) {
 	state.listeners = append(state.listeners, listener)
-	log.Printf("AddListener(): new count %d\n", len(state.listeners))
+	log.Debugf("AddListener(): new count %d", len(state.listeners))
 }
 
 // Take a service and merge it into our state. Correctly handle
@@ -243,7 +243,7 @@ func (state *ServicesState) retransmit(svc service.Service) {
 	go func() {
 		encoded, err := svc.Encode()
 		if err != nil {
-			log.Printf("ERROR encoding message to forward: (%s)", err.Error())
+			log.Errorf("ERROR encoding message to forward: (%s)", err.Error())
 			return
 		}
 		state.Broadcasts <- [][]byte{encoded}
@@ -377,7 +377,7 @@ func (state *ServicesState) SendServices(services []service.Service, looper dire
 				svc.Updated = svc.Updated.Add(additionalTime)
 				encoded, err := svc.Encode()
 				if err != nil {
-					log.Printf("ERROR encoding container: (%s)", err.Error())
+					log.Errorf("ERROR encoding container: (%s)", err.Error())
 				}
 				prepared = append(prepared, encoded)
 			}
@@ -439,7 +439,7 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 		if svc.IsAlive() &&
 			svc.Updated.Before(time.Now().UTC().Add(0-ALIVE_LIFESPAN)) {
 
-			log.Printf("Found expired service %s from %s, tombstoning",
+			log.Warnf("Found expired service %s from %s, tombstoning",
 				svc.Name, svc.Hostname,
 			)
 
@@ -477,7 +477,7 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 	// Tombstone our own services that went away
 	for id, svc := range services {
 		if _, ok := mapping[id]; !ok && !svc.IsTombstone() {
-			log.Printf("Tombstoning %s\n", svc.ID)
+			log.Warnf("Tombstoning %s", svc.ID)
 			svc.Tombstone()
 			state.ServerChanged(hostname, svc.Updated)
 
@@ -557,7 +557,7 @@ func Decode(data []byte) (*ServicesState, error) {
 	newState := NewServicesState()
 	err := json.Unmarshal(data, &newState.Servers)
 	if err != nil {
-		log.Printf("Error decoding state! (%s)", err.Error())
+		log.Errorf("Error decoding state! (%s)", err.Error())
 	}
 
 	return newState, err
