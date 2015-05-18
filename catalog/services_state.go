@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
-	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/output"
 	"github.com/newrelic/bosun/service"
 )

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
-	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/discovery"
 	"github.com/newrelic/bosun/haproxy"

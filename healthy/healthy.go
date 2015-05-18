@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/relistan/go-director"
 	log "github.com/Sirupsen/logrus"
+	"github.com/relistan/go-director"
 	"github.com/newrelic/bosun/service"
 )
 

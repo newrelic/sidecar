@@ -117,11 +117,11 @@ func Test_ServicesBridge(t *testing.T) {
 
 			cmd := HttpGetCmd{}
 			check := &Check{
-				ID: svc.ID,
+				ID:      svc.ID,
 				Command: &cmd,
-				Type: "HttpGet",
-				Args: "http://" + hostname + ":1234/status/check",
-				Status: FAILED,
+				Type:    "HttpGet",
+				Args:    "http://" + hostname + ":1234/status/check",
+				Status:  FAILED,
 			}
 			looper := director.NewTimedLooper(5, 5*time.Nanosecond, nil)
 

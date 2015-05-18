@@ -125,9 +125,9 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 	timeAgo := func(when time.Time) string { return output.TimeAgo(when, time.Now().UTC()) }
 
 	funcMap := template.FuncMap{
-		"statusStr": statusStr,
-		"timeAgo":   timeAgo,
-		"portsStr":  portsStr,
+		"statusStr":   statusStr,
+		"timeAgo":     timeAgo,
+		"portsStr":    portsStr,
 		"clusterName": func() string { return list.ClusterName() },
 	}
 

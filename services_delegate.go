@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
-	log "github.com/Sirupsen/logrus"
 	"github.com/newrelic/bosun/catalog"
 	"github.com/newrelic/bosun/service"
 	"sync"
