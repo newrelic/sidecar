@@ -49,7 +49,8 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 }
 
 func configureHAproxy(config Config) *haproxy.HAproxy {
-	proxy := haproxy.New()
+	proxy := haproxy.New(config.HAproxy.ConfigFile)
+
 	if len(config.HAproxy.BindIP) > 0 {
 		proxy.BindIP = config.HAproxy.BindIP
 	}
@@ -64,10 +65,6 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 
 	if len(config.HAproxy.TemplateFile) > 0 {
 		proxy.Template = config.HAproxy.TemplateFile
-	}
-
-	if len(config.HAproxy.ConfigFile) > 0 {
-		proxy.ConfigFile = config.HAproxy.ConfigFile
 	}
 
 	return proxy

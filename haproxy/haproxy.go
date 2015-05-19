@@ -29,11 +29,15 @@ type HAproxy struct {
 }
 
 // Constructs a properly configure HAProxy and returns a pointer to it
-func New() *HAproxy {
+func New(configFile string) *HAproxy {
+	reloadCmd := "haproxy -f " + configFile + " -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)"
+	verifyCmd := "haproxy -c -f " + configFile
+
 	proxy := HAproxy{
-		ReloadCmd: "haproxy -f /etc/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)",
-		VerifyCmd: "haproxy -c -f /etc/haproxy.cfg",
+		ReloadCmd: reloadCmd,
+		VerifyCmd: verifyCmd,
 		Template:  "views/haproxy.cfg",
+		ConfigFile: configFile,
 	}
 
 	return &proxy
