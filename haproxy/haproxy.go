@@ -26,18 +26,20 @@ type HAproxy struct {
 	BindIP     string
 	Template   string
 	ConfigFile string
+	PidFile    string
 }
 
 // Constructs a properly configure HAProxy and returns a pointer to it
-func New(configFile string) *HAproxy {
-	reloadCmd := "haproxy -f " + configFile + " -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)"
+func New(configFile string, pidFile string) *HAproxy {
+	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + " -sf $(cat " + pidFile + ")"
 	verifyCmd := "haproxy -c -f " + configFile
 
 	proxy := HAproxy{
-		ReloadCmd: reloadCmd,
-		VerifyCmd: verifyCmd,
-		Template:  "views/haproxy.cfg",
+		ReloadCmd:  reloadCmd,
+		VerifyCmd:  verifyCmd,
+		Template:   "views/haproxy.cfg",
 		ConfigFile: configFile,
+		PidFile:    pidFile,
 	}
 
 	return &proxy
@@ -166,6 +168,11 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
 			if len(svc.Ports) < 1 {
+				return
+			}
+
+			// We only want things that are alive and healthy!
+			if !svc.IsAlive() {
 				return
 			}
 

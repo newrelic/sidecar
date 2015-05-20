@@ -70,12 +70,12 @@ func Test_HAproxy(t *testing.T) {
 			state.AddServiceEntry(svc)
 		}
 
-		proxy := New("tmpConfig")
+		proxy := New("tmpConfig", "tmpPid")
 		proxy.BindIP = "192.168.168.168"
 		proxy.Template = "../views/haproxy.cfg"
 
 		Convey("New() returns a properly configured struct", func() {
-			p := New("tmpConfig")
+			p := New("tmpConfig", "tmpPid")
 			So([]byte(p.ReloadCmd), ShouldMatch, "^haproxy .*")
 			So([]byte(p.VerifyCmd), ShouldMatch, "^haproxy .*")
 			So([]byte(p.Template), ShouldMatch, "views/haproxy.cfg")
@@ -124,6 +124,37 @@ func Test_HAproxy(t *testing.T) {
 			So(output, ShouldMatch, "frontend some-svc-9999")
 			So(output, ShouldMatch, "backend some-svc-9999")
 			So(output, ShouldMatch, "server deadbeef105 indefatigable:9999 cookie indefatigable-9999")
+		})
+
+		Convey("WriteConfig() only writes out healthy services", func() {
+			badSvc := service.Service{
+				ID:       "0000bad00000",
+				Name:     "some-svc-0155555789a",
+				Image:    "some-svc",
+				Hostname: "titanic",
+				Status:   service.UNHEALTHY,
+				Updated:  baseTime.Add(5 * time.Second),
+				Ports:    []service.Port{service.Port{"tcp", 666}},
+			}
+			badSvc2 := service.Service{
+				ID:       "0000bad00001",
+				Name:     "some-svc-0155555789a",
+				Image:    "some-svc",
+				Hostname: "titanic",
+				Status:   service.UNKNOWN,
+				Updated:  baseTime.Add(5 * time.Second),
+				Ports:    []service.Port{service.Port{"tcp", 666}},
+			}
+			state.AddServiceEntry(badSvc)
+			state.AddServiceEntry(badSvc2)
+
+			buf := bytes.NewBuffer(make([]byte, 0, 2048))
+			proxy.WriteConfig(state, buf)
+
+			output := buf.Bytes()
+			// Look for a few things we should NOT see
+			So(output, ShouldNotMatch, "0000bad00000")
+			So(output, ShouldNotMatch, "0000bad00001")
 		})
 
 		Convey("Reload() doesn't return an error when it works", func() {
@@ -184,6 +215,19 @@ func ShouldMatch(actual interface{}, expected ...interface{}) string {
 
 	if !wantedRegexp.Match(got) {
 		return "expected:\n" + fmt.Sprintf("%#v", wanted) + "\n\nto match:\n" + fmt.Sprintf("%v", string(got))
+	}
+
+	return ""
+}
+
+func ShouldNotMatch(actual interface{}, expected ...interface{}) string {
+	unwanted := expected[0].(string)
+	got := actual.([]byte)
+
+	unwantedRegexp := regexp.MustCompile(unwanted)
+
+	if unwantedRegexp.Match(got) {
+		return "expected not to match:\n" + fmt.Sprintf("%#v", unwanted) + "\n\nbut matched:\n" + fmt.Sprintf("%v", string(got))
 	}
 
 	return ""
