@@ -181,6 +181,10 @@ func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 		"/watch", makeHandler(watchHandler, list, state),
 	).Methods("GET")
 
+	fs := http.FileServer(http.Dir("views/static/"))
+
+	router.Handle("/static/{file}", http.StripPrefix("/static/", fs))
+
 	http.Handle("/", router)
 
 	err := http.ListenAndServe("0.0.0.0:7777", nil)
