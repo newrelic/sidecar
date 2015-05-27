@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/newrelic/bosun",
+	"ImportPath": "github.com/newrelic/sidecar",
 	"GoVersion": "go1.4.1",
 	"Deps": [
 		{

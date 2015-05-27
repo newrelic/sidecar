@@ -1,7 +1,7 @@
-Bosun
+Sidecar
 =====
 
-Bosun is a service discovery platform for Docker that uses a gossip protocol
+Sidecar is a service discovery platform for Docker that uses a gossip protocol
 for all communication between hosts. It is intended to run on Docker hosts, but
 any host can join the cluster. Only Docker hosts will export services to the
 cluster.
@@ -29,36 +29,36 @@ multiple hosts. It is recommended to use more than one when possible.
 Configuration
 -------------
 
-Bosun expects to find a TOML config file, by default named `bosun.toml` in the
+Sidecar expects to find a TOML config file, by default named `sidecar.toml` in the
 current path, to specify how it should operate. You can tell it to use a
 specific file with the `--config-file` or `-f` option on the command line.
 
-It comes supplied with an example config file called `bosun.example.toml`
+It comes supplied with an example config file called `sidecar.example.toml`
 which you should copy and modify as needed.
 
-Bosun supports both Docker-based discovery and a discovery mechanism where
+Sidecar supports both Docker-based discovery and a discovery mechanism where
 you publish services into a JSON file locally. These can then be advertised
 as running services just like they would be from a Docker host.
 
 ###Discovery
 
-Bosun currently supports two methods of discovery and these can be set in
-the `bosun.toml` file in the `bosun` section. Like this:
+Sidecar currently supports two methods of discovery and these can be set in
+the `sidecar.toml` file in the `sidecar` section. Like this:
 
 ```toml
-[bosun]
+[sidecar]
 discovery = [ "docker", "static" ]
 ```
 
 Zero or more options may be supplied. Note that if nothing is in this section,
-Bosun will only participate in a cluster but will not announce anything.
+Sidecar will only participate in a cluster but will not announce anything.
 
 ####Configuring Docker Discovery
 
-Bosun currently accepts a single option for Docker-based discovery, the URL
+Sidecar currently accepts a single option for Docker-based discovery, the URL
 to use to connect to Docker. You really want this to be the local machine.
 It uses the same URLs that are supported by the Docker command line tools.
-The configuration block for Bosun looks like this:
+The configuration block for Sidecar looks like this:
 
 ```toml
 [docker_discovery]
@@ -69,7 +69,7 @@ Note that it only supports a *single* URL, unlike the Docker CLI tool.
 
 ####Configuring Static Discovery
 
-Static Discovery requires a configuration block in the `bosun.toml` that
+Static Discovery requires a configuration block in the `sidecar.toml` that
 looks like this:
 
 ```toml
@@ -107,7 +107,7 @@ Here we've defined both the service itself and the health check to use
 to validate its status. It supports a single health check per service.
 You should supply something in place of the value for `Image` that is
 meaningful to you. Usually this is a version or git commit string. It
-will show up in the Bosun web UI.
+will show up in the Sidecar web UI.
 
 Monitoring It
 -------------
@@ -116,7 +116,7 @@ The logging output is pretty verbose and contains lots of information about
 what's going on and what the current state is. Or you can use the web
 interface.
 
-Currently the web interface runs on port 7777 on each machine that runs `bosun`.
+Currently the web interface runs on port 7777 on each machine that runs `sidecar`.
 
 The `/services` endpoint is a very textual web interface for humans. The
 `/services.json` endpoint is JSON-encoded. The JSON is still pretty-printed so
@@ -125,7 +125,7 @@ it's readable by humans.
 Theory
 ------
 
-Bosun is an eventually consistent service discovery platform where hosts learn
+Sidecar is an eventually consistent service discovery platform where hosts learn
 about each others' state via a gossip protocol. Hosts exchange messages about
 which services they are running and which have gone away. All messages are
 timestamped and the latest timestamp always wins. Each host maintains its own
@@ -136,7 +136,7 @@ There is an anti-entropy mechanism where full state exchanges take place
 between peer nodes on an intermittent basis. This allows for any missed
 messages to propagate, and helps keep state consistent across the cluster.
 
-Bosun hosts join a cluster by having a set of cluster seed hosts passed to them
+Sidecar hosts join a cluster by having a set of cluster seed hosts passed to them
 on the command line at startup. Once in a cluster, the first thing a host does
 is merge the state directly from another host. This is a big JSON blob that is
 delivered over a TCP session directly between the hosts.
