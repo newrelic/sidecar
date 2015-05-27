@@ -9,7 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/relistan/go-director"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/service"
 )
 
 const (

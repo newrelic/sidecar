@@ -8,7 +8,7 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/relistan/go-director"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/service"
 )
 
 type DockerDiscovery struct {

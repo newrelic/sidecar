@@ -11,8 +11,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/relistan/go-director"
 
-	"github.com/newrelic/bosun/healthy"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/healthy"
+	"github.com/newrelic/sidecar/service"
 )
 
 type Target struct {

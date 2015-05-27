@@ -11,8 +11,8 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
-	"github.com/newrelic/bosun/output"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/output"
+	"github.com/newrelic/sidecar/service"
 )
 
 // catalog handles all of the eventual-consistency mechanisms for

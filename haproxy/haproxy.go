@@ -12,8 +12,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/newrelic/bosun/catalog"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/catalog"
+	"github.com/newrelic/sidecar/service"
 )
 
 type portset map[string]struct{}

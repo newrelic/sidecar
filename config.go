@@ -22,7 +22,7 @@ type ServicesConfig struct {
 	NameRegexp *regexp.Regexp
 }
 
-type BosunConfig struct {
+type SidecarConfig struct {
 	ExcludeIPs       []string `toml:"exclude_ips"`
 	Discovery        []string `toml:"discovery"`
 	StatsAddr        string   `toml:"stats_addr"`
@@ -39,7 +39,7 @@ type StaticConfig struct {
 }
 
 type Config struct {
-	Bosun           BosunConfig
+	Sidecar         SidecarConfig
 	DockerDiscovery DockerConfig
 	StaticDiscovery StaticConfig
 	Services        ServicesConfig

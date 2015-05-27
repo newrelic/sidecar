@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
-	"github.com/newrelic/bosun/output"
+	"github.com/newrelic/sidecar/output"
 )
 
 const (

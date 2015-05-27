@@ -24,7 +24,7 @@ func parseCommandLine() *CliOpts {
 
 	opts.AdvertiseIP = kingpin.Flag("advertise-ip", "The address to advertise to the cluster").Short('a').String()
 	opts.ClusterIPs = kingpin.Flag("cluster-ip", "The cluster seed addresses").Required().Short('c').Strings()
-	opts.ConfigFile = kingpin.Flag("config-file", "The config file to use").Short('f').Default("bosun.toml").String()
+	opts.ConfigFile = kingpin.Flag("config-file", "The config file to use").Short('f').Default("sidecar.toml").String()
 	opts.ClusterName = kingpin.Flag("cluster-name", "The cluster we're part of").Short('n').Default("default").String()
 	opts.CpuProfile = kingpin.Flag("cpuprofile", "Enable CPU profiling").Short('p').Bool()
 	kingpin.Parse()

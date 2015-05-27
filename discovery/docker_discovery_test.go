@@ -6,7 +6,7 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/service"
 )
 
 var hostname = "shakespeare"

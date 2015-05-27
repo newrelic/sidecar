@@ -10,7 +10,7 @@ import (
 
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/service"
 )
 
 var hostname = "shakespeare"

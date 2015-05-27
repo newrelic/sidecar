@@ -10,8 +10,8 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/catalog"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/catalog"
+	"github.com/newrelic/sidecar/service"
 )
 
 var hostname1 = "indomitable"
@@ -179,7 +179,7 @@ func Test_HAproxy(t *testing.T) {
 		})
 
 		Convey("Watch() writes out a config when the state changes", func() {
-			tmpDir, _ := ioutil.TempDir("/tmp", "bosun-test")
+			tmpDir, _ := ioutil.TempDir("/tmp", "sidecar-test")
 			config := fmt.Sprintf("%s/haproxy.cfg", tmpDir)
 			proxy.ConfigFile = config
 

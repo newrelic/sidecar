@@ -11,9 +11,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/newrelic-forks/memberlist"
-	"github.com/newrelic/bosun/catalog"
-	"github.com/newrelic/bosun/output"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/catalog"
+	"github.com/newrelic/sidecar/output"
+	"github.com/newrelic/sidecar/service"
 )
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request,

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/bosun/catalog"
+	"github.com/newrelic/sidecar/catalog"
 )
 
 func Test_GetBroadcasts(t *testing.T) {

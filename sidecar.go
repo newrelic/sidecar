@@ -1,4 +1,4 @@
-package main // import "github.com/newrelic/bosun"
+package main // import "github.com/newrelic/sidecar"
 
 import (
 	"fmt"
@@ -12,11 +12,11 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
 	"github.com/relistan/go-director"
-	"github.com/newrelic/bosun/catalog"
-	"github.com/newrelic/bosun/discovery"
-	"github.com/newrelic/bosun/haproxy"
-	"github.com/newrelic/bosun/healthy"
-	"github.com/newrelic/bosun/service"
+	"github.com/newrelic/sidecar/catalog"
+	"github.com/newrelic/sidecar/discovery"
+	"github.com/newrelic/sidecar/haproxy"
+	"github.com/newrelic/sidecar/healthy"
+	"github.com/newrelic/sidecar/service"
 )
 
 var (
@@ -73,7 +73,7 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 func configureDiscovery(config *Config) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
-	for _, method := range config.Bosun.Discovery {
+	for _, method := range config.Sidecar.Discovery {
 		switch method {
 		case "docker":
 			disco.Discoverers = append(
@@ -93,11 +93,11 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 }
 
 func configureMetrics(config *Config) {
-	if config.Bosun.StatsAddr != "" {
-		sink, err := metrics.NewStatsdSink(config.Bosun.StatsAddr)
+	if config.Sidecar.StatsAddr != "" {
+		sink, err := metrics.NewStatsdSink(config.Sidecar.StatsAddr)
 		exitWithError(err, "Can't configure Statsd")
 
-		metricsConfig := metrics.DefaultConfig("bosun")
+		metricsConfig := metrics.DefaultConfig("sidecar")
 		_, err = metrics.NewGlobal(metricsConfig, sink)
 		exitWithError(err, "Can't start metrics")
 	}
@@ -140,7 +140,7 @@ func main() {
 
 	// Enable CPU profiling support if requested
 	if *opts.CpuProfile {
-		profilerFile, err := os.Create("bosun.cpu.prof")
+		profilerFile, err := os.Create("sidecar.cpu.prof")
 		exitWithError(err, "Can't write profiling file")
 		pprof.StartCPUProfile(profilerFile)
 		log.Debug("Profiling!")
@@ -158,29 +158,29 @@ func main() {
 	mlConfig.Events = delegate
 
 	// Set up the push pull interval for Memberlist
-	if config.Bosun.PushPullInterval.Duration == 0 {
+	if config.Sidecar.PushPullInterval.Duration == 0 {
 		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1*time.Second
 	} else {
-		mlConfig.PushPullInterval = config.Bosun.PushPullInterval.Duration
+		mlConfig.PushPullInterval = config.Sidecar.PushPullInterval.Duration
 	}
-	if config.Bosun.GossipMessages != 0 {
-		mlConfig.GossipMessages = config.Bosun.GossipMessages
+	if config.Sidecar.GossipMessages != 0 {
+		mlConfig.GossipMessages = config.Sidecar.GossipMessages
 	}
 
 	// Figure out our IP address from the CLI or by inspecting
-	publishedIP, err := getPublishedIP(config.Bosun.ExcludeIPs, opts.AdvertiseIP)
+	publishedIP, err := getPublishedIP(config.Sidecar.ExcludeIPs, opts.AdvertiseIP)
 	exitWithError(err, "Failed to find private IP address")
 	mlConfig.AdvertiseAddr = publishedIP
 
-	log.Println("Bosun starting -------------------")
+	log.Println("Sidecar starting -------------------")
 	log.Printf("Cluster Name: %s", *opts.ClusterName)
 	log.Printf("Config File: %s", *opts.ConfigFile)
 	log.Printf("Cluster Seeds: %s", strings.Join(*opts.ClusterIPs, ", "))
 	log.Printf("Advertised address: %s", publishedIP)
 	log.Printf("Service Name Match: %s", config.Services.NameMatch)
-	log.Printf("Excluded IPs: %v", config.Bosun.ExcludeIPs)
-	log.Printf("Push/Pull Interval: %s", config.Bosun.PushPullInterval.Duration.String())
-	log.Printf("Gossip Messages: %d", config.Bosun.GossipMessages)
+	log.Printf("Excluded IPs: %v", config.Sidecar.ExcludeIPs)
+	log.Printf("Push/Pull Interval: %s", config.Sidecar.PushPullInterval.Duration.String())
+	log.Printf("Gossip Messages: %d", config.Sidecar.GossipMessages)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
