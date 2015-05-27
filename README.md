@@ -166,3 +166,8 @@ have clock drift on various machines. But if we always look at the origin timest
 they will at least be comparable to each other by all hosts in the cluster. The
 one exception to this is that if clock drift is more than a second or two, the
 alive lifespan may be negatively impacted.
+
+Logo
+----
+
+The logo is used with kind permission from [Picture Esk](https://www.flickr.com/photos/22081583@N06/4226337024/).
