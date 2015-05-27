@@ -31,7 +31,7 @@ type HAproxy struct {
 
 // Constructs a properly configure HAProxy and returns a pointer to it
 func New(configFile string, pidFile string) *HAproxy {
-	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + " -sf $(cat " + pidFile + ")"
+	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + "`[[ -f " + pidFile + " ]] && echo \"-sf $(cat " + pidFile + ")\"]]`"
 	verifyCmd := "haproxy -c -f " + configFile
 
 	proxy := HAproxy{
