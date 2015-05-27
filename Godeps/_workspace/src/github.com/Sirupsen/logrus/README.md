@@ -183,7 +183,7 @@ Logrus comes with [built-in hooks](hooks/). Add those, or your custom hook, in
 import (
   log "github.com/Sirupsen/logrus"
   "github.com/Sirupsen/logrus/hooks/airbrake"
-  "github.com/Sirupsen/logrus/hooks/syslog"
+  logrus_syslog "github.com/Sirupsen/logrus/hooks/syslog"
   "log/syslog"
 )
 
@@ -211,6 +211,7 @@ func init() {
 | [Slackrus](https://github.com/johntdyer/slackrus) | Hook for Slack chat. |
 | [Journalhook](https://github.com/wercker/journalhook) | Hook for logging to `systemd-journald` |
 | [Graylog](https://github.com/gemnasium/logrus-hooks/tree/master/graylog) | Hook for logging to [Graylog](http://graylog2.org/) |
+| [Raygun](https://github.com/squirkle/logrus-raygun-hook) | Hook for logging to [Raygun.io](http://raygun.io/) |
 
 #### Level logging
 
