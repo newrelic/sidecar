@@ -1,5 +1,5 @@
 *.swp
 *.swo
-bosun
-bosun.toml
-bosun.cpu.prof
+sidecar
+sidecar.toml
+sidecar.cpu.prof
