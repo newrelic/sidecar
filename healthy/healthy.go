@@ -142,7 +142,7 @@ func NewMonitor(defaultCheckHost string, tomeAddr string) *Monitor {
 func (m *Monitor) AddCheck(check *Check) {
 	m.Lock()
 	defer m.Unlock()
-	log.Printf("Adding health check: %s %s", check.ID, check.Args)
+	log.Printf("Adding health check: %s (ID: %s), Args: %s", check.Type, check.ID, check.Args)
 	m.Checks[check.ID] = check
 }
 

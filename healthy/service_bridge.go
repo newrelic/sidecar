@@ -1,14 +1,15 @@
 package healthy
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	//"io/ioutil"
+	//"net/http"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/relistan/go-director"
+	"github.com/newrelic/sidecar/discovery"
 	"github.com/newrelic/sidecar/service"
 )
 
@@ -48,14 +49,14 @@ func findFirstTCPPort(svc *service.Service) *service.Port {
 
 // Configure a default check for a service. The default is to return an HTTP
 // check on the first TCP port on the endpoint set in DEFAULT_STATUS_ENDPOINT.
-func (m *Monitor) defaultCheckForService(svc *service.Service) Check {
+func (m *Monitor) defaultCheckForService(svc *service.Service) *Check {
 	port := findFirstTCPPort(svc)
 	if port == nil {
-		return Check{ID: svc.ID}
+		return &Check{ID: svc.ID}
 	}
 
 	url := fmt.Sprintf("http://%v:%v%v", m.DefaultCheckHost, port.Port, DEFAULT_STATUS_ENDPOINT)
-	return Check{
+	return &Check{
 		ID:      svc.ID,
 		Type:    "HttpGet",
 		Args:    url,
@@ -95,27 +96,16 @@ func (m *Monitor) urlForService(svc *service.Service) string {
 }
 
 // Talks to a Tome service and returns the configured check
-func (m *Monitor) fetchCheckForService(svc *service.Service) Check {
-	url := m.urlForService(svc)
-	if url == "" {
-		return Check{}
-	}
+func (m *Monitor) fetchCheckForService(svc *service.Service, disco discovery.Discoverer) *Check {
 
-	resp, err := http.Get(url)
-
-	if err != nil {
-		log.Errorf("Error fetching '%s'! (%s)", url, err.Error())
-		return Check{}
-	}
-	defer resp.Body.Close()
-
-	data, err := ioutil.ReadAll(resp.Body)
-	var check Check
-	err = json.Unmarshal(data, &check)
-
-	if err != nil {
-		log.Errorf("Error decoding check response! (%s)", err.Error())
-		return Check{}
+	check := &Check{}
+	check.Type, check.Args = disco.HealthCheck(svc)
+	if check.Type == "" {
+		log.Errorf(
+			"Adding check for service %s (id: %s) failed. Got check type: %s, check args: %s.",
+			svc.Name, svc.ID, check.Type, check.Args,
+		)
+		return nil
 	}
 
 	// Setup some other parts of the check that don't come from the JSON
@@ -134,10 +124,10 @@ func (m *Monitor) fetchCheckForService(svc *service.Service) Check {
 
 // CheckForService returns a Check that has been properly configured for this
 // particular service.
-func (m *Monitor) CheckForService(svc *service.Service) Check {
-	check := m.fetchCheckForService(svc)
-	if check.ID == "" { // We got nothing
-		log.Warnf("Using default check for %s\n", svc.ID)
+func (m *Monitor) CheckForService(svc *service.Service, disco discovery.Discoverer) *Check {
+	check := m.fetchCheckForService(svc, disco)
+	if check == nil { // We got nothing
+		log.Warnf("Using default check for service %s (id: %s).", svc.Name, svc.ID)
 		return m.defaultCheckForService(svc)
 	}
 
@@ -147,23 +137,23 @@ func (m *Monitor) CheckForService(svc *service.Service) Check {
 // Watch loops over a list of services and adds checks for services we don't already
 // know about. It then removes any checks for services which have gone away. All
 // services are expected to be local to this node.
-func (m *Monitor) Watch(svcFun func() []service.Service, looper director.Looper) {
-	m.DiscoveryFn = svcFun // Store this so we can use it from Services()
+func (m *Monitor) Watch(disco discovery.Discoverer, looper director.Looper) {
+	m.DiscoveryFn = disco.Services // Store this so we can use it from Services()
 
 	looper.Loop(func() error {
-		services := svcFun()
+		services := disco.Services()
 
 		// Add checks when new services are found
 		for _, svc := range services {
 			if m.Checks[svc.ID] == nil {
-				check := m.CheckForService(&svc)
+				check := m.CheckForService(&svc, disco)
 				if check.Command == nil {
 					log.Errorf(
 						"Attempted to add %s (id: %s) but no check configured!",
 						svc.Name, svc.ID,
 					)
 				} else {
-					m.AddCheck(&check)
+					m.AddCheck(check)
 				}
 			}
 		}

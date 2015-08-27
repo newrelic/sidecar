@@ -11,13 +11,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/relistan/go-director"
 
-	"github.com/newrelic/sidecar/healthy"
 	"github.com/newrelic/sidecar/service"
 )
 
 type Target struct {
-	Service service.Service
-	Check   healthy.Check
+	Service         service.Service
+	HealthCheck     string
+	HealthCheckArgs string
 }
 
 type StaticDiscovery struct {
@@ -35,6 +35,15 @@ func NewStaticDiscovery(filename string) *StaticDiscovery {
 		ConfigFile: filename,
 		Hostname:   hostname,
 	}
+}
+
+func (d *StaticDiscovery) HealthCheck(svc *service.Service) (string, string) {
+	for _, target := range d.Targets {
+		if svc.ID == target.Service.ID {
+			return target.HealthCheck, target.HealthCheckArgs
+		}
+	}
+	return "", ""
 }
 
 // Returns the list of services derived from the targets that were parsed
@@ -85,7 +94,6 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 		target.Service.ID = string(idBytes)
 		target.Service.Created = time.Now().UTC()
 		target.Service.Hostname = d.Hostname
-		target.Check.ID = string(idBytes)
 		log.Printf("Discovered service: %s, ID: %s",
 			target.Service.Name,
 			target.Service.ID,

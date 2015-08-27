@@ -18,6 +18,8 @@ const (
 type Discoverer interface {
 	// Returns a slice of services that we discovered
 	Services() []service.Service
+	// Get the health check and health check args for a service
+	HealthCheck(svc *service.Service) (string, string)
 	// A non-blocking method that runs a discovery loop.
 	// The controlling process kicks it off to start discovery.
 	Run(director.Looper)
@@ -27,6 +29,17 @@ type Discoverer interface {
 // It allows the use of potentially multiple Discoverers in place of one.
 type MultiDiscovery struct {
 	Discoverers []Discoverer
+}
+
+// Get the health check and health check args for a service
+func (d *MultiDiscovery) HealthCheck(svc *service.Service) (string, string) {
+	for _, disco := range d.Discoverers {
+		if healthCheck, healthCheckArgs := disco.HealthCheck(svc); healthCheck != "" {
+			return healthCheck, healthCheckArgs
+		}
+
+	}
+	return "", ""
 }
 
 // Aggregates all the service slices from the discoverers
