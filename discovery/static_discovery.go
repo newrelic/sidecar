@@ -15,15 +15,19 @@ import (
 )
 
 type Target struct {
-	Service         service.Service
-	HealthCheck     string
-	HealthCheckArgs string
+	Service service.Service
+	Check   StaticCheck
 }
 
 type StaticDiscovery struct {
 	Targets    []*Target
 	ConfigFile string
 	Hostname   string
+}
+
+type StaticCheck struct {
+	Type string
+	Args string
 }
 
 func NewStaticDiscovery(filename string) *StaticDiscovery {
@@ -40,7 +44,7 @@ func NewStaticDiscovery(filename string) *StaticDiscovery {
 func (d *StaticDiscovery) HealthCheck(svc *service.Service) (string, string) {
 	for _, target := range d.Targets {
 		if svc.ID == target.Service.ID {
-			return target.HealthCheck, target.HealthCheckArgs
+			return target.Check.Type, target.Check.Args
 		}
 	}
 	return "", ""

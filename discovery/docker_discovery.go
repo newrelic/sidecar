@@ -27,13 +27,7 @@ func NewDockerDiscovery(endpoint string) *DockerDiscovery {
 }
 
 func (d *DockerDiscovery) HealthCheck(svc *service.Service) (string, string) {
-	// New connection every time
-	client, _ := docker.NewClient(d.endpoint)
-	container, err := client.InspectContainer(svc.ID)
-	if err != nil {
-		return "", ""
-	}
-	return container.Config.Labels["HealthCheck"], container.Config.Labels["HealthCheckArgs"]
+	return "", ""
 }
 
 func (d *DockerDiscovery) Run(looper director.Looper) {
