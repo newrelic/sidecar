@@ -11,6 +11,20 @@ import (
 
 var hostname string = "indefatigable"
 
+type mockDiscoverer struct {
+	listFn func() []service.Service
+}
+
+func (m *mockDiscoverer) Services() []service.Service {
+	return m.listFn()
+}
+
+func (m *mockDiscoverer) HealthCheck(*service.Service) (string, string) {
+	return "", ""
+}
+
+func (m *mockDiscoverer) Run(director.Looper) { }
+
 func Test_ServicesBridge(t *testing.T) {
 	Convey("The services bridge", t, func() {
 		svcId1 := "deadbeef123"
@@ -113,7 +127,8 @@ func Test_ServicesBridge(t *testing.T) {
 			ports := []service.Port{service.Port{"udp", 11234}, service.Port{"tcp", 1234}}
 			svc := service.Service{ID: "babbacabba", Name: "testing-12312312", Ports: ports}
 			svcList := []service.Service{svc}
-			listFn := func() []service.Service { return svcList }
+
+			disco := &mockDiscoverer{ listFn: func() []service.Service { return svcList } }
 
 			cmd := HttpGetCmd{}
 			check := &Check{
@@ -125,7 +140,7 @@ func Test_ServicesBridge(t *testing.T) {
 			}
 			looper := director.NewTimedLooper(5, 5*time.Nanosecond, nil)
 
-			monitor.Watch(listFn, looper)
+			monitor.Watch(disco, looper)
 
 			So(len(monitor.Checks), ShouldEqual, 1)
 			So(monitor.Checks[svc.ID], ShouldResemble, check)
@@ -148,7 +163,7 @@ func Test_CheckForService(t *testing.T) {
 
 		Convey("Returns proper check", func() {
 			monitor := NewMonitor(hostname, "")
-			check := monitor.CheckForService(&service1)
+			check := monitor.CheckForService(&service1, &mockDiscoverer{})
 			So(check.ID, ShouldEqual, service1.ID)
 		})
 	})
