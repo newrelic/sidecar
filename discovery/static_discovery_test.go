@@ -5,7 +5,6 @@ import (
 
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/sidecar/healthy"
 	"github.com/newrelic/sidecar/service"
 )
 
@@ -28,7 +27,6 @@ func Test_ParseConfig(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(len(parsed), ShouldEqual, 1)
 			So(parsed[0].Service.Ports[0].Type, ShouldEqual, "tcp")
-			So(parsed[0].Check.ID, ShouldEqual, parsed[0].Service.ID)
 		})
 
 		Convey("Applies hostnames to services", func() {
@@ -42,12 +40,10 @@ func Test_Services(t *testing.T) {
 	Convey("Services()", t, func() {
 		disco := NewStaticDiscovery(STATIC_JSON)
 		tgt1 := &Target{
-			service.Service{ID: "asdf"},
-			healthy.Check{ID: "asdf"},
+			Service: service.Service{ID: "asdf"},
 		}
 		tgt2 := &Target{
-			service.Service{ID: "foofoo"},
-			healthy.Check{ID: "foofoo"},
+			Service: service.Service{ID: "foofoo"},
 		}
 		disco.Targets = []*Target{tgt1, tgt2}
 

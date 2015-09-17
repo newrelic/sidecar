@@ -24,6 +24,10 @@ func (m *mockDiscoverer) Run(looper director.Looper) {
 	m.RunInvoked = true
 }
 
+func (m *mockDiscoverer) HealthCheck(*service.Service) (string, string) {
+	return "", ""
+}
+
 func Test_MultiDiscovery(t *testing.T) {
 	Convey("MultiDiscovery", t, func() {
 		looper := director.NewFreeLooper(director.ONCE, nil)
