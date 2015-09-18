@@ -40,11 +40,11 @@ type StaticConfig struct {
 }
 
 type Config struct {
-	Sidecar         SidecarConfig
-	DockerDiscovery DockerConfig
-	StaticDiscovery StaticConfig
-	Services        ServicesConfig
-	HAproxy         HAproxyConfig
+	Sidecar         SidecarConfig  `toml:"sidecar"`
+	DockerDiscovery DockerConfig   `toml:"docker_discovery"`
+	StaticDiscovery StaticConfig   `toml:"static_discovery"`
+	Services        ServicesConfig `toml:"services"`
+	HAproxy         HAproxyConfig  `toml:"haproxy"`
 }
 
 func setDefaults(config *Config) {
