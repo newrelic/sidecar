@@ -1,19 +1,21 @@
 Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
-Sidecar is a service discovery platform that uses a gossip protocol for all
-communication between hosts. Sidecars uses an HAproxy instances on each host to
-direct traffic from that host to live endpoints for the requested service.
-HAproxy's config is managed by a single Go process that runs as a statically
-linked, native executable. It is inspired by Airbnb's SmartStack.
+Sidecar is a dynamic service discovery platform requiring no external
+coordination service. It's a peer-to-peer system that uses a gossip protocol
+for all communication between hosts. Sidecar health checks local services
+and announces them to peer systems. It's Docker-native so your containerized
+applications work out of the box.
 
-We believe it has a few advantages over SmartStack:
+Services communicate to each other through an HAproxy instance on each host
+that is itself managed and configured by Sidecar. It is inspired by Airbnb's
+SmartStack. But, we believe it has a few advantages over SmartStack:
  * Native support for Docker (works without Docker, too!)
  * No dependence on Zookeeper or other centralized services
  * Peer-to-peer, so it works on your laptop or on a large cluster
  * Static binary means it's easy to deploy, and there is no interpreter needed
  * Tiny memory usage (under 20MB) and few execution threads means its very
-   lightweight
+   light weight
 
 **See it in Action:** We've presented Sidecar at Velocity 2015 and recorded a [YouTube
 video](https://www.youtube.com/watch?v=VA43yWVUnMA) demonstrating Sidecar with
