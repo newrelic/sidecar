@@ -1,4 +1,4 @@
-Sidecar ![Sidecar](views/static/sidecar.png)
+Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
 Sidecar is a service discovery platform that uses a gossip protocol for all
