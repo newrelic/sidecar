@@ -15,10 +15,10 @@ We believe it has a few advantages over SmartStack:
  * Tiny memory usage (under 20MB) and few execution threads means its very
    lightweight
 
-**See it in Action:** We've done a [YouTube
+**See it in Action:** We've presented Sidecar at Velocity 2015 and recorded a [YouTube
 video](https://www.youtube.com/watch?v=VA43yWVUnMA) demonstrating Sidecar with
 [Centurion](https://github.com/newrelic/centurion), deploying services in
-Docker containers and seeing Sidecar discover and health check them.
+Docker containers, and seeing Sidecar discover and health check them.
 
 [![YouTube Video](views/static/youtube.png)](https://www.youtube.com/watch?v=VA43yWVUnMA)
 
