@@ -1,4 +1,4 @@
-Sidecar
+Sidecar ![Sidecar](views/static/sidecar.png)
 =====
 
 Sidecar is a service discovery platform that uses a gossip protocol for all
@@ -19,6 +19,8 @@ We believe it has a few advantages over SmartStack:
 video](https://www.youtube.com/watch?v=VA43yWVUnMA) demonstrating Sidecar with
 [Centurion](https://github.com/newrelic/centurion), deploying services in
 Docker containers and seeing Sidecar discover and health check them.
+
+[![YouTube Video](views/static/youtube.png)](https://www.youtube.com/watch?v=VA43yWVUnMA)
 
 Overview and Theory
 -------------------
