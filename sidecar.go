@@ -1,7 +1,6 @@
 package main // import "github.com/newrelic/sidecar"
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -22,17 +21,6 @@ import (
 var (
 	profilerFile os.File
 )
-
-func updateMetaData(list *memberlist.Memberlist, metaUpdates chan []byte) {
-	for {
-		list.LocalNode().Meta = <-metaUpdates // Blocking
-		log.Printf("Got update: %s", string(list.LocalNode().Meta))
-		err := list.UpdateNode(10 * time.Second)
-		if err != nil {
-			fmt.Printf("Error pushing node update!")
-		}
-	}
-}
 
 func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	for {
@@ -191,8 +179,6 @@ func main() {
 	_, err = list.Join(*opts.ClusterIPs)
 	exitWithError(err, "Failed to join cluster")
 
-	//metaUpdates := make(chan []byte)
-
 	servicesLooper := director.NewTimedLooper(
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
@@ -234,7 +220,6 @@ func main() {
 	go state.TrackNewServices(serviceFunc, trackingLooper)
 	go monitor.Watch(disco, healthWatchLooper)
 	go monitor.Run(healthLooper)
-	//go updateMetaData(list, metaUpdates)
 
 	if !config.HAproxy.Disable {
 		proxy := configureHAproxy(config)
@@ -242,9 +227,6 @@ func main() {
 	}
 
 	serveHttp(list, state)
-
-	time.Sleep(4 * time.Second)
-	//metaUpdates <- []byte("A message!")
 
 	select {}
 }
