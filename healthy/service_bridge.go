@@ -76,26 +76,7 @@ func (m *Monitor) GetCommandNamed(name string) Checker {
 	}
 }
 
-// Figure out the Tome URL for a service if we can
-func (m *Monitor) urlForService(svc *service.Service) string {
-	if m.TomeAddr == "" {
-		return ""
-	}
-
-	if m.ServiceNameFn == nil {
-		log.Errorf("No naming function defined!")
-		return ""
-	}
-
-	svcName := m.ServiceNameFn(svc)
-	if svcName == "" {
-		return ""
-	}
-
-	return fmt.Sprintf("http://%s/checks/%s", m.TomeAddr, svcName)
-}
-
-// Talks to a Tome service and returns the configured check
+// Talks to a Discoverer and returns the configured check
 func (m *Monitor) fetchCheckForService(svc *service.Service, disco discovery.Discoverer) *Check {
 
 	check := &Check{}

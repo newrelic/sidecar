@@ -192,36 +192,3 @@ func Test_GetCommandNamed(t *testing.T) {
 		})
 	})
 }
-
-func Test_urlForService(t *testing.T) {
-	Convey("Generating the check URL for a service", t, func() {
-		monitor := NewMonitor("localhost", hostname)
-		svcId1 := "deadbeef123"
-		service1 := service.Service{ID: svcId1, Hostname: hostname}
-		monitor.ServiceNameFn = func(s *service.Service) string { return "chaucer" }
-		monitor.TomeAddr = "localhost:7776"
-
-		Convey("Without a ServiceNameFn, returns and empty URL", func() {
-			monitor.ServiceNameFn = nil
-			So(monitor.urlForService(&service1), ShouldEqual, "")
-		})
-
-		Convey("Without a TomeAddr, returns an empty URL", func() {
-			monitor.TomeAddr = ""
-			So(monitor.urlForService(&service1), ShouldEqual, "")
-		})
-
-		Convey("Without any substitution returns a correct check", func() {
-			So(monitor.urlForService(&service1), ShouldEqual, "http://localhost:7776/checks/chaucer")
-		})
-
-		Convey("Without any substitution returns a replaced check URL", func() {
-			So(monitor.urlForService(&service1), ShouldEqual, "http://localhost:7776/checks/chaucer")
-		})
-
-		Convey("When the service name is blank, returns blank URL", func() {
-			monitor.ServiceNameFn = func(s *service.Service) string { return "" }
-			So(monitor.urlForService(&service1), ShouldEqual, "")
-		})
-	})
-}
