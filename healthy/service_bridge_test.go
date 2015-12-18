@@ -41,7 +41,7 @@ func Test_ServicesBridge(t *testing.T) {
 
 		services := []service.Service{service1, service2, service3, service4, empty}
 
-		monitor := NewMonitor(hostname, "")
+		monitor := NewMonitor(hostname)
 		monitor.DiscoveryFn = func() []service.Service { return services }
 
 		check1 := Check{
@@ -162,7 +162,7 @@ func Test_CheckForService(t *testing.T) {
 		})
 
 		Convey("Returns proper check", func() {
-			monitor := NewMonitor(hostname, "")
+			monitor := NewMonitor(hostname)
 			check := monitor.CheckForService(&service1, &mockDiscoverer{})
 			So(check.ID, ShouldEqual, service1.ID)
 		})
@@ -171,7 +171,7 @@ func Test_CheckForService(t *testing.T) {
 
 func Test_GetCommandNamed(t *testing.T) {
 	Convey("Returns the correct command", t, func() {
-		monitor := NewMonitor("localhost", "")
+		monitor := NewMonitor("localhost")
 
 		Convey("When asked for an HttpGet", func() {
 			So(monitor.GetCommandNamed("HttpGet"), ShouldResemble,
