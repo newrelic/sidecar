@@ -2,20 +2,30 @@ package discovery
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/newrelic/sidecar/service"
 	"github.com/relistan/go-director"
 )
 
+type DockerClient interface {
+	InspectContainer(id string) (*docker.Container, error)
+	ListContainers(opts docker.ListContainersOptions) ([]docker.APIContainers, error)
+	AddEventListener(listener chan<- *docker.APIEvents) error
+	RemoveEventListener(listener chan *docker.APIEvents) error
+	Ping() error
+}
+
 type DockerDiscovery struct {
-	events       chan *docker.APIEvents // Where events are announced to us
-	endpoint     string                 // The Docker endpoint to talk to
-	containers   []*service.Service     // The list of containers we know about
-	sync.RWMutex                        // Reader/Writer lock controlling .containers
+	events         chan *docker.APIEvents       // Where events are announced to us
+	endpoint       string                       // The Docker endpoint to talk to
+	containers     []*service.Service           // The list of containers we know about
+	ClientProvider func() (DockerClient, error) // Return the client we'll use to connect
+	sync.RWMutex                                // Reader/Writer lock controlling .containers
 }
 
 func NewDockerDiscovery(endpoint string) *DockerDiscovery {
@@ -23,12 +33,38 @@ func NewDockerDiscovery(endpoint string) *DockerDiscovery {
 		endpoint: endpoint,
 		events:   make(chan *docker.APIEvents),
 	}
+
+	// Default to our own method for returning this
+	discovery.ClientProvider = discovery.getDockerClient
+
 	return &discovery
+}
+
+func (d *DockerDiscovery) getDockerClient() (DockerClient, error) {
+	if d.endpoint != "" {
+		client, err := docker.NewClient(d.endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		return client, nil
+	}
+
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func (d *DockerDiscovery) HealthCheck(svc *service.Service) (string, string) {
 	// New connection every time
-	client, _ := docker.NewClient(d.endpoint)
+	client, err := d.ClientProvider()
+	if err != nil {
+		log.Errorf("Error when creating Docker client: %s\n", err.Error())
+		return "", ""
+	}
+
 	container, err := client.InspectContainer(svc.ID)
 	if err != nil {
 		return "", ""
@@ -72,7 +108,12 @@ func (d *DockerDiscovery) Services() []service.Service {
 
 func (d *DockerDiscovery) getContainers() {
 	// New connection every time
-	client, _ := docker.NewClient(d.endpoint)
+	client, err := d.ClientProvider()
+	if err != nil {
+		log.Errorf("Error when creating Docker client: %s\n", err.Error())
+		return
+	}
+
 	containers, err := client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		return
@@ -90,7 +131,11 @@ func (d *DockerDiscovery) getContainers() {
 }
 
 func (d *DockerDiscovery) watchEvents(quit chan bool) {
-	client, _ := docker.NewClient(d.endpoint)
+	client, err := d.ClientProvider()
+	if err != nil {
+		log.Errorf("Error when creating Docker client: %s\n", err.Error())
+		return
+	}
 	client.AddEventListener(d.events)
 
 	// Health check the connection and set it back up when it goes away.
