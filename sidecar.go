@@ -169,7 +169,6 @@ func main() {
 	log.Printf("Excluded IPs: %v", config.Sidecar.ExcludeIPs)
 	log.Printf("Push/Pull Interval: %s", config.Sidecar.PushPullInterval.Duration.String())
 	log.Printf("Gossip Messages: %d", config.Sidecar.GossipMessages)
-	log.Printf("TomeAddr: %s", config.Sidecar.TomeAddr)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
@@ -209,7 +208,7 @@ func main() {
 
 	// Configure the monitor and use the public address as the default
 	// check address.
-	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.TomeAddr)
+	monitor := healthy.NewMonitor(publishedIP)
 	monitor.ServiceNameFn = nameFunc
 
 	serviceFunc := func() []service.Service { return monitor.Services() }
