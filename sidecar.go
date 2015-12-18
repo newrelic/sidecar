@@ -10,12 +10,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/discovery"
 	"github.com/newrelic/sidecar/haproxy"
 	"github.com/newrelic/sidecar/healthy"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 var (
