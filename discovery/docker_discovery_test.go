@@ -23,7 +23,7 @@ func (s *stubDockerClient) InspectContainer(id string) (*docker.Container, error
 	}
 
 	// If we match this ID, return a real setup
-	if id == "deadbeef1231" {
+	if id == "deadbeef1231" { // svcId1
 		return &docker.Container{
 			Config: &docker.Config{
 				Labels: map[string]string{
@@ -82,7 +82,7 @@ func Test_DockerDiscovery(t *testing.T) {
 		})
 
 		Convey("Services() returns the right list of services", func() {
-			disco.containers = services
+			disco.services = services
 
 			processed := disco.Services()
 			So(processed[0].Format(), ShouldEqual, service1.Format())
@@ -90,7 +90,7 @@ func Test_DockerDiscovery(t *testing.T) {
 		})
 
 		Convey("handleEvents() prunes dead containers", func() {
-			disco.containers = services
+			disco.services = services
 			disco.handleEvent(docker.APIEvents{ID: svcId1, Status: "die"})
 
 			result := disco.Services()
@@ -121,6 +121,53 @@ func Test_DockerDiscovery(t *testing.T) {
 				check, args := disco.HealthCheck(&service2)
 				So(check, ShouldEqual, "")
 				So(args, ShouldEqual, "")
+			})
+		})
+
+		Convey("inspectContainer()", func() {
+			Convey("looks in the cache first", func() {
+				disco.containerCache[svcId1] = &docker.Container{Path: "cached"}
+				container, err := disco.inspectContainer(&service1)
+
+				So(err, ShouldBeNil)
+				So(container.Path, ShouldEqual, "cached")
+			})
+
+			Convey("queries Docker if the service isn't cached", func() {
+				container, err := disco.inspectContainer(&service1)
+
+				So(err, ShouldBeNil)
+				So(container.Config.Labels["HealthCheck"], ShouldEqual, "HttpGet")
+			})
+
+			Convey("bubbles up errors from the Docker client", func() {
+				disco.ClientProvider = func() (DockerClient, error) {
+					return &stubDockerClient{
+						ErrorOnInspectContainer: true,
+					}, nil
+				}
+
+				container, err := disco.inspectContainer(&service1)
+				So(err, ShouldNotBeNil)
+				So(container, ShouldBeNil)
+			})
+		})
+
+		Convey("pruneContainerCache()", func() {
+			Convey("prunes the containers we no longer see", func() {
+				liveContainers := make(map[string]interface{}, 1)
+				liveContainers[svcId1] = true
+
+				// Cache some things
+				disco.containerCache[svcId1] = &docker.Container{Path: "cached"}
+				disco.containerCache[svcId2] = &docker.Container{Path: "cached"}
+
+				So(len(disco.containerCache), ShouldEqual, 2)
+
+				disco.pruneContainerCache(liveContainers)
+
+				_, ok := disco.containerCache[svcId2] // Should be missing
+				So(ok, ShouldBeFalse)
 			})
 		})
 	})
