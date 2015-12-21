@@ -132,6 +132,11 @@ docker_url = "tcp://localhost:2375"
 
 Note that it only supports a *single* URL, unlike the Docker CLI tool.
 
+Sidecar can now use the normal Docker environment variables for configuring
+Docker discovery. If you remove the `docker_url` setting from the config
+entirely, it will fall back to trying to use environment variables to configure
+Docker. It uses the standard variables like `DOCKER_HOST`, `TLS_VERIFY`, etc.
+
 ####Configuring Static Discovery
 
 Static Discovery requires a configuration block in the `sidecar.toml` that
