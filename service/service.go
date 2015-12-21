@@ -10,6 +10,7 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/newrelic/sidecar/output"
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -20,8 +21,9 @@ const (
 )
 
 type Port struct {
-	Type string
-	Port int64
+	Type        string
+	Port        int64
+	ServicePort int64
 }
 
 type Service struct {
@@ -67,7 +69,9 @@ func (svc *Service) Invalidates(otherSvc *Service) bool {
 func (svc *Service) Format() string {
 	var ports []string
 	for _, port := range svc.Ports {
-		ports = append(ports, strconv.FormatInt(port.Port, 10))
+		ports = append(ports,
+			fmt.Sprintf("%d->%d", port.ServicePort, port.Port),
+		)
 	}
 	return fmt.Sprintf("      %s %-30s %-15s %-45s  %-15s %-9s\n",
 		svc.ID,
@@ -109,9 +113,33 @@ func ToService(container *docker.APIContainers) Service {
 
 	for _, port := range container.Ports {
 		if port.PublicPort != 0 {
-			svc.Ports = append(svc.Ports, Port{Port: port.PublicPort, Type: port.Type})
+			svc.Ports = append(svc.Ports, buildPortFor(&port, container))
 		}
 	}
 
 	return svc
+}
+
+// Figure out the correct port configuration for a service
+func buildPortFor(port *docker.APIPort, container *docker.APIContainers) Port {
+	// We look up service port labels by convention in the format "ServicePort_8080=80"
+	svcPortLabel := fmt.Sprintf("ServicePort_%d", port.PrivatePort)
+
+	returnPort := Port{Port: port.PublicPort, Type: port.Type}
+
+	if svcPort, ok := container.Labels[svcPortLabel]; ok {
+		svcPortInt, err := strconv.Atoi(svcPort)
+		if err != nil {
+			log.Errorf("Error converting label value for %s to integer: %s",
+				svcPortLabel,
+				err.Error(),
+			)
+			return returnPort
+		}
+
+		// Everything was good, set the service port
+		returnPort.ServicePort = int64(svcPortInt)
+	}
+
+	return returnPort
 }
