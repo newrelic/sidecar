@@ -55,7 +55,7 @@ func (svc *Service) StatusString() string {
 }
 
 func (svc *Service) IsAlive() bool {
-	return !svc.IsTombstone()
+	return svc.Status == ALIVE
 }
 
 func (svc *Service) IsTombstone() bool {
