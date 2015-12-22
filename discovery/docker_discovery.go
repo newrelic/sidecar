@@ -158,6 +158,11 @@ func (d *DockerDiscovery) getContainers() {
 	// Build up the service list, and prepare to prune the containerCache
 	d.services = make([]*service.Service, 0, len(containers))
 	for _, container := range containers {
+		// Skip services that are purposely excluded from discovery.
+		if container.Labels["SidecarDiscover"] == "false" {
+			continue
+		}
+
 		svc := service.ToService(&container)
 		d.services = append(d.services, &svc)
 		containerMap[svc.ID] = true
