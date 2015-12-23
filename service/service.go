@@ -88,6 +88,18 @@ func (svc *Service) Tombstone() {
 	svc.Updated = time.Now().UTC()
 }
 
+// Look up a (usually Docker) mapped Port for a service by ServicePort
+func (svc *Service) PortForServicePort(findPort int64, pType string) int64 {
+	for _, port := range svc.Ports {
+		if port.ServicePort == findPort && port.Type == pType {
+			return port.Port
+		}
+	}
+
+	log.Warnf("Unable to find ServicePort %d for service %s", findPort, svc.ID)
+	return -1
+}
+
 func Decode(data []byte) *Service {
 	var svc Service
 	json.Unmarshal(data, &svc)

@@ -7,6 +7,26 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func Test_PortForServicePort(t *testing.T) {
+	Convey("PortForServicePort()", t, func() {
+		svc := &Service{
+			ID:   "deadbeef001",
+			Ports: []Port{
+				{ "tcp", 8173, 8080 },
+				{ "udp", 8172, 8080 },
+			},
+		}
+
+		Convey("Returns the port when it matches", func() {
+			So(svc.PortForServicePort(8080, "tcp"), ShouldEqual, 8173)
+		})
+
+		Convey("Returns -1 when there is no match", func() {
+			So(svc.PortForServicePort(8090, "tcp"), ShouldEqual, -1)
+		})
+	})
+}
+
 func Test_buildPortFor(t *testing.T) {
 	Convey("buildPortFor()", t, func() {
 		port := docker.APIPort{
