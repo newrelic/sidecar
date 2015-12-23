@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -90,7 +90,7 @@ func portsStr(svcPorts []service.Port) string {
 	var ports []string
 
 	for _, port := range svcPorts {
-		ports = append(ports, strconv.FormatInt(port.Port, 10))
+		ports = append(ports, fmt.Sprintf("%v->%v", port.ServicePort, port.Port))
 	}
 
 	return strings.Join(ports, ", ")
