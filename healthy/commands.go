@@ -14,7 +14,7 @@ import (
 
 // A Checker that makes an HTTP get call and expects to get
 // a 200-299 back as success. Anything else is considered
-// a failure. The URL to hit is passed ass the args to the
+// a failure. The URL to hit is passed as the args to the
 // Run method.
 type HttpGetCmd struct{}
 
