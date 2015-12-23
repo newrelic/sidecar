@@ -1,16 +1,13 @@
 package healthy
 
 import (
-	//"encoding/json"
 	"fmt"
-	//"io/ioutil"
-	//"net/http"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/discovery"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 const (
