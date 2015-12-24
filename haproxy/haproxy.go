@@ -142,20 +142,25 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 	for {
 		event := <-eventChannel
 		log.Println("State change event from " + event.Hostname)
-		outfile, err := os.Create(h.ConfigFile)
-		if err != nil {
-			log.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
-			continue
-		}
-
-		h.WriteConfig(state, outfile)
-		if err := h.Verify(); err != nil {
-			log.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
-			continue
-		}
-
-		h.Reload()
+		h.WriteAndReload(state)
 	}
+}
+
+// Write out the the HAproxy config and reload the service.
+func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) {
+	outfile, err := os.Create(h.ConfigFile)
+	if err != nil {
+		log.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
+		return
+	}
+
+	h.WriteConfig(state, outfile)
+	if err := h.Verify(); err != nil {
+		log.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
+		return
+	}
+
+	h.Reload()
 }
 
 // Like state.ByService() but only stores information for services which

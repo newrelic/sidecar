@@ -213,17 +213,19 @@ func main() {
 
 	serviceFunc := func() []service.Service { return monitor.Services() }
 
+	// Need to call HAproxy first, otherwise won't see first events from
+	// discovered services, and then won't write them out.
+	if !config.HAproxy.Disable {
+		proxy := configureHAproxy(config)
+		go proxy.Watch(state)
+	}
+
 	go announceMembers(list, state)
 	go state.BroadcastServices(serviceFunc, servicesLooper)
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
 	go state.TrackNewServices(serviceFunc, trackingLooper)
 	go monitor.Watch(disco, healthWatchLooper)
 	go monitor.Run(healthLooper)
-
-	if !config.HAproxy.Disable {
-		proxy := configureHAproxy(config)
-		go proxy.Watch(state)
-	}
 
 	serveHttp(list, state)
 
