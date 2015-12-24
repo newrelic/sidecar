@@ -27,6 +27,8 @@ type HAproxy struct {
 	Template   string
 	ConfigFile string
 	PidFile    string
+	User       string
+	Group      string
 }
 
 // Constructs a properly configure HAProxy and returns a pointer to it
@@ -86,8 +88,12 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 
 	data := struct {
 		Services map[string][]*service.Service
+		User     string
+		Group    string
 	}{
 		Services: services,
+		User:     h.User,
+		Group:    h.Group,
 	}
 
 	funcMap := template.FuncMap{
@@ -139,8 +145,7 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 	eventChannel := make(chan catalog.ChangeEvent, 2)
 	state.AddListener(eventChannel)
 
-	for {
-		event := <-eventChannel
+	for event := range eventChannel {
 		log.Println("State change event from " + event.Hostname)
 		h.WriteAndReload(state)
 	}

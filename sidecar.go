@@ -55,6 +55,14 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 		proxy.Template = config.HAproxy.TemplateFile
 	}
 
+	if len(config.HAproxy.User) > 0 {
+		proxy.User = config.HAproxy.User
+	}
+
+	if len(config.HAproxy.Group) > 0 {
+		proxy.Group = config.HAproxy.Group
+	}
+
 	return proxy
 }
 
@@ -215,8 +223,10 @@ func main() {
 
 	// Need to call HAproxy first, otherwise won't see first events from
 	// discovered services, and then won't write them out.
+	var proxy *haproxy.HAproxy
+
 	if !config.HAproxy.Disable {
-		proxy := configureHAproxy(config)
+		proxy = configureHAproxy(config)
 		go proxy.Watch(state)
 	}
 
@@ -226,6 +236,10 @@ func main() {
 	go state.TrackNewServices(serviceFunc, trackingLooper)
 	go monitor.Watch(disco, healthWatchLooper)
 	go monitor.Run(healthLooper)
+
+	if !config.HAproxy.Disable {
+		proxy.WriteAndReload(state)
+	}
 
 	serveHttp(list, state)
 

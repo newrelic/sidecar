@@ -15,6 +15,8 @@ type HAproxyConfig struct {
 	ConfigFile   string `toml:"config_file"`
 	PidFile      string `toml:"pid_file"`
 	Disable      bool   `toml:"disable"`
+	User         string `toml:"user"`
+	Group        string `toml:"group"`
 }
 
 type ServicesConfig struct {
