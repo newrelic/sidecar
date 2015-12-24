@@ -1,3 +1,7 @@
+#!/bin/sh
+
+# Simple wrapper to docker to start the named image with the correct options
+
 IMAGE=$1
 echo "Starting from $IMAGE"
 docker run -i -t -v /var/run/docker.sock:/var/run/docker.sock --label SidecarDiscover=false -e SIDECAR_SEEDS="127.0.0.1" --net=host $IMAGE
