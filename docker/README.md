@@ -4,9 +4,30 @@ Docker Support
 This directory contains the basics to build and start a Docker container that
 runs Sidecar. To work properly the container assumes that it is run in host
 networking mode. The command line arguments required to run it on are in the
-`run` script in this directory.
+`run` script in this directory:
 
-A few environment variables can be passed to the container:
+```bash
+IMAGE=$1
+echo "Starting from $IMAGE"
+docker run -i -t -v /var/run/docker.sock:/var/run/docker.sock --label SidecarDiscover=false -e SIDECAR_SEEDS="127.0.0.1" --net=host $IMAGE
+```
+
+**Volume Mount:*** Requires volume mounting the Docker socket. If you choose
+not to do this, then you'll need to pass in `DOCKER_*` environment variables to
+configure access to the Docker daemon. You'll also want to remove the whole
+configuration line `docker_url` from the `sidecar.toml` file.
+
+**Label:** This prevents Sidecar from discvoering itself, which, when it
+happens, is a pretty useless discovery.
+
+**Networking:** Requires host-based networking to work. Various pitfalls lie
+in not doing this, including difficulty of all the containers of finding
+HAproxy, and also inability for Sidecar to be reachable from outside without
+additional port mappings.
+
+**Environment Variables:** This tells the container to look to itself as
+the seed. You'll want to set this to one or more IP addresses or hostnames
+of the cluster seed hosts.
 
 ```
 SIDECAR_SEEDS="seed1 host2 seed3" # Required
