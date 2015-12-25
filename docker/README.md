@@ -57,7 +57,7 @@ How It Works
 This is an overview of how the networking works when Sidecar is running in a
 container. The following diagram depicts a service running on the Docker host making a request to an upstream service while leveraging Sidecar for service discovery:
 
-![Sidecar Networking](views/static/sidecar-networking.png)
+![Sidecar Networking](../views/static/sidecar-networking.png)
 
 1. The service running in Service Container A makes a request to External
    Service. This request leaves the `eth0` interface, the container's default
