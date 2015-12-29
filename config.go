@@ -15,6 +15,8 @@ type HAproxyConfig struct {
 	ConfigFile   string `toml:"config_file"`
 	PidFile      string `toml:"pid_file"`
 	Disable      bool   `toml:"disable"`
+	User         string `toml:"user"`
+	Group        string `toml:"group"`
 }
 
 type ServicesConfig struct {
@@ -28,7 +30,6 @@ type SidecarConfig struct {
 	StatsAddr        string   `toml:"stats_addr"`
 	PushPullInterval duration `toml:"push_pull_interval"`
 	GossipMessages   int      `toml:"gossip_messages"`
-	TomeAddr         string   `toml:"tome_addr"`
 }
 
 type DockerConfig struct {
@@ -50,7 +51,6 @@ type Config struct {
 func setDefaults(config *Config) {
 	config.DockerDiscovery.DockerURL = "tcp://localhost:2375"
 	config.StaticDiscovery.ConfigFile = "static.json"
-	config.Sidecar.TomeAddr = "localhost:7776"
 }
 
 type duration struct {

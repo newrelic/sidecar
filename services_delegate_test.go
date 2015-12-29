@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/newrelic/sidecar/catalog"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func Test_GetBroadcasts(t *testing.T) {

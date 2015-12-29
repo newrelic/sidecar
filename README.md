@@ -89,6 +89,11 @@ You always need to supply at least one IP address or hostname with the
 be your own hostname. You may specify the argument multiple times to have
 multiple hosts. It is recommended to use more than one when possible.
 
+### Running in a Container
+
+The easiest way to deploy Sidecar to your Docker fleet is to run it in a
+container itself. [Instructions for doing that are provided](docker/README.md).
+
 Configuration
 -------------
 
@@ -131,6 +136,37 @@ docker_url = "tcp://localhost:2375"
 ```
 
 Note that it only supports a *single* URL, unlike the Docker CLI tool.
+
+Sidecar can now use the normal Docker environment variables for configuring
+Docker discovery. If you remove the `docker_url` setting from the config
+entirely, it will fall back to trying to use environment variables to configure
+Docker. It uses the standard variables like `DOCKER_HOST`, `TLS_VERIFY`, etc.
+
+##### Labels
+
+A few Docker labels can be used to control the discovery behavior of Sidecar.
+All containers need to be started with two labels defining how they are to be
+health checked. To health check a service on port 9090 on the local system with
+an `HttpGet` check, for example, you would use the following labels:
+
+```
+	HealthCheck=HttpGet
+	HealthCheckArgs=http://:9090/status
+```
+
+The currently available check types are `HttpGet` and `External`. `External`
+checks will run the command specified in the `HealthCheckArgs` label (in the
+context of a bash shell). An exit status of 0 is considered healthy and
+anything else is unhealthy. Nagios checks work very well with this mode of
+health checking.
+
+Additionally, it can sometimes be nice to exclude certain containers from
+discovery. This is particularly useful if you are running Sidecar in a
+container itself. This is accomplished with another Docker label like so:
+
+```
+	SidecarDiscover=false
+```
 
 ####Configuring Static Discovery
 

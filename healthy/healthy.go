@@ -38,7 +38,6 @@ type Monitor struct {
 	DefaultCheckHost string
 	DiscoveryFn      func() []service.Service
 	ServiceNameFn    func(*service.Service) string
-	TomeAddr         string
 	sync.RWMutex
 }
 
@@ -128,12 +127,11 @@ func (check *Check) ServiceStatus() int {
 }
 
 // NewMonitor returns a properly configured default configuration of a Monitor.
-func NewMonitor(defaultCheckHost string, tomeAddr string) *Monitor {
+func NewMonitor(defaultCheckHost string) *Monitor {
 	monitor := Monitor{
 		Checks:           make(map[string]*Check, 5),
 		CheckInterval:    HEALTH_INTERVAL,
 		DefaultCheckHost: defaultCheckHost,
-		TomeAddr:         tomeAddr,
 	}
 	return &monitor
 }
