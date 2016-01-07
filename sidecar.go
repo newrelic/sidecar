@@ -10,12 +10,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/discovery"
 	"github.com/newrelic/sidecar/haproxy"
 	"github.com/newrelic/sidecar/healthy"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 var (
@@ -53,6 +53,14 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 
 	if len(config.HAproxy.TemplateFile) > 0 {
 		proxy.Template = config.HAproxy.TemplateFile
+	}
+
+	if len(config.HAproxy.User) > 0 {
+		proxy.User = config.HAproxy.User
+	}
+
+	if len(config.HAproxy.Group) > 0 {
+		proxy.Group = config.HAproxy.Group
 	}
 
 	return proxy
@@ -169,7 +177,6 @@ func main() {
 	log.Printf("Excluded IPs: %v", config.Sidecar.ExcludeIPs)
 	log.Printf("Push/Pull Interval: %s", config.Sidecar.PushPullInterval.Duration.String())
 	log.Printf("Gossip Messages: %d", config.Sidecar.GossipMessages)
-	log.Printf("TomeAddr: %s", config.Sidecar.TomeAddr)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
@@ -209,10 +216,19 @@ func main() {
 
 	// Configure the monitor and use the public address as the default
 	// check address.
-	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.TomeAddr)
+	monitor := healthy.NewMonitor(publishedIP)
 	monitor.ServiceNameFn = nameFunc
 
 	serviceFunc := func() []service.Service { return monitor.Services() }
+
+	// Need to call HAproxy first, otherwise won't see first events from
+	// discovered services, and then won't write them out.
+	var proxy *haproxy.HAproxy
+
+	if !config.HAproxy.Disable {
+		proxy = configureHAproxy(config)
+		go proxy.Watch(state)
+	}
 
 	go announceMembers(list, state)
 	go state.BroadcastServices(serviceFunc, servicesLooper)
@@ -222,8 +238,7 @@ func main() {
 	go monitor.Run(healthLooper)
 
 	if !config.HAproxy.Disable {
-		proxy := configureHAproxy(config)
-		go proxy.Watch(state)
+		proxy.WriteAndReload(state)
 	}
 
 	serveHttp(list, state)

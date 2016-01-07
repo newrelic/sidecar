@@ -28,8 +28,8 @@ func Test_HAproxy(t *testing.T) {
 		svcId4 := "deadbeef999"
 		baseTime := time.Now().UTC().Round(time.Second)
 
-		ports1 := []service.Port{service.Port{"tcp", 10450}, service.Port{"tcp", 10020}}
-		ports2 := []service.Port{service.Port{"tcp", 9999}}
+		ports1 := []service.Port{service.Port{"tcp", 10450, 8080}, service.Port{"tcp", 10020, 9000}}
+		ports2 := []service.Port{service.Port{"tcp", 9999, 8090}}
 
 		services := []service.Service{
 			service.Service{
@@ -96,7 +96,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:    "some-svc",
 				Hostname: "titanic",
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666}},
+				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
 			}
 
 			svcName := state.ServiceName(&badSvc)
@@ -117,12 +117,12 @@ func Test_HAproxy(t *testing.T) {
 
 			output := buf.Bytes()
 			// Look at a bunch of things we should see
-			So(output, ShouldMatch, "frontend awesome-svc-10450")
-			So(output, ShouldMatch, "backend awesome-svc-10450")
+			So(output, ShouldMatch, "frontend awesome-svc-8080")
+			So(output, ShouldMatch, "backend awesome-svc-8080")
 			So(output, ShouldMatch, "server.*indefatigable:10020")
-			So(output, ShouldMatch, "bind 192.168.168.168:10020")
-			So(output, ShouldMatch, "frontend some-svc-9999")
-			So(output, ShouldMatch, "backend some-svc-9999")
+			So(output, ShouldMatch, "bind 192.168.168.168:9000")
+			So(output, ShouldMatch, "frontend some-svc-8090")
+			So(output, ShouldMatch, "backend some-svc-8090")
 			So(output, ShouldMatch, "server deadbeef105 indefatigable:9999 cookie indefatigable-9999")
 		})
 
@@ -134,7 +134,7 @@ func Test_HAproxy(t *testing.T) {
 				Hostname: "titanic",
 				Status:   service.UNHEALTHY,
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666}},
+				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
 			}
 			badSvc2 := service.Service{
 				ID:       "0000bad00001",
@@ -143,7 +143,7 @@ func Test_HAproxy(t *testing.T) {
 				Hostname: "titanic",
 				Status:   service.UNKNOWN,
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666}},
+				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
 			}
 			state.AddServiceEntry(badSvc)
 			state.AddServiceEntry(badSvc2)
@@ -192,14 +192,14 @@ func Test_HAproxy(t *testing.T) {
 				Image:    "some-svc",
 				Hostname: hostname2,
 				Updated:  newTime,
-				Ports:    []service.Port{service.Port{"tcp", 1337}},
+				Ports:    []service.Port{service.Port{"tcp", 1337, 10337}},
 			}
 			time.Sleep(5 * time.Millisecond)
 			state.AddServiceEntry(svc)
 			time.Sleep(5 * time.Millisecond)
 
 			result, _ := ioutil.ReadFile(config)
-			So(result, ShouldMatch, "port 1337")
+			So(result, ShouldMatch, "port 10337")
 
 			os.Remove(config)
 			os.Remove(tmpDir)

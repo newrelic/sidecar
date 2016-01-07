@@ -1,20 +1,18 @@
 package healthy
 
 import (
-	//"encoding/json"
+	"bytes"
 	"fmt"
-	//"io/ioutil"
-	//"net/http"
-	"strings"
+	"text/template"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/discovery"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 const (
-	DEFAULT_STATUS_ENDPOINT = "/status/check"
+	DEFAULT_STATUS_ENDPOINT = "/"
 )
 
 func (m *Monitor) Services() []service.Service {
@@ -76,26 +74,7 @@ func (m *Monitor) GetCommandNamed(name string) Checker {
 	}
 }
 
-// Figure out the Tome URL for a service if we can
-func (m *Monitor) urlForService(svc *service.Service) string {
-	if m.TomeAddr == "" {
-		return ""
-	}
-
-	if m.ServiceNameFn == nil {
-		log.Errorf("No naming function defined!")
-		return ""
-	}
-
-	svcName := m.ServiceNameFn(svc)
-	if svcName == "" {
-		return ""
-	}
-
-	return fmt.Sprintf("http://%s/checks/%s", m.TomeAddr, svcName)
-}
-
-// Talks to a Tome service and returns the configured check
+// Talks to a Discoverer and returns the configured check
 func (m *Monitor) fetchCheckForService(svc *service.Service, disco discovery.Discoverer) *Check {
 
 	check := &Check{}
@@ -108,18 +87,33 @@ func (m *Monitor) fetchCheckForService(svc *service.Service, disco discovery.Dis
 		return nil
 	}
 
-	// Setup some other parts of the check that don't come from the JSON
+	// Setup some other parts of the check that don't come from discovery
 	check.ID = svc.ID
 	check.Command = m.GetCommandNamed(check.Type)
-	check.Args = strings.Replace(
-		check.Args,
-		"%CHECK_ADDR%",
-		m.DefaultCheckHost,
-		1,
-	)
 	check.Status = FAILED
 
 	return check
+}
+
+// Use templating to substitute in some info about the service.  Important because
+// we won't know the actual Port that the container will bind to, for example.
+func (m *Monitor) templateCheckArgs(check *Check, svc *service.Service) string {
+	funcMap := template.FuncMap{
+		"tcp":  func(p int64) int64 { return svc.PortForServicePort(p, "tcp") },
+		"udp":  func(p int64) int64 { return svc.PortForServicePort(p, "udp") },
+		"host": func() string { return m.DefaultCheckHost },
+	}
+
+	t, err := template.New("check").Funcs(funcMap).Parse(check.Args)
+	if err != nil {
+		log.Errorf("Unable to parse check Args: '%s'", check.Args)
+		return check.Args
+	}
+
+	var output bytes.Buffer
+	t.Execute(&output, svc)
+
+	return output.String()
 }
 
 // CheckForService returns a Check that has been properly configured for this
@@ -128,8 +122,10 @@ func (m *Monitor) CheckForService(svc *service.Service, disco discovery.Discover
 	check := m.fetchCheckForService(svc, disco)
 	if check == nil { // We got nothing
 		log.Warnf("Using default check for service %s (id: %s).", svc.Name, svc.ID)
-		return m.defaultCheckForService(svc)
+		check = m.defaultCheckForService(svc)
 	}
+
+	check.Args = m.templateCheckArgs(check, svc)
 
 	return check
 }
