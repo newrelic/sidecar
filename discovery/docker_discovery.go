@@ -2,40 +2,112 @@ package discovery
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/fsouza/go-dockerclient"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
+const (
+	CACHE_DRAIN_INTERVAL = 10 * time.Minute // Drain the cache every 10 mins
+)
+
+type DockerClient interface {
+	InspectContainer(id string) (*docker.Container, error)
+	ListContainers(opts docker.ListContainersOptions) ([]docker.APIContainers, error)
+	AddEventListener(listener chan<- *docker.APIEvents) error
+	RemoveEventListener(listener chan *docker.APIEvents) error
+	Ping() error
+}
+
 type DockerDiscovery struct {
-	events       chan *docker.APIEvents // Where events are announced to us
-	endpoint     string                 // The Docker endpoint to talk to
-	containers   []*service.Service     // The list of containers we know about
-	sync.RWMutex                        // Reader/Writer lock controlling .containers
+	events         chan *docker.APIEvents       // Where events are announced to us
+	endpoint       string                       // The Docker endpoint to talk to
+	services       []*service.Service           // The list of services we know about
+	ClientProvider func() (DockerClient, error) // Return the client we'll use to connect
+	containerCache map[string]*docker.Container // Cache of inspected containers
+	sync.RWMutex                                // Reader/Writer lock
 }
 
 func NewDockerDiscovery(endpoint string) *DockerDiscovery {
 	discovery := DockerDiscovery{
-		endpoint: endpoint,
-		events:   make(chan *docker.APIEvents),
+		endpoint:       endpoint,
+		events:         make(chan *docker.APIEvents),
+		containerCache: make(map[string]*docker.Container),
 	}
+
+	// Default to our own method for returning this
+	discovery.ClientProvider = discovery.getDockerClient
+
 	return &discovery
 }
 
-func (d *DockerDiscovery) HealthCheck(svc *service.Service) (string, string) {
-	return "", ""
+func (d *DockerDiscovery) getDockerClient() (DockerClient, error) {
+	if d.endpoint != "" {
+		client, err := docker.NewClient(d.endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		return client, nil
+	}
+
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
+// HealthCheck looks up a health check using Docker container labels to
+// pass the type of check and the arguments to pass to it.
+func (d *DockerDiscovery) HealthCheck(svc *service.Service) (string, string) {
+	container, err := d.inspectContainer(svc)
+	if err != nil {
+		return "", ""
+	}
+
+	return container.Config.Labels["HealthCheck"], container.Config.Labels["HealthCheckArgs"]
+}
+
+func (d *DockerDiscovery) inspectContainer(svc *service.Service) (*docker.Container, error) {
+	// If we have it cached, return it!
+	if container, ok := d.containerCache[svc.ID]; ok {
+		return container, nil
+	}
+
+	// New connection every time
+	client, err := d.ClientProvider()
+	if err != nil {
+		log.Errorf("Error when creating Docker client: %s\n", err.Error())
+		return nil, err
+	}
+
+	container, err := client.InspectContainer(svc.ID)
+	if err != nil {
+		log.Errorf("Error inspecting container : %v\n", svc.ID)
+		return nil, err
+	}
+
+	// Cache it for next time
+	d.containerCache[svc.ID] = container
+
+	return container, nil
+}
+
+// The main loop, poll for containers continuously.
 func (d *DockerDiscovery) Run(looper director.Looper) {
 	watchEventsQuit := make(chan bool)
 	processEventsQuit := make(chan bool)
+	drainCacheQuit := make(chan bool)
 
 	go d.watchEvents(watchEventsQuit)
 	go d.processEvents(processEventsQuit)
+	go d.drainCache(drainCacheQuit)
 
 	go func() {
 		// Loop around fetching the whole container list
@@ -47,6 +119,7 @@ func (d *DockerDiscovery) Run(looper director.Looper) {
 		// Propagate quit channel message
 		go func() { watchEventsQuit <- true }()
 		go func() { processEventsQuit <- true }()
+		go func() { drainCacheQuit <- true }()
 	}()
 }
 
@@ -54,18 +127,23 @@ func (d *DockerDiscovery) Services() []service.Service {
 	d.RLock()
 	defer d.RUnlock()
 
-	containerList := make([]service.Service, len(d.containers))
+	svcList := make([]service.Service, len(d.services))
 
-	for i, container := range d.containers {
-		containerList[i] = *container
+	for i, svc := range d.services {
+		svcList[i] = *svc
 	}
 
-	return containerList
+	return svcList
 }
 
 func (d *DockerDiscovery) getContainers() {
 	// New connection every time
-	client, _ := docker.NewClient(d.endpoint)
+	client, err := d.ClientProvider()
+	if err != nil {
+		log.Errorf("Error when creating Docker client: %s\n", err.Error())
+		return
+	}
+
 	containers, err := client.ListContainers(docker.ListContainersOptions{All: false})
 	if err != nil {
 		return
@@ -74,16 +152,40 @@ func (d *DockerDiscovery) getContainers() {
 	d.Lock()
 	defer d.Unlock()
 
-	d.containers = make([]*service.Service, 0, len(containers))
+	// Temporary set to track if we have seen a container (for cache pruning)
+	containerMap := make(map[string]interface{})
 
+	// Build up the service list, and prepare to prune the containerCache
+	d.services = make([]*service.Service, 0, len(containers))
 	for _, container := range containers {
+		// Skip services that are purposely excluded from discovery.
+		if container.Labels["SidecarDiscover"] == "false" {
+			continue
+		}
+
 		svc := service.ToService(&container)
-		d.containers = append(d.containers, &svc)
+		d.services = append(d.services, &svc)
+		containerMap[svc.ID] = true
+	}
+
+	d.pruneContainerCache(containerMap)
+}
+
+// Loop through the current cache and remove anything that has disappeared
+func (d *DockerDiscovery) pruneContainerCache(liveContainers map[string]interface{}) {
+	for id, _ := range d.containerCache {
+		if _, ok := liveContainers[id]; !ok {
+			delete(d.containerCache, id)
+		}
 	}
 }
 
 func (d *DockerDiscovery) watchEvents(quit chan bool) {
-	client, _ := docker.NewClient(d.endpoint)
+	client, err := d.ClientProvider()
+	if err != nil {
+		log.Errorf("Error when creating Docker client: %s\n", err.Error())
+		return
+	}
 	client.AddEventListener(d.events)
 
 	// Health check the connection and set it back up when it goes away.
@@ -119,15 +221,15 @@ func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 		d.Lock()
 		defer d.Unlock()
 
-		for i, container := range d.containers {
+		for i, service := range d.services {
 			if len(event.ID) < 12 {
 				continue
 			}
-			if event.ID[:12] == container.ID {
-				log.Printf("Deleting %s based on event\n", container.ID)
+			if event.ID[:12] == service.ID {
+				log.Printf("Deleting %s based on event\n", service.ID)
 				// Delete the entry in the slice
-				d.containers[i] = nil
-				d.containers = append(d.containers[:i], d.containers[i+1:]...)
+				d.services[i] = nil
+				d.services = append(d.services[:i], d.services[i+1:]...)
 				// Once we found a match, return
 				return
 			}
@@ -152,5 +254,24 @@ func (d *DockerDiscovery) processEvents(quit chan bool) {
 		}
 		fmt.Printf("Event: %#v\n", event)
 		d.handleEvent(*event)
+	}
+}
+
+// On a timed basis, drain the containerCache
+func (d *DockerDiscovery) drainCache(quit chan bool) {
+	for {
+		select {
+		case <-quit:
+			return
+		case <-time.After(CACHE_DRAIN_INTERVAL):
+			log.Print("Draining containerCache")
+			d.Lock()
+			// Make a new one, leave the old one for GC
+			d.containerCache = make(
+				map[string]*docker.Container,
+				len(d.services),
+			)
+			d.Unlock()
+		}
 	}
 }

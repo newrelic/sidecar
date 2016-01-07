@@ -3,3 +3,4 @@
 sidecar
 sidecar.toml
 sidecar.cpu.prof
+docker/views

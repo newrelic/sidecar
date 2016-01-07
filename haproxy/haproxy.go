@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"text/template"
 	"time"
@@ -16,7 +16,7 @@ import (
 	"github.com/newrelic/sidecar/service"
 )
 
-type portset map[string]struct{}
+type portset map[string]string
 type portmap map[string]portset
 
 // Configuration and state for the HAproxy management module
@@ -27,11 +27,13 @@ type HAproxy struct {
 	Template   string
 	ConfigFile string
 	PidFile    string
+	User       string
+	Group      string
 }
 
 // Constructs a properly configure HAProxy and returns a pointer to it
 func New(configFile string, pidFile string) *HAproxy {
-	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + "`[[ -f " + pidFile + " ]] && echo \"-sf $(cat " + pidFile + ")\"]]`"
+	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + " `[[ -f " + pidFile + " ]] && echo \"-sf $(cat " + pidFile + ")\"]]`"
 	verifyCmd := "haproxy -c -f " + configFile
 
 	proxy := HAproxy{
@@ -45,8 +47,7 @@ func New(configFile string, pidFile string) *HAproxy {
 	return &proxy
 }
 
-// Returns a map of sets where each set is a list of ports bound
-// by that service.
+// Returns a map of ServicePort:Port pairs
 func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 	ports := make(portmap)
 
@@ -56,9 +57,13 @@ func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 		}
 
 		for _, service := range svcList {
-			for _, svcPort := range service.Ports {
-				if svcPort.Type == "tcp" {
-					ports[name][strconv.FormatInt(svcPort.Port, 10)] = struct{}{}
+			for _, port := range service.Ports {
+				// Currently only handle TCP, and we skip ports that aren't exported.
+				// That's the effect of not specifying a ServicePort.
+				if port.Type == "tcp" && port.ServicePort != 0 {
+					svcPort := strconv.FormatInt(port.ServicePort, 10)
+					internalPort := strconv.FormatInt(port.Port, 10)
+					ports[name][svcPort] = internalPort
 				}
 			}
 		}
@@ -83,18 +88,18 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 
 	data := struct {
 		Services map[string][]*service.Service
+		User     string
+		Group    string
 	}{
 		Services: services,
+		User:     h.User,
+		Group:    h.Group,
 	}
 
 	funcMap := template.FuncMap{
 		"now": time.Now().UTC,
-		"getPorts": func(k string) []string {
-			var keys []string
-			for key, _ := range ports[k] {
-				keys = append(keys, key)
-			}
-			return keys
+		"getPorts": func(k string) map[string]string {
+			return ports[k]
 		},
 		"bindIP":       func() string { return h.BindIP },
 		"sanitizeName": sanitizeName,
@@ -140,23 +145,27 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 	eventChannel := make(chan catalog.ChangeEvent, 2)
 	state.AddListener(eventChannel)
 
-	for {
-		event := <-eventChannel
+	for event := range eventChannel {
 		log.Println("State change event from " + event.Hostname)
-		outfile, err := os.Create(h.ConfigFile)
-		if err != nil {
-			log.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
-			continue
-		}
-
-		h.WriteConfig(state, outfile)
-		if err := h.Verify(); err != nil {
-			log.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
-			continue
-		}
-
-		h.Reload()
+		h.WriteAndReload(state)
 	}
+}
+
+// Write out the the HAproxy config and reload the service.
+func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) {
+	outfile, err := os.Create(h.ConfigFile)
+	if err != nil {
+		log.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
+		return
+	}
+
+	h.WriteConfig(state, outfile)
+	if err := h.Verify(); err != nil {
+		log.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
+		return
+	}
+
+	h.Reload()
 }
 
 // Like state.ByService() but only stores information for services which
@@ -181,23 +190,46 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 				serviceMap[svcName] = make([]*service.Service, 0, 3)
 			}
 
+			// If this is the first one, just add it to the list
 			if len(serviceMap[svcName]) < 1 {
 				serviceMap[svcName] = append(serviceMap[svcName], svc)
 				return
 			}
 
-			match := serviceMap[svcName][0]
-			// DeepEqual is slow, so we only do it when we have to
-			if match != nil && reflect.DeepEqual(match.Ports, svc.Ports) {
-				serviceMap[svcName] = append(serviceMap[svcName], svc)
-			} else {
-				// TODO should we just add another service with this port added
-				// to the name? We have to find out which port.
-				log.Warnf("%s service from %s not added: non-matching ports!",
-					state.ServiceName(svc), svc.Hostname)
+			// Otherwise we need to make sure the ServicePorts match
+			match := serviceMap[svcName][0] // Get the first entry for comparison
+
+			// Build up a sorted list of ServicePorts from the existing service
+			portsToMatch := getSortedServicePorts(match)
+
+			// Get the list of our ports
+			portsWeHave := getSortedServicePorts(svc)
+
+			// Compare the two sorted lists
+			for i, port := range portsToMatch {
+				if portsWeHave[i] != port {
+					// TODO should we just add another service with this port added
+					// to the name? We have to find out which port.
+					log.Warnf("%s service from %s not added: non-matching ports!",
+						state.ServiceName(svc), svc.Hostname)
+					return
+				}
 			}
+
+			// It was a match! Append to the list.
+			serviceMap[svcName] = append(serviceMap[svcName], svc)
 		},
 	)
 
 	return serviceMap
+}
+
+func getSortedServicePorts(svc *service.Service) []string {
+	var portList []string
+	for _, port := range svc.Ports {
+		portList = append(portList, strconv.FormatInt(port.ServicePort, 10))
+	}
+
+	sort.Strings(portList)
+	return portList
 }

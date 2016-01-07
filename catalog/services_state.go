@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -67,6 +68,7 @@ type ServicesState struct {
 	LastChanged         time.Time
 	listeners           []chan ChangeEvent
 	tombstoneRetransmit time.Duration
+	sync.Mutex
 }
 
 // Returns a pointer to a properly configured ServicesState
@@ -160,7 +162,11 @@ func (state *ServicesState) ServerChanged(hostname string, updated time.Time) {
 
 	state.Servers[hostname].LastUpdated = updated
 	state.Servers[hostname].LastChanged = updated
+
+	state.Lock()
 	state.LastChanged = updated
+	state.Unlock()
+
 	state.NotifyListeners(hostname, state.LastChanged)
 }
 

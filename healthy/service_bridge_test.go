@@ -19,7 +19,11 @@ func (m *mockDiscoverer) Services() []service.Service {
 	return m.listFn()
 }
 
-func (m *mockDiscoverer) HealthCheck(*service.Service) (string, string) {
+func (m *mockDiscoverer) HealthCheck(svc *service.Service) (string, string) {
+	if svc.Name == "hasCheck" {
+		return "HttpGet", "http://{{ host }}:{{ tcp 8081 }}/status/check"
+	}
+
 	return "", ""
 }
 
@@ -41,7 +45,7 @@ func Test_ServicesBridge(t *testing.T) {
 
 		services := []service.Service{service1, service2, service3, service4, empty}
 
-		monitor := NewMonitor(hostname, "")
+		monitor := NewMonitor(hostname)
 		monitor.DiscoveryFn = func() []service.Service { return services }
 
 		check1 := Check{
@@ -124,7 +128,7 @@ func Test_ServicesBridge(t *testing.T) {
 		Convey("Responds to changes in a list of services", func() {
 			So(len(monitor.Checks), ShouldEqual, 4)
 
-			ports := []service.Port{service.Port{"udp", 11234}, service.Port{"tcp", 1234}}
+			ports := []service.Port{service.Port{"udp", 11234, 8080}, service.Port{"tcp", 1234, 8081}}
 			svc := service.Service{ID: "babbacabba", Name: "testing-12312312", Ports: ports}
 			svcList := []service.Service{svc}
 
@@ -135,7 +139,7 @@ func Test_ServicesBridge(t *testing.T) {
 				ID:      svc.ID,
 				Command: &cmd,
 				Type:    "HttpGet",
-				Args:    "http://" + hostname + ":1234/status/check",
+				Args:    "http://" + hostname + ":1234/",
 				Status:  FAILED,
 			}
 			looper := director.NewTimedLooper(5, 5*time.Nanosecond, nil)
@@ -151,7 +155,10 @@ func Test_ServicesBridge(t *testing.T) {
 func Test_CheckForService(t *testing.T) {
 	Convey("When building a default check", t, func() {
 		svcId1 := "deadbeef123"
-		ports := []service.Port{service.Port{"udp", 11234}, service.Port{"tcp", 1234}}
+		ports := []service.Port{
+			service.Port{"udp", 11234, 8080},
+			service.Port{"tcp", 1234, 8081},
+		}
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Ports: ports}
 
 		Convey("Find the first tcp port", func() {
@@ -162,16 +169,23 @@ func Test_CheckForService(t *testing.T) {
 		})
 
 		Convey("Returns proper check", func() {
-			monitor := NewMonitor(hostname, "")
+			monitor := NewMonitor(hostname)
 			check := monitor.CheckForService(&service1, &mockDiscoverer{})
 			So(check.ID, ShouldEqual, service1.ID)
+		})
+
+		Convey("Templates in the check arguments", func() {
+			monitor := NewMonitor(hostname)
+			service1.Name = "hasCheck"
+			check := monitor.CheckForService(&service1, &mockDiscoverer{})
+			So(check.Args, ShouldEqual, "http://indefatigable:1234/status/check")
 		})
 	})
 }
 
 func Test_GetCommandNamed(t *testing.T) {
 	Convey("Returns the correct command", t, func() {
-		monitor := NewMonitor("localhost", "")
+		monitor := NewMonitor("localhost")
 
 		Convey("When asked for an HttpGet", func() {
 			So(monitor.GetCommandNamed("HttpGet"), ShouldResemble,
@@ -189,39 +203,6 @@ func Test_GetCommandNamed(t *testing.T) {
 			So(monitor.GetCommandNamed("Awesome-sauce"), ShouldResemble,
 				&HttpGetCmd{},
 			)
-		})
-	})
-}
-
-func Test_urlForService(t *testing.T) {
-	Convey("Generating the check URL for a service", t, func() {
-		monitor := NewMonitor("localhost", hostname)
-		svcId1 := "deadbeef123"
-		service1 := service.Service{ID: svcId1, Hostname: hostname}
-		monitor.ServiceNameFn = func(s *service.Service) string { return "chaucer" }
-		monitor.TomeAddr = "localhost:7776"
-
-		Convey("Without a ServiceNameFn, returns and empty URL", func() {
-			monitor.ServiceNameFn = nil
-			So(monitor.urlForService(&service1), ShouldEqual, "")
-		})
-
-		Convey("Without a TomeAddr, returns an empty URL", func() {
-			monitor.TomeAddr = ""
-			So(monitor.urlForService(&service1), ShouldEqual, "")
-		})
-
-		Convey("Without any substitution returns a correct check", func() {
-			So(monitor.urlForService(&service1), ShouldEqual, "http://localhost:7776/checks/chaucer")
-		})
-
-		Convey("Without any substitution returns a replaced check URL", func() {
-			So(monitor.urlForService(&service1), ShouldEqual, "http://localhost:7776/checks/chaucer")
-		})
-
-		Convey("When the service name is blank, returns blank URL", func() {
-			monitor.ServiceNameFn = func(s *service.Service) string { return "" }
-			So(monitor.urlForService(&service1), ShouldEqual, "")
 		})
 	})
 }
