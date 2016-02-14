@@ -168,6 +168,12 @@ container itself. This is accomplished with another Docker label like so:
 	SidecarDiscover=false
 ```
 
+By default, HAProxy will run in HTTP mode. The mode can be changed to TCP by setting the following Docker label:
+
+```
+HAProxyMode=tcp
+```
+
 ####Configuring Static Discovery
 
 Static Discovery requires a configuration block in the `sidecar.toml` that

@@ -85,6 +85,7 @@ func sanitizeName(image string) string {
 func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 	services := servicesWithPorts(state)
 	ports := h.makePortmap(services)
+	modes := getModes(state)
 
 	data := struct {
 		Services map[string][]*service.Service
@@ -98,6 +99,9 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 
 	funcMap := template.FuncMap{
 		"now": time.Now().UTC,
+		"getMode": func(k string) string {
+			return modes[k]
+		},
 		"getPorts": func(k string) map[string]string {
 			return ports[k]
 		},
@@ -166,6 +170,17 @@ func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) {
 	}
 
 	h.Reload()
+}
+
+func getModes(state *catalog.ServicesState) map[string]string {
+	modeMap := make(map[string]string)
+	state.EachServiceSorted(
+		func(hostname *string, serviceId *string, svc *service.Service) {
+			svcName := state.ServiceName(svc)
+			modeMap[svcName] = svc.HAProxyMode
+		},
+	)
+	return modeMap
 }
 
 // Like state.ByService() but only stores information for services which
