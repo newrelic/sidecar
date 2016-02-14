@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/newrelic/sidecar/output"
-	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -27,14 +27,15 @@ type Port struct {
 }
 
 type Service struct {
-	ID       string
-	Name     string
-	Image    string
-	Created  time.Time
-	Hostname string
-	Ports    []Port
-	Updated  time.Time
-	Status   int
+	ID          string
+	Name        string
+	Image       string
+	Created     time.Time
+	Hostname    string
+	Ports       []Port
+	Updated     time.Time
+	HAProxyMode string
+	Status      int
 }
 
 func (svc Service) Encode() ([]byte, error) {
@@ -120,6 +121,12 @@ func ToService(container *docker.APIContainers) Service {
 	svc.Updated = time.Now().UTC()
 	svc.Hostname = hostname
 	svc.Status = ALIVE
+
+	if _, ok := container.Labels["HAProxyMode"]; ok {
+		svc.HAProxyMode = container.Labels["HAProxyMode"]
+	} else {
+		svc.HAProxyMode = "http"
+	}
 
 	svc.Ports = make([]Port, 0)
 
