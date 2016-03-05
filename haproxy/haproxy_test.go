@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/service"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var hostname1 = "indomitable"
@@ -33,35 +33,39 @@ func Test_HAproxy(t *testing.T) {
 
 		services := []service.Service{
 			service.Service{
-				ID:       svcId1,
-				Name:     "awesome-svc-adfffed1233",
-				Image:    "awesome-svc",
-				Hostname: hostname1,
-				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    ports1,
+				ID:          svcId1,
+				Name:        "awesome-svc-adfffed1233",
+				Image:       "awesome-svc",
+				Hostname:    hostname1,
+				Updated:     baseTime.Add(5 * time.Second),
+				HAProxyMode: "http",
+				Ports:       ports1,
 			},
 			service.Service{
-				ID:       svcId2,
-				Name:     "awesome-svc-1234fed1233",
-				Image:    "awesome-svc",
-				Hostname: hostname2,
-				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    ports1,
+				ID:          svcId2,
+				Name:        "awesome-svc-1234fed1233",
+				Image:       "awesome-svc",
+				Hostname:    hostname2,
+				Updated:     baseTime.Add(5 * time.Second),
+				HAProxyMode: "http",
+				Ports:       ports1,
 			},
 			service.Service{
-				ID:       svcId3,
-				Name:     "some-svc-0123456789a",
-				Image:    "some-svc",
-				Hostname: hostname2,
-				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    ports2,
+				ID:          svcId3,
+				Name:        "some-svc-0123456789a",
+				Image:       "some-svc",
+				Hostname:    hostname2,
+				Updated:     baseTime.Add(5 * time.Second),
+				HAProxyMode: "tcp",
+				Ports:       ports2,
 			},
 			service.Service{
-				ID:       svcId4,
-				Name:     "some-svc-befede6789a",
-				Image:    "some-svc",
-				Hostname: hostname2,
-				Updated:  baseTime.Add(5 * time.Second),
+				ID:          svcId4,
+				Name:        "some-svc-befede6789a",
+				Image:       "some-svc",
+				Hostname:    hostname2,
+				Updated:     baseTime.Add(5 * time.Second),
+				HAProxyMode: "tcp",
 				// No ports!
 			},
 		}
@@ -87,6 +91,15 @@ func Test_HAproxy(t *testing.T) {
 			So(len(result), ShouldEqual, 2)
 			So(len(result[services[0].Image]), ShouldEqual, 2)
 			So(len(result[services[2].Image]), ShouldEqual, 1)
+		})
+
+		Convey("getModes() generates a correct mode map", func() {
+			result := getModes(state)
+			fmt.Println(result)
+
+			So(len(result), ShouldEqual, 2)
+			So(result["awesome-svc"], ShouldEqual, "http")
+			So(result["some-svc"], ShouldEqual, "tcp")
 		})
 
 		Convey("servicesWithPorts() groups services by name and port", func() {
