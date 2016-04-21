@@ -131,9 +131,6 @@ func main() {
 	opts := parseCommandLine()
 	configureSignalHandler(opts)
 
-	// Default to verbose timestamping
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
-
 	// Enable CPU profiling support if requested
 	if *opts.CpuProfile {
 		profilerFile, err := os.Create("sidecar.cpu.prof")
@@ -145,6 +142,14 @@ func main() {
 	delegate := configureDelegate(state, opts)
 
 	config := parseConfig(*opts.ConfigFile)
+
+	// We can switch to JSON formatted logs from here on
+	if config.Sidecar.LoggingFormat == "json" {
+		log.SetFormatter(&log.JSONFormatter{})
+	} else {
+	// Default to verbose timestamping
+		log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+	}
 
 	state.ServiceNameMatch = config.Services.NameRegexp
 

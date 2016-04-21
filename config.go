@@ -30,6 +30,7 @@ type SidecarConfig struct {
 	StatsAddr        string   `toml:"stats_addr"`
 	PushPullInterval duration `toml:"push_pull_interval"`
 	GossipMessages   int      `toml:"gossip_messages"`
+	LoggingFormat    string   `toml:"logging_format"`
 }
 
 type DockerConfig struct {
