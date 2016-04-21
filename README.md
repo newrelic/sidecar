@@ -174,6 +174,23 @@ By default, HAProxy will run in HTTP mode. The mode can be changed to TCP by set
 HAProxyMode=tcp
 ```
 
+Finally, you sometimes need to pass information in the Docker labels which
+is not available to you at the time of container creation. One example of this
+is the need to identify the actual Docker-bound port when running the health
+check. For this reason, Sidecar allows simple templating in the labels. Here's
+an example.
+
+If you have a service that is exposing port 8080 and Docker dynamically assigns
+it the port 31445 at runtime, your health check for that port will be impossible
+to define ahead of time. But with templating we can say:
+
+```--label HealthCheckArgs="http://{{ host }}:{{ tcp 8080 }}/"```
+
+This will then fill the template fields, at call time, with the current
+hostname and the actual port that Docker bound to your container's port 8080.
+Querying of UDP ports works as you might expect, by calling `{{ udp 53 }}` for
+example.
+
 ####Configuring Static Discovery
 
 Static Discovery requires a configuration block in the `sidecar.toml` that
