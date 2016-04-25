@@ -53,7 +53,13 @@ func (m *Monitor) defaultCheckForService(svc *service.Service) *Check {
 		return &Check{ID: svc.ID}
 	}
 
-	url := fmt.Sprintf("http://%v:%v%v", m.DefaultCheckHost, port.Port, DEFAULT_STATUS_ENDPOINT)
+	// Use the const default unless we've been provided something else
+	defaultCheckEndpoint := DEFAULT_STATUS_ENDPOINT
+	if len(m.DefaultCheckEndpoint) != 0 {
+		defaultCheckEndpoint = m.DefaultCheckEndpoint
+	}
+
+	url := fmt.Sprintf("http://%v:%v%v", m.DefaultCheckHost, port.Port, defaultCheckEndpoint)
 	return &Check{
 		ID:      svc.ID,
 		Type:    "HttpGet",
