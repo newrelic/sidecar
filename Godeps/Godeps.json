@@ -45,7 +45,7 @@
 		},
 		{
 			"ImportPath": "github.com/relistan/go-director",
-			"Rev": "b54d64c308237cc6fd00ca60ada88762e5f88edd"
+			"Rev": "95dd09f61051613106a9b3cd9813bda3f5f5f87d"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions",
