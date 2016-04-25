@@ -1,6 +1,5 @@
 Director
 ========
-
 This package is built to make it easy to write and to test background
 goroutines. These are the kinds of goroutines that are meant to have a
 reasonably long lifespan built around a central loop. This is often a `for {}`
@@ -9,6 +8,8 @@ loop with no conditions.
 The interface allows routines to be dispatched and run for a set number of
 iterations, or indefinitely. You can also signal them to quit, and block
 waiting for them to complete.
+
+[GoDocs are here](http://godoc.org/github.com/relistan/go-director)
 
 The core interface for the package is the `Looper`. Two `Looper`
 implementations are currently included, a `TimedLooper` whichs runs the loop on
@@ -94,15 +95,10 @@ func RunForever(looper Looper) error {
 		if err != nil {
 			return err
 		}
-
-		select {
-		case <-quit:
-			return nil
-		}
 	})
 }
 
-looper := NewFreeLooper(1, make(chan error))
+looper := NewFreeLooper(FOREVER, make(chan error))
 go RunForever(looper)
 
 err := looper.Wait()
@@ -136,4 +132,16 @@ iteration per 5 seconds, we can just substitute a `TimedLooper`:
 ```go
 looper := NewTimedLooper(1, 5 * time.Second, make(chan error))
 go RunForever(looper)
+```
+
+Lastly, a timed looper will only execute once the tick interval has been met. To immediately execute the first iteration of the loop, you can instantiate an immediate timed looper via the `NewImmediateTimedLooper` function.
+
+Or in other words:
+
+```go
+looper := NewImmediateTimedLooper(10, 5 * time.Second, make(chan error))
+go looper.Loop(func() error { fmt.Println("Immediate execution"); return nil })
+time.Sleep(10 * time.Second)
+
+// STDOUT: "Immediate execution" output as soon as looper.Loop() is ran.
 ```
