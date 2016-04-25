@@ -136,7 +136,7 @@ func Test_HAproxy(t *testing.T) {
 			So(output, ShouldMatch, "bind 192.168.168.168:9000")
 			So(output, ShouldMatch, "frontend some-svc-8090")
 			So(output, ShouldMatch, "backend some-svc-8090")
-			So(output, ShouldMatch, "server deadbeef105 indefatigable:9999 cookie indefatigable-9999")
+			So(output, ShouldMatch, "server indefatigable-deadbeef105 indefatigable:9999 cookie indefatigable-9999")
 		})
 
 		Convey("WriteConfig() only writes out healthy services", func() {

@@ -221,7 +221,7 @@ func main() {
 
 	// Configure the monitor and use the public address as the default
 	// check address.
-	monitor := healthy.NewMonitor(publishedIP)
+	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.DefaultCheckEndpoint)
 	monitor.ServiceNameFn = nameFunc
 
 	serviceFunc := func() []service.Service { return monitor.Services() }

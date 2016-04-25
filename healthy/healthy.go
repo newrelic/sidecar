@@ -11,8 +11,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 const (
@@ -33,11 +33,12 @@ const (
 // Access must be synchronized so direct access to struct
 // members is possible but requires use of the RWMutex.
 type Monitor struct {
-	Checks           map[string]*Check
-	CheckInterval    time.Duration
-	DefaultCheckHost string
-	DiscoveryFn      func() []service.Service
-	ServiceNameFn    func(*service.Service) string
+	Checks               map[string]*Check
+	CheckInterval        time.Duration
+	DefaultCheckHost     string
+	DiscoveryFn          func() []service.Service
+	ServiceNameFn        func(*service.Service) string
+	DefaultCheckEndpoint string
 	sync.RWMutex
 }
 
@@ -127,11 +128,12 @@ func (check *Check) ServiceStatus() int {
 }
 
 // NewMonitor returns a properly configured default configuration of a Monitor.
-func NewMonitor(defaultCheckHost string) *Monitor {
+func NewMonitor(defaultCheckHost string, defaultCheckEndpoint string) *Monitor {
 	monitor := Monitor{
-		Checks:           make(map[string]*Check, 5),
-		CheckInterval:    HEALTH_INTERVAL,
-		DefaultCheckHost: defaultCheckHost,
+		Checks:               make(map[string]*Check, 5),
+		CheckInterval:        HEALTH_INTERVAL,
+		DefaultCheckHost:     defaultCheckHost,
+		DefaultCheckEndpoint: defaultCheckEndpoint,
 	}
 	return &monitor
 }

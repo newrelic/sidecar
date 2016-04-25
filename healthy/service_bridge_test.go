@@ -45,7 +45,7 @@ func Test_ServicesBridge(t *testing.T) {
 
 		services := []service.Service{service1, service2, service3, service4, empty}
 
-		monitor := NewMonitor(hostname)
+		monitor := NewMonitor(hostname, "/")
 		monitor.DiscoveryFn = func() []service.Service { return services }
 
 		check1 := Check{
@@ -169,23 +169,29 @@ func Test_CheckForService(t *testing.T) {
 		})
 
 		Convey("Returns proper check", func() {
-			monitor := NewMonitor(hostname)
+			monitor := NewMonitor(hostname, "/")
 			check := monitor.CheckForService(&service1, &mockDiscoverer{})
 			So(check.ID, ShouldEqual, service1.ID)
 		})
 
 		Convey("Templates in the check arguments", func() {
-			monitor := NewMonitor(hostname)
+			monitor := NewMonitor(hostname, "/")
 			service1.Name = "hasCheck"
 			check := monitor.CheckForService(&service1, &mockDiscoverer{})
 			So(check.Args, ShouldEqual, "http://indefatigable:1234/status/check")
+		})
+
+		Convey("Uses the right default endpoint when it's configured", func() {
+			monitor := NewMonitor(hostname, "/something/else")
+			check := monitor.CheckForService(&service1, &mockDiscoverer{})
+			So(check.Args, ShouldEqual, "http://indefatigable:1234/something/else")
 		})
 	})
 }
 
 func Test_GetCommandNamed(t *testing.T) {
 	Convey("Returns the correct command", t, func() {
-		monitor := NewMonitor("localhost")
+		monitor := NewMonitor("localhost", "/")
 
 		Convey("When asked for an HttpGet", func() {
 			So(monitor.GetCommandNamed("HttpGet"), ShouldResemble,

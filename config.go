@@ -25,12 +25,13 @@ type ServicesConfig struct {
 }
 
 type SidecarConfig struct {
-	ExcludeIPs       []string `toml:"exclude_ips"`
-	Discovery        []string `toml:"discovery"`
-	StatsAddr        string   `toml:"stats_addr"`
-	PushPullInterval duration `toml:"push_pull_interval"`
-	GossipMessages   int      `toml:"gossip_messages"`
-	LoggingFormat    string   `toml:"logging_format"`
+	ExcludeIPs           []string `toml:"exclude_ips"`
+	Discovery            []string `toml:"discovery"`
+	StatsAddr            string   `toml:"stats_addr"`
+	PushPullInterval     duration `toml:"push_pull_interval"`
+	GossipMessages       int      `toml:"gossip_messages"`
+	LoggingFormat        string   `toml:"logging_format"`
+	DefaultCheckEndpoint string   `toml:"default_check_endpoint"`
 }
 
 type DockerConfig struct {
