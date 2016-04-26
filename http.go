@@ -90,7 +90,11 @@ func portsStr(svcPorts []service.Port) string {
 	var ports []string
 
 	for _, port := range svcPorts {
-		ports = append(ports, fmt.Sprintf("%v->%v", port.ServicePort, port.Port))
+	    if port.ServicePort != 0 {
+			ports = append(ports, fmt.Sprintf("%v->%v", port.ServicePort, port.Port))
+		} else {
+			ports = append(ports, fmt.Sprintf("%v", port.Port))
+		}
 	}
 
 	return strings.Join(ports, ", ")
