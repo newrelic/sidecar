@@ -177,7 +177,7 @@ func getModes(state *catalog.ServicesState) map[string]string {
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
 			svcName := state.ServiceName(svc)
-			modeMap[svcName] = svc.HAProxyMode
+			modeMap[svcName] = svc.ProxyMode
 		},
 	)
 	return modeMap
