@@ -34,7 +34,7 @@ type Service struct {
 	Hostname    string
 	Ports       []Port
 	Updated     time.Time
-	HAProxyMode string
+	ProxyMode string
 	Status      int
 }
 
@@ -122,10 +122,10 @@ func ToService(container *docker.APIContainers) Service {
 	svc.Hostname = hostname
 	svc.Status = ALIVE
 
-	if _, ok := container.Labels["HAProxyMode"]; ok {
-		svc.HAProxyMode = container.Labels["HAProxyMode"]
+	if _, ok := container.Labels["ProxyMode"]; ok {
+		svc.ProxyMode = container.Labels["ProxyMode"]
 	} else {
-		svc.HAProxyMode = "http"
+		svc.ProxyMode = "http"
 	}
 
 	svc.Ports = make([]Port, 0)
