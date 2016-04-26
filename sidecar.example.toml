@@ -2,7 +2,7 @@
 exclude_ips = [ "192.168.168.168" ]
 discovery = [ "docker", "static" ]
 push_pull_interval = "20s"
-logging_format = "standard"
+logging_format = "standard" # or "json"
 #default_check_endpoint = "/somewhere/specific/"
 
 [docker_discovery]
@@ -15,6 +15,8 @@ config_file = "static.json"
 name_match = "^/(.+)(-[0-9a-z]{7,14})$"
 
 [haproxy]
+# bind_ip is optional. Default is the frst interface with
+# a private IP address.
 bind_ip       = "192.168.168.168"
 template_file = "views/haproxy.cfg"
 config_file   = "/etc/haproxy.cfg"
