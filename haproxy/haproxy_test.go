@@ -200,19 +200,19 @@ func Test_HAproxy(t *testing.T) {
 			newTime := time.Now().UTC()
 
 			svc := service.Service{
-				ID:       "abcdef123123123",
+				ID:       "abcdef123123125",
 				Name:     "some-svc-befede6789a",
 				Image:    "some-svc",
 				Hostname: hostname2,
 				Updated:  newTime,
-				Ports:    []service.Port{service.Port{"tcp", 1337, 10337}},
+				Ports:    []service.Port{service.Port{"tcp", 1337, 8090}},
 			}
 			time.Sleep(5 * time.Millisecond)
 			state.AddServiceEntry(svc)
 			time.Sleep(5 * time.Millisecond)
 
 			result, _ := ioutil.ReadFile(config)
-			So(result, ShouldMatch, "port 10337")
+			So(result, ShouldMatch, "port 8090")
 
 			os.Remove(config)
 			os.Remove(tmpDir)

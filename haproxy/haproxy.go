@@ -225,8 +225,8 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 				if portsWeHave[i] != port {
 					// TODO should we just add another service with this port added
 					// to the name? We have to find out which port.
-					log.Warnf("%s service from %s not added: non-matching ports!",
-						state.ServiceName(svc), svc.Hostname)
+					log.Warnf("%s service from %s not added: non-matching ports! (%v vs %v)",
+						state.ServiceName(svc), svc.Hostname, port, portsWeHave[i])
 					return
 				}
 			}
