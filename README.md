@@ -171,7 +171,7 @@ container itself. This is accomplished with another Docker label like so:
 By default, HAProxy will run in HTTP mode. The mode can be changed to TCP by setting the following Docker label:
 
 ```
-HAProxyMode=tcp
+ProxyMode=tcp
 ```
 
 Finally, you sometimes need to pass information in the Docker labels which
