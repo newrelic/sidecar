@@ -38,7 +38,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:       "awesome-svc",
 				Hostname:    hostname1,
 				Updated:     baseTime.Add(5 * time.Second),
-				HAProxyMode: "http",
+				ProxyMode: "http",
 				Ports:       ports1,
 			},
 			service.Service{
@@ -47,7 +47,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:       "awesome-svc",
 				Hostname:    hostname2,
 				Updated:     baseTime.Add(5 * time.Second),
-				HAProxyMode: "http",
+				ProxyMode: "http",
 				Ports:       ports1,
 			},
 			service.Service{
@@ -56,7 +56,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:       "some-svc",
 				Hostname:    hostname2,
 				Updated:     baseTime.Add(5 * time.Second),
-				HAProxyMode: "tcp",
+				ProxyMode: "tcp",
 				Ports:       ports2,
 			},
 			service.Service{
@@ -65,7 +65,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:       "some-svc",
 				Hostname:    hostname2,
 				Updated:     baseTime.Add(5 * time.Second),
-				HAProxyMode: "tcp",
+				ProxyMode: "tcp",
 				// No ports!
 			},
 		}
