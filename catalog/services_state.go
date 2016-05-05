@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/output"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 // catalog handles all of the eventual-consistency mechanisms for
@@ -64,7 +63,6 @@ type ServicesState struct {
 	Servers             map[string]*Server
 	Hostname            string
 	Broadcasts          chan [][]byte
-	ServiceNameMatch    *regexp.Regexp // How we match service names
 	LastChanged         time.Time
 	listeners           []chan ChangeEvent
 	tombstoneRetransmit time.Duration
@@ -514,21 +512,7 @@ func (state *ServicesState) EachService(fn func(hostname *string, serviceId *str
 // Return a properly regex-matched name for the service, or failing that,
 // the Image ID which we use to stand in for the name of the service.
 func (state *ServicesState) ServiceName(svc *service.Service) string {
-	var svcName string
-
-	if state.ServiceNameMatch != nil {
-		toMatch := []byte(svc.Name)
-		matches := state.ServiceNameMatch.FindSubmatch(toMatch)
-		if len(matches) < 1 {
-			svcName = svc.Image
-		} else {
-			svcName = string(matches[1])
-		}
-	} else {
-		svcName = svc.Image
-	}
-
-	return svcName
+	return svc.Name
 }
 
 // Group the services into a map by service name rather than by the
@@ -538,7 +522,7 @@ func (state *ServicesState) ByService() map[string][]*service.Service {
 
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			svcName := state.ServiceName(svc)
+			svcName := svc.Name
 			if _, ok := serviceMap[svcName]; !ok {
 				serviceMap[svcName] = make([]*service.Service, 0, 3)
 			}

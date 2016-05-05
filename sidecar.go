@@ -74,7 +74,12 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 		case "docker":
 			disco.Discoverers = append(
 				disco.Discoverers,
-				discovery.NewDockerDiscovery(config.DockerDiscovery.DockerURL),
+				discovery.NewDockerDiscovery(
+					config.DockerDiscovery.DockerURL,
+					config.DockerDiscovery.NameFromLabel,
+					config.DockerDiscovery.NameMatch,
+					config.DockerDiscovery.NameRegexp,
+				),
 			)
 		case "static":
 			disco.Discoverers = append(
@@ -138,20 +143,17 @@ func main() {
 		pprof.StartCPUProfile(profilerFile)
 		log.Debug("Profiling!")
 	}
+	config := parseConfig(*opts.ConfigFile)
 	state := catalog.NewServicesState()
 	delegate := configureDelegate(state, opts)
-
-	config := parseConfig(*opts.ConfigFile)
 
 	// We can switch to JSON formatted logs from here on
 	if config.Sidecar.LoggingFormat == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	} else {
-	// Default to verbose timestamping
+		// Default to verbose timestamping
 		log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	}
-
-	state.ServiceNameMatch = config.Services.NameRegexp
 
 	// Use a LAN config but add our delegate
 	mlConfig := memberlist.DefaultLANConfig()
@@ -173,16 +175,16 @@ func main() {
 	exitWithError(err, "Failed to find private IP address")
 	mlConfig.AdvertiseAddr = publishedIP
 
-	log.Println("Sidecar starting -------------------")
-	log.Printf("Cluster Name: %s", *opts.ClusterName)
-	log.Printf("Config File: %s", *opts.ConfigFile)
-	log.Printf("Cluster Seeds: %s", strings.Join(*opts.ClusterIPs, ", "))
-	log.Printf("Advertised address: %s", publishedIP)
-	log.Printf("Service Name Match: %s", config.Services.NameMatch)
-	log.Printf("Excluded IPs: %v", config.Sidecar.ExcludeIPs)
-	log.Printf("Push/Pull Interval: %s", config.Sidecar.PushPullInterval.Duration.String())
-	log.Printf("Gossip Messages: %d", config.Sidecar.GossipMessages)
-	log.Println("----------------------------------")
+	log.WithFields(log.Fields{
+		"fields":            "main()",
+		"clusterName":       *opts.ClusterName,
+		"configFile":        *opts.ConfigFile,
+		"seeds":             strings.Join(*opts.ClusterIPs, ", "),
+		"advertisedAddress": publishedIP,
+		"excludedIPs":       config.Sidecar.ExcludeIPs,
+		"pushPullInterval":  config.Sidecar.PushPullInterval.Duration.String(),
+		"gossip":            config.Sidecar.GossipMessages,
+	})
 
 	list, err := memberlist.Create(mlConfig)
 	exitWithError(err, "Failed to create memberlist")
@@ -215,15 +217,9 @@ func main() {
 	disco := configureDiscovery(&config)
 	go disco.Run(discoLooper)
 
-	nameFunc := func(svc *service.Service) string {
-		return state.ServiceName(svc)
-	}
-
 	// Configure the monitor and use the public address as the default
 	// check address.
-	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.DefaultCheckEndpoint)
-	monitor.ServiceNameFn = nameFunc
-
+	monitor := healthy.NewMonitor(publishedIP)
 	serviceFunc := func() []service.Service { return monitor.Services() }
 
 	// Need to call HAproxy first, otherwise won't see first events from

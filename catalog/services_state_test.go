@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/newrelic/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/sidecar/service"
 )
 
 var hostname = "shakespeare"

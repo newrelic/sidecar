@@ -28,43 +28,43 @@ func Test_HAproxy(t *testing.T) {
 		svcId4 := "deadbeef999"
 		baseTime := time.Now().UTC().Round(time.Second)
 
-		ports1 := []service.Port{service.Port{"tcp", 10450, 8080}, service.Port{"tcp", 10020, 9000}}
-		ports2 := []service.Port{service.Port{"tcp", 9999, 8090}}
+		ports1 := []service.Port{{"tcp", 10450, 8080}, {"tcp", 10020, 9000}}
+		ports2 := []service.Port{{"tcp", 9999, 8090}}
 
 		services := []service.Service{
-			service.Service{
-				ID:          svcId1,
-				Name:        "awesome-svc-adfffed1233",
-				Image:       "awesome-svc",
-				Hostname:    hostname1,
-				Updated:     baseTime.Add(5 * time.Second),
+			{
+				ID:        svcId1,
+				Name:      "awesome-svc-adfffed1233",
+				Image:     "awesome-svc",
+				Hostname:  hostname1,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "http",
-				Ports:       ports1,
+				Ports:     ports1,
 			},
-			service.Service{
-				ID:          svcId2,
-				Name:        "awesome-svc-1234fed1233",
-				Image:       "awesome-svc",
-				Hostname:    hostname2,
-				Updated:     baseTime.Add(5 * time.Second),
+			{
+				ID:        svcId2,
+				Name:      "awesome-svc-1234fed1233",
+				Image:     "awesome-svc",
+				Hostname:  hostname2,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "http",
-				Ports:       ports1,
+				Ports:     ports1,
 			},
-			service.Service{
-				ID:          svcId3,
-				Name:        "some-svc-0123456789a",
-				Image:       "some-svc",
-				Hostname:    hostname2,
-				Updated:     baseTime.Add(5 * time.Second),
+			{
+				ID:        svcId3,
+				Name:      "some-svc-0123456789a",
+				Image:     "some-svc",
+				Hostname:  hostname2,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "tcp",
-				Ports:       ports2,
+				Ports:     ports2,
 			},
-			service.Service{
-				ID:          svcId4,
-				Name:        "some-svc-befede6789a",
-				Image:       "some-svc",
-				Hostname:    hostname2,
-				Updated:     baseTime.Add(5 * time.Second),
+			{
+				ID:        svcId4,
+				Name:      "some-svc-befede6789a",
+				Image:     "some-svc",
+				Hostname:  hostname2,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "tcp",
 				// No ports!
 			},
@@ -109,7 +109,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:    "some-svc",
 				Hostname: "titanic",
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
+				Ports:    []service.Port{{"tcp", 666, 6666}},
 			}
 
 			svcName := state.ServiceName(&badSvc)
@@ -147,7 +147,7 @@ func Test_HAproxy(t *testing.T) {
 				Hostname: "titanic",
 				Status:   service.UNHEALTHY,
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
+				Ports:    []service.Port{{"tcp", 666, 6666}},
 			}
 			badSvc2 := service.Service{
 				ID:       "0000bad00001",
@@ -156,7 +156,7 @@ func Test_HAproxy(t *testing.T) {
 				Hostname: "titanic",
 				Status:   service.UNKNOWN,
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
+				Ports:    []service.Port{{"tcp", 666, 6666}},
 			}
 			state.AddServiceEntry(badSvc)
 			state.AddServiceEntry(badSvc2)
@@ -205,7 +205,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:    "some-svc",
 				Hostname: hostname2,
 				Updated:  newTime,
-				Ports:    []service.Port{service.Port{"tcp", 1337, 8090}},
+				Ports:    []service.Port{{"tcp", 1337, 8090}},
 			}
 			time.Sleep(5 * time.Millisecond)
 			state.AddServiceEntry(svc)

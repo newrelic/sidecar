@@ -23,6 +23,7 @@ type servicesDelegate struct {
 	notifications     chan []byte
 	inProcess         bool
 	Metadata          NodeMetadata
+	congestedRunCount int
 	sync.Mutex
 }
 
@@ -37,6 +38,7 @@ func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 		pendingBroadcasts: make([][]byte, 0),
 		notifications:     make(chan []byte, 25),
 		inProcess:         false,
+		congestedRunCount: 0,
 		Metadata:          NodeMetadata{ClusterName: "default"},
 	}
 
@@ -92,10 +94,12 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 	broadcast := make([][]byte, 0, 1)
 
+	d.Lock()
 	select {
 	case broadcast = <-d.state.Broadcasts:
 	default:
 		if len(d.pendingBroadcasts) < 1 {
+			d.Unlock()
 			return nil
 		}
 	}
@@ -103,27 +107,40 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	// Prefer newest messages (TODO what about tombstones?)
 	broadcast = append(broadcast, d.pendingBroadcasts...)
 	d.pendingBroadcasts = make([][]byte, 0, 1)
+	d.Unlock()
 
 	broadcast, leftover := packPacket(broadcast, limit, overhead)
 	if len(leftover) > 0 {
 		// We don't want to store old messages forever, or starve ourselves to death
+		d.Lock()
 		if len(leftover) > MAX_PENDING_LENGTH {
-			d.pendingBroadcasts = leftover[:MAX_PENDING_LENGTH]
+			d.pendingBroadcasts = append(d.pendingBroadcasts, leftover[:MAX_PENDING_LENGTH]...)
 		} else {
-			d.pendingBroadcasts = leftover
+			d.pendingBroadcasts = append(d.pendingBroadcasts, leftover...)
 		}
+		d.Unlock()
+		d.congestedRunCount = d.congestedRunCount + 1
+	} else {
+		d.congestedRunCount = 0
 	}
+
+	metrics.SetGauge([]string{
+		"delegate",
+		"GetBroadcasts",
+		"consecutiveLefovers",
+	}, float32(d.congestedRunCount))
 
 	if broadcast == nil || len(broadcast) < 1 {
 		log.Debug("Note: Not enough space to fit any messages or message was nil")
 		return nil
 	}
 
-	log.Debugf("Sending broadcast %d msgs %d 1st length",
-		len(broadcast), len(broadcast[0]),
-	)
-	if len(leftover) > 0 {
-		log.Warnf("Leaving %d messages unsent", len(leftover))
+	if d.congestedRunCount >= 3 {
+		log.WithFields(log.Fields{
+			"function":             "GetBroadcasts()",
+			"unsentCount":          len(leftover),
+			"consecutiveLeftovers": d.congestedRunCount,
+		}).Warn("Three consecutive runs with leftover broadcasts")
 	}
 
 	return broadcast
