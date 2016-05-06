@@ -20,6 +20,10 @@ const (
 	UNKNOWN   = iota
 )
 
+type Namer interface {
+	Name() string
+}
+
 type Port struct {
 	Type        string
 	Port        int64
@@ -27,15 +31,15 @@ type Port struct {
 }
 
 type Service struct {
-	ID          string
-	Name        string
-	Image       string
-	Created     time.Time
-	Hostname    string
-	Ports       []Port
-	Updated     time.Time
+	ID        string
+	Name      string
+	Image     string
+	Created   time.Time
+	Hostname  string
+	Ports     []Port
+	Updated   time.Time
 	ProxyMode string
-	Status      int
+	Status    int
 }
 
 func (svc Service) Encode() ([]byte, error) {
@@ -110,12 +114,12 @@ func Decode(data []byte) *Service {
 
 // Format an APIContainers struct into a more compact struct we
 // can ship over the wire in a broadcast.
-func ToService(container *docker.APIContainers) Service {
+func ToService(container *docker.APIContainers, namer Namer) Service {
 	var svc Service
 	hostname, _ := os.Hostname()
 
-	svc.ID = container.ID[0:12]   // Use short IDs
-	svc.Name = container.Names[0] // Use the first name
+	svc.ID = container.ID[0:12] // Use short IDs
+	svc.Name = namer.Name()
 	svc.Image = container.Image
 	svc.Created = time.Unix(container.Created, 0).UTC()
 	svc.Updated = time.Now().UTC()

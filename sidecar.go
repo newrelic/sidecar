@@ -74,7 +74,13 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 		case "docker":
 			disco.Discoverers = append(
 				disco.Discoverers,
-				discovery.NewDockerDiscovery(config.DockerDiscovery.DockerURL),
+
+				discovery.NewDockerDiscovery(
+					config.DockerDiscovery.DockerURL,
+					config.DockerDiscovery.NameFromLabel,
+					config.DockerDiscovery.NameMatch,
+					config.DockerDiscovery.NameRegexp,
+				),
 			)
 		case "static":
 			disco.Discoverers = append(
@@ -147,7 +153,7 @@ func main() {
 	if config.Sidecar.LoggingFormat == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	} else {
-	// Default to verbose timestamping
+		// Default to verbose timestamping
 		log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	}
 
@@ -203,12 +209,6 @@ func main() {
 	discoLooper := director.NewTimedLooper(
 		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
 	)
-	healthWatchLooper := director.NewTimedLooper(
-		director.FOREVER, healthy.WATCH_INTERVAL, make(chan error),
-	)
-	healthLooper := director.NewTimedLooper(
-		director.FOREVER, healthy.HEALTH_INTERVAL, make(chan error),
-	)
 
 	configureMetrics(&config)
 
@@ -221,7 +221,7 @@ func main() {
 
 	// Configure the monitor and use the public address as the default
 	// check address.
-	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.DefaultCheckEndpoint)
+	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.DefaultCheckEndpoint, config.Sidecar.HealthCheckEnabled)
 	monitor.ServiceNameFn = nameFunc
 
 	serviceFunc := func() []service.Service { return monitor.Services() }
@@ -239,8 +239,20 @@ func main() {
 	go state.BroadcastServices(serviceFunc, servicesLooper)
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
 	go state.TrackNewServices(serviceFunc, trackingLooper)
-	go monitor.Watch(disco, healthWatchLooper)
-	go monitor.Run(healthLooper)
+
+	if config.Sidecar.HealthCheckEnabled {
+		log.Debug("Healthcheck enabled... starting loopers and routines")
+		healthWatchLooper := director.NewTimedLooper(
+			director.FOREVER, healthy.WATCH_INTERVAL, make(chan error),
+		)
+
+		healthLooper := director.NewTimedLooper(
+			director.FOREVER, healthy.HEALTH_INTERVAL, make(chan error),
+		)
+
+		go monitor.Watch(disco, healthWatchLooper)
+		go monitor.Run(healthLooper)
+	}
 
 	if !config.HAproxy.Disable {
 		proxy.WriteAndReload(state)

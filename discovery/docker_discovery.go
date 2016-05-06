@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"fmt"
+	"regexp"
 	"sync"
 	"time"
 
@@ -15,6 +16,15 @@ import (
 const (
 	CACHE_DRAIN_INTERVAL = 10 * time.Minute // Drain the cache every 10 mins
 )
+
+type namer struct {
+	NamingFunction func() string
+	Container      docker.APIContainers
+}
+
+func (n namer) Name() string {
+	return n.NamingFunction()
+}
 
 type DockerClient interface {
 	InspectContainer(id string) (*docker.Container, error)
@@ -30,12 +40,19 @@ type DockerDiscovery struct {
 	services       []*service.Service           // The list of services we know about
 	ClientProvider func() (DockerClient, error) // Return the client we'll use to connect
 	containerCache map[string]*docker.Container // Cache of inspected containers
-	sync.RWMutex                                // Reader/Writer lock
+	nameFromEnvVar string
+	nameFromLabel  string
+	nameMatch      string
+	nameRegexp     *regexp.Regexp
+	sync.RWMutex   // Reader/Writer lock
 }
 
-func NewDockerDiscovery(endpoint string) *DockerDiscovery {
+func NewDockerDiscovery(endpoint, nameFromLabel, nameMatch string, nameRegexp *regexp.Regexp) *DockerDiscovery {
 	discovery := DockerDiscovery{
 		endpoint:       endpoint,
+		nameFromLabel:  nameFromLabel,
+		nameMatch:      nameMatch,
+		nameRegexp:     nameRegexp,
 		events:         make(chan *docker.APIEvents),
 		containerCache: make(map[string]*docker.Container),
 	}
@@ -163,7 +180,49 @@ func (d *DockerDiscovery) getContainers() {
 			continue
 		}
 
-		svc := service.ToService(&container)
+		n := &namer{
+			Container: container,
+			NamingFunction: func() string {
+				log.Debug("Getting container name")
+
+				if d.nameMatch != "" {
+					log.Debug("doing nameMatch")
+
+					// Use Custom Matcher to group containers by
+					// Regex on the container name
+
+					toMatch := []byte(container.Names[0])
+					matches := d.nameRegexp.FindSubmatch(toMatch)
+					if len(matches) < 1 {
+						return container.Image
+					} else {
+						return string(matches[1])
+					}
+
+				} else if d.nameFromLabel != "" {
+					log.Debugf("Using container label %s", d.nameFromLabel)
+
+					// Use a specific container label as the name
+
+					if labelValue, ok := container.Labels[d.nameFromLabel]; ok {
+						log.Debugf("LabelValue: %s", labelValue)
+						return labelValue
+					} else {
+						log.Debug("Container Label %s not found, using image", d.nameFromLabel)
+						return container.Image
+					}
+
+				} else {
+
+					// use Image as a fall-back, this is undesireable
+					// because LB won't won (each container will be a VIP of one)
+
+					return container.Image
+				}
+			},
+		}
+
+		svc := service.ToService(&container, n)
 		d.services = append(d.services, &svc)
 		containerMap[svc.ID] = true
 	}
@@ -173,7 +232,7 @@ func (d *DockerDiscovery) getContainers() {
 
 // Loop through the current cache and remove anything that has disappeared
 func (d *DockerDiscovery) pruneContainerCache(liveContainers map[string]interface{}) {
-	for id, _ := range d.containerCache {
+	for id := range d.containerCache {
 		if _, ok := liveContainers[id]; !ok {
 			delete(d.containerCache, id)
 		}

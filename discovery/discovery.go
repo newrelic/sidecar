@@ -3,8 +3,8 @@ package discovery
 import (
 	"time"
 
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 const (

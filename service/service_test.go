@@ -80,13 +80,13 @@ func Test_ToService(t *testing.T) {
 		Created: 1457144774,
 		Status:  "Up 34 seconds",
 		Ports: []docker.APIPort{
-			docker.APIPort{
+			{
 				PrivatePort: 9990,
 				PublicPort:  0,
 				Type:        "tcp",
 				IP:          "",
 			},
-			docker.APIPort{
+			{
 				PrivatePort: 8080,
 				PublicPort:  31355,
 				Type:        "tcp",
@@ -98,14 +98,14 @@ func Test_ToService(t *testing.T) {
 		Names:      []string{"/sample-app-go-worker-eebb5aad1a17ee"},
 		Labels: map[string]string{
 			"ServicePort_8080": "17010",
-			"ProxyMode":      "tcp",
+			"ProxyMode":        "tcp",
 			"HealthCheck":      "HttpGet",
 			"HealthCheckArgs":  "http://127.0.0.1:39519/status/check",
 		},
 	}
 
 	samplePorts := []Port{
-		Port{
+		{
 			Type:        "tcp",
 			Port:        31355,
 			ServicePort: 17010,
