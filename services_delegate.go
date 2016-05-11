@@ -44,7 +44,7 @@ func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
-	log.Printf("NodeMeta(): %d", limit)
+	log.Debugf("NodeMeta(): %d", limit)
 	data, err := json.Marshal(d.Metadata)
 	if err != nil {
 		log.Error("Error encoding Node metadata!")
@@ -61,7 +61,7 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 		return
 	}
 
-	log.Printf("NotifyMsg(): %s", string(message))
+	log.Debugf("NotifyMsg(): %s", string(message))
 
 	// TODO don't just send container structs, send message structs
 	d.notifications <- message
@@ -74,7 +74,7 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 			for message := range d.notifications {
 				entry := service.Decode(message)
 				if entry == nil {
-					log.Printf("NotifyMsg(): error decoding!")
+					log.Errorf("NotifyMsg(): error decoding!")
 					continue
 				}
 				d.state.AddServiceEntry(*entry)
@@ -119,7 +119,7 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 		return nil
 	}
 
-	log.Printf("Sending broadcast %d msgs %d 1st length",
+	log.Debugf("Sending broadcast %d msgs %d 1st length",
 		len(broadcast), len(broadcast[0]),
 	)
 	if len(leftover) > 0 {
@@ -130,14 +130,15 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 }
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
-	log.Printf("LocalState(): %b", join)
+	log.Debugf("LocalState(): %b", join)
 	return d.state.Encode()
 }
 
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 	defer metrics.MeasureSince([]string{"delegate", "MergeRemoteState"}, time.Now())
 
-	log.Printf("MergeRemoteState(): %s %b", string(buf), join)
+	log.Info("Merging remote state...")
+	log.Debugf("MergeRemoteState(): %s %b", string(buf), join)
 
 	otherState, err := catalog.Decode(buf)
 	if err != nil {
@@ -145,7 +146,7 @@ func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 		return
 	}
 
-	log.Printf("Merging state: %s", otherState.Format(nil))
+	log.Debugf("Merging state: %s", otherState.Format(nil))
 
 	d.state.Merge(otherState)
 }
