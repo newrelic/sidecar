@@ -30,7 +30,7 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 			log.Printf("Meta: %s", string(member.Meta))
 		}
 
-		state.Print(list)
+		log.Debug(state.Format(list))
 
 		time.Sleep(2 * time.Second)
 	}

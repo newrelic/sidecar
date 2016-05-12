@@ -131,11 +131,11 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 // A server has left the cluster, so tombstone all of its records
 func (state *ServicesState) ExpireServer(hostname string) {
 	if !state.HasServer(hostname) {
-		log.Printf("No records to expire for %s", hostname)
+		log.Infof("No records to expire for %s", hostname)
 		return
 	}
 
-	log.Printf("Expiring %s", hostname)
+	log.Infof("Expiring %s", hostname)
 
 	tombstones := make([]service.Service, 0, len(state.Servers[hostname].Services))
 
@@ -344,7 +344,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 		}
 
 		if len(services) > 0 {
-			log.Println("Starting to broadcast")
+			log.Debug("Starting to broadcast")
 			// Figure out how many times to announce the service. New services get more announcements.
 			runCount := 1
 			if haveNewServices {
@@ -356,7 +356,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 				services,
 				director.NewTimedLooper(runCount, state.tombstoneRetransmit, nil),
 			)
-			log.Println("Completing broadcast")
+			log.Debug("Completing broadcast")
 		} else {
 			// We expect there to always be _something_ in the channel
 			// once we've run.
