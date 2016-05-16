@@ -11,9 +11,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic-forks/memberlist"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/output"
 	"github.com/newrelic/sidecar/service"
+	"github.com/relistan/go-director"
 )
 
 // catalog handles all of the eventual-consistency mechanisms for

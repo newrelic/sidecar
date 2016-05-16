@@ -25,6 +25,7 @@ type ServicesConfig struct {
 }
 
 type SidecarConfig struct {
+	HealthCheckEnabled   bool     `toml:"health_check_enabled"`
 	ExcludeIPs           []string `toml:"exclude_ips"`
 	Discovery            []string `toml:"discovery"`
 	StatsAddr            string   `toml:"stats_addr"`
@@ -35,7 +36,10 @@ type SidecarConfig struct {
 }
 
 type DockerConfig struct {
-	DockerURL string `toml:"docker_url"`
+	DockerURL     string `toml:"docker_url"`
+	NameFromLabel string `toml:"name_from_label"`
+	NameMatch     string `toml:"name_match"`
+	NameRegexp    *regexp.Regexp
 }
 
 type StaticConfig struct {
@@ -75,7 +79,7 @@ func parseConfig(path string) Config {
 		exitWithError(err, "Failed to parse config file")
 	}
 
-	config.Services.NameRegexp, err = regexp.Compile(config.Services.NameMatch)
+	config.DockerDiscovery.NameRegexp, err = regexp.Compile(config.DockerDiscovery.NameMatch)
 	exitWithError(err, "Cant compile name_match regex")
 
 	return config
