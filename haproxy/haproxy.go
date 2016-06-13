@@ -21,17 +21,17 @@ type portmap map[string]portset
 
 // Configuration and state for the HAproxy management module
 type HAproxy struct {
-	ReloadCmd  string
-	VerifyCmd  string
-	BindIP     string
-	Template   string
-	ConfigFile string
-	PidFile    string
-	User       string
-	Group      string
+	ReloadCmd  string `toml:"reload_cmd"`
+	VerifyCmd  string `toml:"verify_cmd"`
+	BindIP     string `toml:"bind_ip"`
+	Template   string `toml:"template"`
+	ConfigFile string `toml:"config_file"`
+	PidFile    string `toml:"pid_file"`
+	User       string `toml:"user"`
+	Group      string `toml:"group"`
 }
 
-// Constructs a properly configure HAProxy and returns a pointer to it
+// Constructs a properly configured HAProxy and returns a pointer to it
 func New(configFile string, pidFile string) *HAproxy {
 	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + " `[[ -f " + pidFile + " ]] && echo \"-sf $(cat " + pidFile + ")\"]]`"
 	verifyCmd := "haproxy -c -f " + configFile
