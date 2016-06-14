@@ -235,6 +235,13 @@ func main() {
 		go proxy.Watch(state)
 	}
 
+	// If we have any callback Urls for state change notifications, let's
+	// put them here.
+	for _, url := range config.Listeners.Urls {
+		listener := catalog.NewUrlListener(url)
+		listener.Watch(state)
+	}
+
 	go announceMembers(list, state)
 	go state.BroadcastServices(serviceFunc, servicesLooper)
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
