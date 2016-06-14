@@ -67,6 +67,7 @@ type ServicesState struct {
 	ServiceNameMatch    *regexp.Regexp // How we match service names
 	LastChanged         time.Time
 	listeners           []chan ChangeEvent
+	listenerLock        sync.Mutex
 	tombstoneRetransmit time.Duration
 	sync.Mutex
 }
@@ -179,6 +180,7 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 		return
 	}
 	event := ChangeEvent{Hostname: hostname, Time: changedTime}
+	state.listenerLock.Lock()
 	for _, listener := range state.listeners {
 		select {
 		case listener <- event:
@@ -187,13 +189,16 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 			log.Error("NotifyListeners(): Can't send to listener!")
 		}
 	}
+	state.listenerLock.Unlock()
 }
 
 // Add an event listener channel to the list that will be notified on
 // major state change events. Channels must be buffered by at least 1
 // or they will block. Channels must be ready to receive input.
 func (state *ServicesState) AddListener(listener chan ChangeEvent) {
+	state.listenerLock.Lock()
 	state.listeners = append(state.listeners, listener)
+	state.listenerLock.Unlock()
 	log.Debugf("AddListener(): new count %d", len(state.listeners))
 }
 
