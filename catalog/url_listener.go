@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	CLIENT_TIMEOUT = 30 * time.Second
+	CLIENT_TIMEOUT = 3 * time.Second
 	DEFAULT_RETRIES = 5
 )
 
@@ -30,7 +30,7 @@ func NewUrlListener(url string) *UrlListener {
 		Url:          url,
 		looper:       director.NewFreeLooper(director.FOREVER, errorChan),
 		Client:       &http.Client{Timeout: CLIENT_TIMEOUT},
-		eventChannel: make(chan ChangeEvent, 2),
+		eventChannel: make(chan ChangeEvent, 20),
 		Retries:      DEFAULT_RETRIES,
 	}
 }
