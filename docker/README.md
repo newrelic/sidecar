@@ -16,7 +16,7 @@ docker run -i -t -v /var/run/docker.sock:/var/run/docker.sock \
 	--cap-add NET_ADMIN $IMAGE
 ```
 
-**Volume Mount:*** Requires volume mounting the Docker socket. If you choose
+**Volume Mount:** Requires volume mounting the Docker socket. If you choose
 not to do this, then you'll need to pass in `DOCKER_*` environment variables to
 configure access to the Docker daemon. You'll also want to remove the whole
 configuration line `docker_url` from the `sidecar.toml` file.
