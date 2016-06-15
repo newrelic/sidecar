@@ -3,9 +3,9 @@ package discovery
 import (
 	"testing"
 
+	"github.com/newrelic/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/sidecar/service"
 )
 
 const (

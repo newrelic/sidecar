@@ -128,12 +128,11 @@ func (check *Check) ServiceStatus() int {
 }
 
 // NewMonitor returns a properly configured default configuration of a Monitor.
-func NewMonitor(defaultCheckHost string, defaultCheckEndpoint string) *Monitor {
+func NewMonitor(defaultCheckHost string) *Monitor {
 	monitor := Monitor{
-		Checks:               make(map[string]*Check, 5),
-		CheckInterval:        HEALTH_INTERVAL,
-		DefaultCheckHost:     defaultCheckHost,
-		DefaultCheckEndpoint: defaultCheckEndpoint,
+		Checks:           make(map[string]*Check, 5),
+		CheckInterval:    HEALTH_INTERVAL,
+		DefaultCheckHost: defaultCheckHost,
 	}
 	return &monitor
 }

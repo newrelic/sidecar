@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/newrelic/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/sidecar/service"
 )
 
 func Test_NewCheck(t *testing.T) {
@@ -186,11 +186,11 @@ func Test_MarkingServices(t *testing.T) {
 		// Then we health check them and look at the results carefully.
 		monitor := NewMonitor(hostname, "/")
 		services := []service.Service{
-			service.Service{ID: "test", Status: service.ALIVE},
-			service.Service{ID: "bad", Status: service.ALIVE},
-			service.Service{ID: "unknown", Status: service.ALIVE},
-			service.Service{ID: "test2", Status: service.TOMBSTONE},
-			service.Service{ID: "unknown2", Status: service.UNKNOWN},
+			{ID: "test", Status: service.ALIVE},
+			{ID: "bad", Status: service.ALIVE},
+			{ID: "unknown", Status: service.ALIVE},
+			{ID: "test2", Status: service.TOMBSTONE},
+			{ID: "unknown2", Status: service.UNKNOWN},
 		}
 
 		looper := director.NewFreeLooper(director.ONCE, nil)

@@ -5,11 +5,11 @@ push_pull_interval = "20s"
 
 [docker_discovery]
 docker_url = "unix:///var/run/docker.sock"
+name_from_label = "ServiceName"
 
 [services]
 # Centurion format, looks like: service-name-deadbeef12312
 # returns first match: "service-name"
-name_match = "^/(.+)(-[0-9a-z]{7,14})$"
 
 [haproxy]
 bind_ip       = "192.168.168.168"
