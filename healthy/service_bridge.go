@@ -86,7 +86,7 @@ func (m *Monitor) fetchCheckForService(svc *service.Service, disco discovery.Dis
 	check := &Check{}
 	check.Type, check.Args = disco.HealthCheck(svc)
 	if check.Type == "" {
-		log.Errorf(
+		log.Warnf(
 			"Adding check for service %s (id: %s) failed. Got check type: %s, check args: %s.",
 			svc.Name, svc.ID, check.Type, check.Args,
 		)
