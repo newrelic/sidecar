@@ -26,8 +26,8 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 	for {
 		// Ask for members of the cluster
 		for _, member := range list.Members() {
-			log.Printf("Member: %s %s", member.Name, member.Addr)
-			log.Printf("Meta: %s", string(member.Meta))
+			log.Debugf("Member: %s %s", member.Name, member.Addr)
+			log.Debugf("Meta: %s", string(member.Meta))
 		}
 
 		log.Debug(state.Format(list))
