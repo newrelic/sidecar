@@ -145,9 +145,22 @@ Docker. It uses the standard variables like `DOCKER_HOST`, `TLS_VERIFY`, etc.
 ##### Labels
 
 A few Docker labels can be used to control the discovery behavior of Sidecar.
-All containers need to be started with two labels defining how they are to be
-health checked. To health check a service on port 9090 on the local system with
-an `HttpGet` check, for example, you would use the following labels:
+Services may be started with one or more `ServicePort_xxx` labels that help
+Sidecar to understand ports that are mapped dynamically. This controls the port
+on which HAproxy will listen for the service as well. If I have a service where
+the container is built with `EXPOSE 80` and I want HAproxy to listen on port
+8080 then I will add a Docker label to the service in the form:
+
+```
+	ServicePort_80=8080
+```
+
+With dynamic port bindings, Docker may then bind that to 32767 but Sidecar will
+know which service and port that belongs.
+
+**All containers need to be started with two labels** defining how they are to
+be health checked. To health check a service on port 9090 on the local system
+with an `HttpGet` check, for example, you would use the following labels:
 
 ```
 	HealthCheck=HttpGet
@@ -190,6 +203,10 @@ This will then fill the template fields, at call time, with the current
 hostname and the actual port that Docker bound to your container's port 8080.
 Querying of UDP ports works as you might expect, by calling `{{ udp 53 }}` for
 example.
+
+**Note** that the `tcp` and `udp` method calls in the templates refer only
+to ports mapped with `ServicePort` labels. You will need to use the port
+number that you expect HAproxy to use.
 
 ####Configuring Static Discovery
 
