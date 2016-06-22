@@ -252,7 +252,7 @@ func (d *DockerDiscovery) processEvents(quit chan bool) {
 			time.Sleep(SLEEP_INTERVAL)
 			continue
 		}
-		fmt.Printf("Event: %#v\n", event)
+		log.Debugf("Event: %#v\n", event)
 		d.handleEvent(*event)
 	}
 }
