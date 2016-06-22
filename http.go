@@ -73,6 +73,14 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 	    	<pre>` + state.Format(list) + "</pre>"))
 }
 
+func stateHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
+	defer req.Body.Close()
+
+	response.Header().Set("Content-Type", "application/json")
+	response.Write(state.Encode())
+	return
+}
+
 func statusStr(status int) string {
 	switch status {
 	case 0:
@@ -179,6 +187,10 @@ func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 
 	router.HandleFunc(
 		"/services", makeHandler(viewHandler, list, state),
+	).Methods("GET")
+
+	router.HandleFunc(
+		"/state", makeHandler(stateHandler, list, state),
 	).Methods("GET")
 
 	router.HandleFunc(
