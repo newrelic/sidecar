@@ -50,7 +50,7 @@ func findFirstTCPPort(svc *service.Service) *service.Port {
 func (m *Monitor) defaultCheckForService(svc *service.Service) *Check {
 	port := findFirstTCPPort(svc)
 	if port == nil {
-		return &Check{ID: svc.ID}
+		return &Check{ID: svc.ID, Command: &AlwaysSuccessfulCmd{}}
 	}
 
 	// Use the const default unless we've been provided something else
