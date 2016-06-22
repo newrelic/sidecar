@@ -323,8 +323,8 @@ func (state *ServicesState) IsNewService(svc *service.Service) bool {
 	return false
 }
 
-// Loops forever, keeping transmitting info about our containers
-// on the broadcast channel. Intended to run as a background goroutine.
+// Loops forever, transmitting info about our containers on the
+// broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, looper director.Looper) {
 	lastTime := time.Unix(0, 0)
 
@@ -338,11 +338,12 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 		for _, svc := range servicesList {
 			isNew := state.IsNewService(&svc)
 
+			// We'll broadcast it now if it's new or we've hit refresh window
 			if isNew {
 				log.Println("Found service changes!")
 				haveNewServices = true
 				services = append(services, svc)
-				// We'll broadcast it now if it's new or we've hit refresh window
+			// Check that refresh window... is it time?
 			} else if time.Now().UTC().Add(0 - ALIVE_BROADCAST_INTERVAL).After(lastTime) {
 				services = append(services, svc)
 			}

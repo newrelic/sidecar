@@ -53,3 +53,12 @@ func (e *ExternalCmd) Run(args string) (int, error) {
 	log.Errorf("Error running command: %s (%s)\n", err.Error(), output)
 	return SICKLY, err
 }
+
+// A Checker that always returns success. Usually used in
+// cases where a service can't actually be health checked for
+// some reason.
+type AlwaysSuccessfulCmd struct{}
+
+func (a *AlwaysSuccessfulCmd) Run(args string) (int, error) {
+	return HEALTHY, nil
+}
