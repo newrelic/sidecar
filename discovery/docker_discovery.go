@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
