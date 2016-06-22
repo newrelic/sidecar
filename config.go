@@ -7,6 +7,10 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+type ListenerUrlsConfig struct {
+	Urls []string `toml:"urls"`
+}
+
 type HAproxyConfig struct {
 	ReloadCmd    string `toml:"reload_command"`
 	VerifyCmd    string `toml:"verify_command"`
@@ -43,11 +47,12 @@ type StaticConfig struct {
 }
 
 type Config struct {
-	Sidecar         SidecarConfig  `toml:"sidecar"`
-	DockerDiscovery DockerConfig   `toml:"docker_discovery"`
-	StaticDiscovery StaticConfig   `toml:"static_discovery"`
-	Services        ServicesConfig `toml:"services"`
-	HAproxy         HAproxyConfig  `toml:"haproxy"`
+	Sidecar         SidecarConfig      `toml:"sidecar"`
+	DockerDiscovery DockerConfig       `toml:"docker_discovery"`
+	StaticDiscovery StaticConfig       `toml:"static_discovery"`
+	Services        ServicesConfig     `toml:"services"`
+	HAproxy         HAproxyConfig      `toml:"haproxy"`
+	Listeners       ListenerUrlsConfig `toml:"listeners"`
 }
 
 func setDefaults(config *Config) {
