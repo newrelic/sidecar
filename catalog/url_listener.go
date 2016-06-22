@@ -71,11 +71,13 @@ func (u *UrlListener) Watch(state *ServicesState) {
 			err := withRetries(u.Retries, func() error {
 				resp, err := u.Client.Post(u.Url, "application/json", buf)
 
+				if err != nil {
+					return err }
+				}
+
 				if resp.StatusCode > 299 || resp.StatusCode < 200 {
 					return fmt.Errorf("Bad status code returned (%d)", resp.StatusCode)
 				}
-
-				return err
 			})
 
 			if err != nil {
