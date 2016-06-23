@@ -72,12 +72,14 @@ func (u *UrlListener) Watch(state *ServicesState) {
 				resp, err := u.Client.Post(u.Url, "application/json", buf)
 
 				if err != nil {
-					return err }
+					return err
 				}
 
 				if resp.StatusCode > 299 || resp.StatusCode < 200 {
 					return fmt.Errorf("Bad status code returned (%d)", resp.StatusCode)
 				}
+
+				return nil
 			})
 
 			if err != nil {

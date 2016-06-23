@@ -179,6 +179,9 @@ func (state *ServicesState) NotifyListeners(hostname string, changedTime time.Ti
 		log.Debugf("Skipping listeners, there are none")
 		return
 	}
+
+	log.Infof("Notifying listeners of change at %s", changedTime.String())
+
 	event := ChangeEvent{Hostname: hostname, Time: changedTime}
 	state.listenerLock.Lock()
 	for _, listener := range state.listeners {
@@ -340,7 +343,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 
 			// We'll broadcast it now if it's new or we've hit refresh window
 			if isNew {
-				log.Println("Found service changes!")
+				log.Debug("Found service changes in BroadcastServices()")
 				haveNewServices = true
 				services = append(services, svc)
 			// Check that refresh window... is it time?
