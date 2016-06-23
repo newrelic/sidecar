@@ -263,7 +263,7 @@ func (d *DockerDiscovery) drainCache(quit chan bool) {
 		case <-quit:
 			return
 		case <-time.After(CACHE_DRAIN_INTERVAL):
-			log.Print("Draining containerCache")
+			log.Debug("Draining containerCache")
 			d.Lock()
 			// Make a new one, leave the old one for GC
 			d.containerCache = make(
