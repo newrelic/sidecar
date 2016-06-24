@@ -175,6 +175,8 @@ func main() {
 	mlConfig.Delegate = delegate
 	mlConfig.Events = delegate
 
+	mlConfig.LogOutput = &LoggingBridge{}
+
 	// Set up the push pull interval for Memberlist
 	if config.Sidecar.PushPullInterval.Duration == 0 {
 		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1*time.Second
