@@ -38,7 +38,6 @@ func (l *LoggingBridge) logMessageAtLevel(message []byte, level []byte) {
 		l.lastLevel = level
 		l.lastMessage = message
 	}
-
 	switch string(level) {
 	case "[INFO]":
 		log.Info(string(message))
