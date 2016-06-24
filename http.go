@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/nitro/memberlist"
 	"github.com/newrelic/sidecar/catalog"
@@ -145,7 +146,7 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 
 	t, err := template.New("services").Funcs(funcMap).ParseFiles("views/services.html")
 	if err != nil {
-		println("Error parsing template: " + err.Error())
+		log.Errorf("Error parsing template: %s", err.Error())
 	}
 
 	members := list.Members()
@@ -157,7 +158,7 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 			compiledMembers[i] = &Member{member, state.Servers[member.Name].LastUpdated}
 		} else {
 			compiledMembers[i] = &Member{Node: member}
-			println("No updated time for " + member.Name)
+			log.Debug("No updated time for " + member.Name)
 		}
 	}
 
