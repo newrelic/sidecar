@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/newrelic-forks/memberlist"
+	"github.com/nitro/memberlist"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/output"
 	"github.com/newrelic/sidecar/service"
