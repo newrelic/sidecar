@@ -478,7 +478,7 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 func (state *ServicesState) TombstoneServices(hostname string, containerList []service.Service) []service.Service {
 
 	if !state.HasServer(hostname) {
-		println("TombstoneServices(): New host or not running services, skipping.")
+		log.Debug("TombstoneServices(): New host or not running services, skipping.")
 		return nil
 	}
 	// Build a map from the list first
