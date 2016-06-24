@@ -35,6 +35,7 @@ type SidecarConfig struct {
 	PushPullInterval     duration `toml:"push_pull_interval"`
 	GossipMessages       int      `toml:"gossip_messages"`
 	LoggingFormat        string   `toml:"logging_format"`
+	LoggingLevel         string   `toml:"logging_level"`
 	DefaultCheckEndpoint string   `toml:"default_check_endpoint"`
 }
 
