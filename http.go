@@ -11,10 +11,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	"github.com/nitro/memberlist"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/output"
 	"github.com/newrelic/sidecar/service"
+	"github.com/nitro/memberlist"
 )
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request,
@@ -99,7 +99,7 @@ func portsStr(svcPorts []service.Port) string {
 	var ports []string
 
 	for _, port := range svcPorts {
-	    if port.ServicePort != 0 {
+		if port.ServicePort != 0 {
 			ports = append(ports, fmt.Sprintf("%v->%v", port.ServicePort, port.Port))
 		} else {
 			ports = append(ports, fmt.Sprintf("%v", port.Port))
