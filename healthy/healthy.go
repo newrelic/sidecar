@@ -95,7 +95,7 @@ func NewCheck(id string) *Check {
 // of the current Check.
 func (check *Check) UpdateStatus(status int, err error) {
 	if err != nil {
-		log.Warnf("Error executing check, status UNKNOWN: (id %s)", check.ID)
+		log.Debugf("Error executing check, status UNKNOWN: (id %s)", check.ID)
 		check.Status = UNKNOWN
 		check.LastError = err
 	} else {
