@@ -19,3 +19,4 @@ config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"
 user          = "haproxy"
 group         = "haproxy"
+# disable     = true
