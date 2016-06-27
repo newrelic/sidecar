@@ -2,6 +2,7 @@
 exclude_ips = [ "192.168.168.168" ]
 discovery = [ "docker" ]
 push_pull_interval = "20s"
+logging_level = "info"
 
 [docker_discovery]
 docker_url = "unix:///var/run/docker.sock"

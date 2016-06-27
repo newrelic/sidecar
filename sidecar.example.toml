@@ -3,6 +3,7 @@ exclude_ips = [ "192.168.168.168" ]
 discovery = [ "docker", "static" ]
 push_pull_interval = "20s"
 logging_format = "standard" # or "json"
+logging_level = "info" # or "warn", "debug", or "error"
 #default_check_endpoint = "/somewhere/specific/"
 
 [docker_discovery]

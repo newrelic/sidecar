@@ -9,12 +9,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
-	"github.com/nitro/memberlist"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/discovery"
 	"github.com/newrelic/sidecar/haproxy"
 	"github.com/newrelic/sidecar/healthy"
 	"github.com/newrelic/sidecar/service"
+	"github.com/nitro/memberlist"
 	"github.com/relistan/go-director"
 )
 
@@ -127,6 +127,21 @@ func configureSignalHandler(opts *CliOpts) {
 	}()
 }
 
+func configureLoggingLevel(level string) {
+	switch {
+	case len(level) == 0:
+		log.SetLevel(log.InfoLevel)
+	case level == "info":
+		log.SetLevel(log.InfoLevel)
+	case level == "warn":
+		log.SetLevel(log.WarnLevel)
+	case level == "error":
+		log.SetLevel(log.ErrorLevel)
+	case level == "debug":
+		log.SetLevel(log.DebugLevel)
+	}
+}
+
 func main() {
 	opts := parseCommandLine()
 	configureSignalHandler(opts)
@@ -147,9 +162,11 @@ func main() {
 	if config.Sidecar.LoggingFormat == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	} else {
-	// Default to verbose timestamping
+		// Default to verbose timestamping
 		log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	}
+
+	configureLoggingLevel(config.Sidecar.LoggingLevel)
 
 	state.ServiceNameMatch = config.Services.NameRegexp
 
@@ -157,6 +174,8 @@ func main() {
 	mlConfig := memberlist.DefaultLANConfig()
 	mlConfig.Delegate = delegate
 	mlConfig.Events = delegate
+
+	mlConfig.LogOutput = &LoggingBridge{}
 
 	// Set up the push pull interval for Memberlist
 	if config.Sidecar.PushPullInterval.Duration == 0 {
@@ -182,6 +201,7 @@ func main() {
 	log.Printf("Excluded IPs: %v", config.Sidecar.ExcludeIPs)
 	log.Printf("Push/Pull Interval: %s", config.Sidecar.PushPullInterval.Duration.String())
 	log.Printf("Gossip Messages: %d", config.Sidecar.GossipMessages)
+	log.Printf("Logging level: %s", config.Sidecar.LoggingLevel)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
