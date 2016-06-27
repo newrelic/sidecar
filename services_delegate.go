@@ -8,7 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
-	"github.com/newrelic-forks/memberlist"
+	"github.com/nitro/memberlist"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/service"
 )
