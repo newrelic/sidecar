@@ -10,7 +10,6 @@ RUN cd / && curl -L https://github.com/just-containers/skaware/releases/download
 ADD sidecar /sidecar/sidecar
 ADD sidecar.toml /sidecar/sidecar.toml
 ADD views /sidecar/views
-ADD start.sh /start.sh
 ADD s6 /etc
 
 EXPOSE 7777
