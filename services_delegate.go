@@ -8,9 +8,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
-	"github.com/nitro/memberlist"
 	"github.com/newrelic/sidecar/catalog"
 	"github.com/newrelic/sidecar/service"
+	"github.com/nitro/memberlist"
 )
 
 const (
@@ -137,7 +137,6 @@ func (d *servicesDelegate) LocalState(join bool) []byte {
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 	defer metrics.MeasureSince([]string{"delegate", "MergeRemoteState"}, time.Now())
 
-	log.Info("Merging remote state...")
 	log.Debugf("MergeRemoteState(): %s %b", string(buf), join)
 
 	otherState, err := catalog.Decode(buf)
