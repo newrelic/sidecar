@@ -187,6 +187,9 @@ func main() {
 		mlConfig.GossipMessages = config.Sidecar.GossipMessages
 	}
 
+	// Make sure we pass on the cluster name to Memberlist
+	mlConfig.ClusterName = *opts.ClusterName
+
 	// Figure out our IP address from the CLI or by inspecting
 	publishedIP, err := getPublishedIP(config.Sidecar.ExcludeIPs, opts.AdvertiseIP)
 	exitWithError(err, "Failed to find private IP address")
