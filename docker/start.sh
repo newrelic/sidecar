@@ -9,6 +9,10 @@ if [[ -n "$SIDECAR_ADVERTISE_IP" ]]; then
 	CLI="$CLI --advertise-ip $SIDECAR_ADVERTISE_IP"
 fi
 
+if [[ -n "$SIDECAR_CLUSTERNAME" ]]; then
+	CLI="$CLI --cluster-name $SIDECAR_CLUSTERNAME"
+fi
+
 if [[ -n "$SIDECAR_LOGGING_LEVEL" ]]; then
 	sed -i.bak 's/logging_level *= *"info"/logging_level = "'"$SIDECAR_LOGGING_LEVEL"'"/' sidecar.toml
 fi

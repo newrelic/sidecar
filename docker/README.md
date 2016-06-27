@@ -40,7 +40,9 @@ of the cluster seed hosts.
 
 ```
 SIDECAR_SEEDS="seed1 host2 seed3" # Required
-ADVERTISE_IP="192.168.168.5" # Optional
+ADVERTISE_IP="192.168.168.5"      # Optional
+SIDECAR_LOGGING_LEVEL="debug"     # Optional
+SIDECAR_CLUSTERNAME="some-name"   # Optional
 ```
 
 The seed hosts passed via `SIDECAR_SEEDS` are formatted as
@@ -51,6 +53,12 @@ expectation that you will map `/var/run/docker.sock` into the container.  This
 is where Docker usually writes its Unix socket. If you want to use TCP to
 connect, you'll need to do some more work and pass in `DOCKER_*` environment
 variables to configure access to it from Sidecar.
+
+Sidecar logs in `info` mode by default. You can switch this to one of: `error`,
+`warn`, `debug` using the `SIDECAR_LOGGING_LEVEL` environment variable.
+
+The default cluster name is `default` but can be changed with the appropriately
+named `SIDECAR_CLUSTERNAME` env var.
 
 How It Works
 ------------
