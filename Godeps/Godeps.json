@@ -119,7 +119,7 @@
 		},
 		{
 			"ImportPath": "github.com/nitro/memberlist",
-			"Rev": "ccf65d8aba4d33b83dfffbc00e8f0b8cf1712fd0"
+			"Rev": "490eb18c36b5181b667a4cf41d05eabacd855aad"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",

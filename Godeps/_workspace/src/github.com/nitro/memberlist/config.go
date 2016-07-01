@@ -187,6 +187,10 @@ type Config struct {
 	// behavior for using LogOutput. You cannot specify both LogOutput and Logger
 	// at the same time.
 	Logger *log.Logger
+
+	// Prefer TCP-based DNS lookup. Do we use a memberlist custom lookup function
+	// first, using deprecated ANY record, or just rely on Go's DNS resolver?
+	PreferTCPDNS bool
 }
 
 // DefaultLANConfig returns a sane set of configurations for Memberlist.
@@ -226,6 +230,7 @@ func DefaultLANConfig() *Config {
 		Keyring:   nil,
 
 		DNSConfigPath: "/etc/resolv.conf",
+		PreferTCPDNS:  true,
 	}
 }
 

@@ -297,15 +297,19 @@ func (m *Memberlist) resolveAddr(hostStr string) ([]ipPort, error) {
 		return []ipPort{ipPort{ip, port}}, nil
 	}
 
-	// First try TCP so we have the best chance for the largest list of
-	// hosts to join. If this fails it's not fatal since this isn't a standard
-	// way to query DNS, and we have a fallback below.
-	ips, err := m.tcpLookupIP(host, port)
-	if err != nil {
-		m.logger.Printf("[DEBUG] memberlist: TCP-first lookup failed for '%s', falling back to UDP: %s", hostStr, err)
-	}
-	if len(ips) > 0 {
-		return ips, nil
+	var ips []ipPort
+
+	if m.config.PreferTCPDNS {
+		// First try TCP so we have the best chance for the largest list of
+		// hosts to join. If this fails it's not fatal since this isn't a standard
+		// way to query DNS, and we have a fallback below.
+		ips, err = m.tcpLookupIP(host, port)
+		if err != nil {
+			m.logger.Printf("[DEBUG] memberlist: TCP-first lookup failed for '%s', falling back to UDP: %s", hostStr, err)
+		}
+		if len(ips) > 0 {
+			return ips, nil
+		}
 	}
 
 	// If TCP didn't yield anything then use the normal Go resolver which
