@@ -175,7 +175,9 @@ func main() {
 	mlConfig.Delegate = delegate
 	mlConfig.Events = delegate
 
+	// Set some memberlist settings
 	mlConfig.LogOutput = &LoggingBridge{}
+	mlConfig.PreferTCPDNS = false
 
 	// Set up the push pull interval for Memberlist
 	if config.Sidecar.PushPullInterval.Duration == 0 {
