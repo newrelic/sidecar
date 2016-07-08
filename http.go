@@ -51,7 +51,6 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 
 func servicesHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
 	params := mux.Vars(req)
-
 	defer req.Body.Close()
 
 	if params["extension"] == ".json" {
@@ -75,11 +74,14 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 }
 
 func stateHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
+	params := mux.Vars(req)
 	defer req.Body.Close()
 
-	response.Header().Set("Content-Type", "application/json")
-	response.Write(state.Encode())
-	return
+	if params["extension"] == ".json" {
+		response.Header().Set("Content-Type", "application/json")
+		response.Write(state.Encode())
+		return
+	}
 }
 
 func statusStr(status int) string {
@@ -191,7 +193,7 @@ func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	).Methods("GET")
 
 	router.HandleFunc(
-		"/state", makeHandler(stateHandler, list, state),
+		"/state{extension}", makeHandler(stateHandler, list, state),
 	).Methods("GET")
 
 	router.HandleFunc(
