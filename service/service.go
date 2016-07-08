@@ -141,7 +141,7 @@ func ToService(container *docker.APIContainers) Service {
 
 // Figure out the correct port configuration for a service
 func buildPortFor(port *docker.APIPort, container *docker.APIContainers) Port {
-	// We look up service port labels by convention in the format "ServicePort_8080=80"
+	// We look up service port labels by convention in the format "ServicePort_80=8080"
 	svcPortLabel := fmt.Sprintf("ServicePort_%d", port.PrivatePort)
 
 	returnPort := Port{Port: port.PublicPort, Type: port.Type}
