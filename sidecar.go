@@ -70,6 +70,13 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
 	var svcNamer discovery.ServiceNamer
+	var usingDocker bool
+
+	for _, method := range config.Sidecar.Discovery {
+		if method == "docker" {
+			usingDocker = true
+		}
+	}
 
 	switch config.Services.ServiceNamer {
 	case "docker_label":
@@ -81,7 +88,9 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 			ServiceNameMatch: config.Services.NameMatch,
 		}
 	default:
-		log.Fatalf("Unable to configure service namer! Not a valid entry.")
+		if usingDocker {
+			log.Fatalf("Unable to configure service namer! Not a valid entry.")
+		}
 	}
 
 	for _, method := range config.Sidecar.Discovery {
