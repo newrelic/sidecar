@@ -13,7 +13,9 @@ docker_url = "unix://var/run/docker.sock"
 config_file = "static.json"
 
 [services]
-name_match = "^/(.+)(-[0-9a-z]{7,14})$"
+namer = "regexp" # or "regex"
+#name_match = "^/(.+)(-[0-9a-z]{7,14})$" # Only used when namer = "regex"
+name_label = "ServiceName"
 
 [haproxy]
 # bind_ip is optional. Default is the frst interface with

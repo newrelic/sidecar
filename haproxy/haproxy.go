@@ -176,8 +176,7 @@ func getModes(state *catalog.ServicesState) map[string]string {
 	modeMap := make(map[string]string)
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			svcName := state.ServiceName(svc)
-			modeMap[svcName] = svc.ProxyMode
+			modeMap[svc.Name] = svc.ProxyMode
 		},
 	)
 	return modeMap
@@ -200,19 +199,18 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 				return
 			}
 
-			svcName := state.ServiceName(svc)
-			if _, ok := serviceMap[svcName]; !ok {
-				serviceMap[svcName] = make([]*service.Service, 0, 3)
+			if _, ok := serviceMap[svc.Name]; !ok {
+				serviceMap[svc.Name] = make([]*service.Service, 0, 3)
 			}
 
 			// If this is the first one, just add it to the list
-			if len(serviceMap[svcName]) < 1 {
-				serviceMap[svcName] = append(serviceMap[svcName], svc)
+			if len(serviceMap[svc.Name]) < 1 {
+				serviceMap[svc.Name] = append(serviceMap[svc.Name], svc)
 				return
 			}
 
 			// Otherwise we need to make sure the ServicePorts match
-			match := serviceMap[svcName][0] // Get the first entry for comparison
+			match := serviceMap[svc.Name][0] // Get the first entry for comparison
 
 			// Build up a sorted list of ServicePorts from the existing service
 			portsToMatch := getSortedServicePorts(match)
@@ -226,13 +224,13 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 					// TODO should we just add another service with this port added
 					// to the name? We have to find out which port.
 					log.Warnf("%s service from %s not added: non-matching ports! (%v vs %v)",
-						state.ServiceName(svc), svc.Hostname, port, portsWeHave[i])
+						svc.Name, svc.Hostname, port, portsWeHave[i])
 					return
 				}
 			}
 
 			// It was a match! Append to the list.
-			serviceMap[svcName] = append(serviceMap[svcName], svc)
+			serviceMap[svc.Name] = append(serviceMap[svc.Name], svc)
 		},
 	)
 

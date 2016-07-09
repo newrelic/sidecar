@@ -69,12 +69,27 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 func configureDiscovery(config *Config) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
+	var svcNamer discovery.ServiceNamer
+
+	switch config.Services.ServiceNamer {
+	case "docker_label":
+		svcNamer = &discovery.DockerLabelNamer{
+			Label: config.Services.NameLabel,
+		}
+	case "regex":
+		svcNamer = &discovery.RegexpNamer{
+			ServiceNameMatch: config.Services.NameMatch,
+		}
+	default:
+		log.Fatalf("Unable to configure service namer! Not a valid entry.")
+	}
+
 	for _, method := range config.Sidecar.Discovery {
 		switch method {
 		case "docker":
 			disco.Discoverers = append(
 				disco.Discoverers,
-				discovery.NewDockerDiscovery(config.DockerDiscovery.DockerURL),
+				discovery.NewDockerDiscovery(config.DockerDiscovery.DockerURL, svcNamer),
 			)
 		case "static":
 			disco.Discoverers = append(
@@ -168,8 +183,6 @@ func main() {
 
 	configureLoggingLevel(config.Sidecar.LoggingLevel)
 
-	state.ServiceNameMatch = config.Services.NameRegexp
-
 	// Use a LAN config but add our delegate
 	mlConfig := memberlist.DefaultLANConfig()
 	mlConfig.Delegate = delegate
@@ -240,14 +253,9 @@ func main() {
 	disco := configureDiscovery(&config)
 	go disco.Run(discoLooper)
 
-	nameFunc := func(svc *service.Service) string {
-		return state.ServiceName(svc)
-	}
-
 	// Configure the monitor and use the public address as the default
 	// check address.
 	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.DefaultCheckEndpoint)
-	monitor.ServiceNameFn = nameFunc
 
 	serviceFunc := func() []service.Service { return monitor.Services() }
 

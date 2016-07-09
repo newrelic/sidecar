@@ -73,7 +73,9 @@ func Test_DockerDiscovery(t *testing.T) {
 			}, nil
 		}
 
-		disco := NewDockerDiscovery(endpoint)
+		svcNamer := &RegexpNamer{ServiceNameMatch: "^/(.+)(-[0-9a-z]{7,14})$"}
+
+		disco := NewDockerDiscovery(endpoint, svcNamer)
 		disco.ClientProvider = stubClientProvider
 
 		Convey("New() configures an endpoint and events channel", func() {
