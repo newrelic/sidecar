@@ -1,7 +1,6 @@
 package main
 
 import (
-	"regexp"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -24,8 +23,9 @@ type HAproxyConfig struct {
 }
 
 type ServicesConfig struct {
-	NameMatch  string `toml:"name_match"`
-	NameRegexp *regexp.Regexp
+	NameMatch    string `toml:"name_match"`
+	ServiceNamer string `toml:"service_namer"`
+	NameLabel    string `toml:"name_label"`
 }
 
 type SidecarConfig struct {
@@ -80,9 +80,6 @@ func parseConfig(path string) Config {
 	if err != nil {
 		exitWithError(err, "Failed to parse config file")
 	}
-
-	config.Services.NameRegexp, err = regexp.Compile(config.Services.NameMatch)
-	exitWithError(err, "Cant compile name_match regex")
 
 	return config
 }
