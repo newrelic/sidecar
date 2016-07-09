@@ -24,7 +24,7 @@ type HAproxyConfig struct {
 
 type ServicesConfig struct {
 	NameMatch    string `toml:"name_match"`
-	ServiceNamer string `toml:"service_namer"`
+	ServiceNamer string `toml:"namer"`
 	NameLabel    string `toml:"name_label"`
 }
 
