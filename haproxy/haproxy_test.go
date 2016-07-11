@@ -125,10 +125,11 @@ func Test_HAproxy(t *testing.T) {
 
 		Convey("WriteConfig() writes a template from a file", func() {
 			buf := bytes.NewBuffer(make([]byte, 0, 2048))
-			proxy.WriteConfig(state, buf)
+			err := proxy.WriteConfig(state, buf)
 
 			output := buf.Bytes()
 			// Look at a bunch of things we should see
+			So(err, ShouldBeNil)
 			So(output, ShouldMatch, "frontend awesome-svc-8080")
 			So(output, ShouldMatch, "backend awesome-svc-8080")
 			So(output, ShouldMatch, "server.*indefatigable:10020")
@@ -136,6 +137,14 @@ func Test_HAproxy(t *testing.T) {
 			So(output, ShouldMatch, "frontend some-svc-8090")
 			So(output, ShouldMatch, "backend some-svc-8090")
 			So(output, ShouldMatch, "server indefatigable-deadbeef105 indefatigable:9999 cookie indefatigable-9999")
+		})
+
+		Convey("WriteConfig() bubbles up templater errors", func() {
+			proxy.Template = "/"
+			buf := bytes.NewBuffer(make([]byte, 0, 2048))
+			err := proxy.WriteConfig(state, buf)
+
+			So(err, ShouldNotBeNil)
 		})
 
 		Convey("WriteConfig() only writes out healthy services", func() {
@@ -183,6 +192,18 @@ func Test_HAproxy(t *testing.T) {
 			proxy.ReloadCmd = "yomomma"
 			err = proxy.Reload()
 			So(err.Error(), ShouldEqual, "exit status 127")
+		})
+
+		Convey("WriteAndReload() bubbles up errors on failure", func() {
+			proxy.ReloadCmd = "/usr/bin/false"
+			tmpfile, _ := ioutil.TempFile("", "WriteAndReload")
+			proxy.ConfigFile = tmpfile.Name()
+
+			err := proxy.WriteAndReload(state)
+			os.Remove(tmpfile.Name())
+
+			So(err, ShouldNotBeNil)
+
 		})
 
 		Convey("sanitizeName() fixes crazy image names", func() {
