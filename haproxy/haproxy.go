@@ -1,6 +1,7 @@
 package haproxy
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -82,7 +83,7 @@ func sanitizeName(image string) string {
 // supplied io.Writer interface. This gets a list from servicesWithPorts() and
 // builds a list of unique ports for all services, then passes these to the
 // template. Ports are looked up by the func getPorts().
-func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
+func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) error {
 	services := servicesWithPorts(state)
 	ports := h.makePortmap(services)
 	modes := getModes(state)
@@ -111,10 +112,11 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) {
 
 	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles(h.Template)
 	if err != nil {
-		log.Errorf("Error Parsing template '%s': %s", h.Template, err.Error())
-		return
+		return fmt.Errorf("Error Parsing template '%s': %s", h.Template, err.Error())
 	}
 	t.ExecuteTemplate(output, path.Base(h.Template), data)
+
+	return nil
 }
 
 // Execute a command and log the error, but bubble it up as well
@@ -151,25 +153,31 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 
 	for event := range eventChannel {
 		log.Println("State change event from " + event.Hostname)
-		h.WriteAndReload(state)
+		err := h.WriteAndReload(state)
+		if err != nil {
+			log.Error(err.Error())
+		}
 	}
 }
 
 // Write out the the HAproxy config and reload the service.
-func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) {
+func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) error {
 	outfile, err := os.Create(h.ConfigFile)
 	if err != nil {
-		log.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
-		return
+		return fmt.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
 	}
 
-	h.WriteConfig(state, outfile)
-	if err := h.Verify(); err != nil {
-		log.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
-		return
+	if err := h.WriteConfig(state, outfile); err != nil {
+		return err
+	}
+
+	if err = h.Verify(); err != nil {
+		return fmt.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
 	}
 
 	h.Reload()
+
+	return nil
 }
 
 func getModes(state *catalog.ServicesState) map[string]string {
