@@ -34,7 +34,7 @@ func Test_HAproxy(t *testing.T) {
 		services := []service.Service{
 			service.Service{
 				ID:          svcId1,
-				Name:        "awesome-svc-adfffed1233",
+				Name:        "awesome-svc",
 				Image:       "awesome-svc",
 				Hostname:    hostname1,
 				Updated:     baseTime.Add(5 * time.Second),
@@ -43,7 +43,7 @@ func Test_HAproxy(t *testing.T) {
 			},
 			service.Service{
 				ID:          svcId2,
-				Name:        "awesome-svc-1234fed1233",
+				Name:        "awesome-svc",
 				Image:       "awesome-svc",
 				Hostname:    hostname2,
 				Updated:     baseTime.Add(5 * time.Second),
@@ -52,7 +52,7 @@ func Test_HAproxy(t *testing.T) {
 			},
 			service.Service{
 				ID:          svcId3,
-				Name:        "some-svc-0123456789a",
+				Name:        "some-svc",
 				Image:       "some-svc",
 				Hostname:    hostname2,
 				Updated:     baseTime.Add(5 * time.Second),
@@ -61,7 +61,7 @@ func Test_HAproxy(t *testing.T) {
 			},
 			service.Service{
 				ID:          svcId4,
-				Name:        "some-svc-befede6789a",
+				Name:        "some-svc",
 				Image:       "some-svc",
 				Hostname:    hostname2,
 				Updated:     baseTime.Add(5 * time.Second),
@@ -105,23 +105,22 @@ func Test_HAproxy(t *testing.T) {
 		Convey("servicesWithPorts() groups services by name and port", func() {
 			badSvc := service.Service{
 				ID:       "0000bad00000",
-				Name:     "some-svc-0155555789a",
+				Name:     "some-svc",
 				Image:    "some-svc",
 				Hostname: "titanic",
 				Updated:  baseTime.Add(5 * time.Second),
 				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
 			}
 
-			svcName := state.ServiceName(&badSvc)
 			// It had 1 before
 			svcList := servicesWithPorts(state)
-			So(len(svcList[svcName]), ShouldEqual, 1)
+			So(len(svcList[badSvc.Name]), ShouldEqual, 1)
 
 			// We add an entry with mismatching ports and should get no more added
 			state.AddServiceEntry(badSvc)
 
 			svcList = servicesWithPorts(state)
-			So(len(svcList[svcName]), ShouldEqual, 1)
+			So(len(svcList[badSvc.Name]), ShouldEqual, 1)
 		})
 
 		Convey("WriteConfig() writes a template from a file", func() {

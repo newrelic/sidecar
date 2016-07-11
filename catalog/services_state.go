@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"sync"
 	"time"
 
@@ -64,7 +63,6 @@ type ServicesState struct {
 	Servers             map[string]*Server
 	Hostname            string
 	Broadcasts          chan [][]byte
-	ServiceNameMatch    *regexp.Regexp // How we match service names
 	LastChanged         time.Time
 	listeners           []chan ChangeEvent
 	listenerLock        sync.Mutex
@@ -520,26 +518,6 @@ func (state *ServicesState) EachService(fn func(hostname *string, serviceId *str
 	})
 }
 
-// Return a properly regex-matched name for the service, or failing that,
-// the Image ID which we use to stand in for the name of the service.
-func (state *ServicesState) ServiceName(svc *service.Service) string {
-	var svcName string
-
-	if state.ServiceNameMatch != nil {
-		toMatch := []byte(svc.Name)
-		matches := state.ServiceNameMatch.FindSubmatch(toMatch)
-		if len(matches) < 1 {
-			svcName = svc.Image
-		} else {
-			svcName = string(matches[1])
-		}
-	} else {
-		svcName = svc.Image
-	}
-
-	return svcName
-}
-
 // Group the services into a map by service name rather than by the
 // hosts they run on.
 func (state *ServicesState) ByService() map[string][]*service.Service {
@@ -547,11 +525,10 @@ func (state *ServicesState) ByService() map[string][]*service.Service {
 
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			svcName := state.ServiceName(svc)
-			if _, ok := serviceMap[svcName]; !ok {
-				serviceMap[svcName] = make([]*service.Service, 0, 3)
+			if _, ok := serviceMap[svc.Name]; !ok {
+				serviceMap[svc.Name] = make([]*service.Service, 0, 3)
 			}
-			serviceMap[svcName] = append(serviceMap[svcName], svc)
+			serviceMap[svc.Name] = append(serviceMap[svc.Name], svc)
 		},
 	)
 
