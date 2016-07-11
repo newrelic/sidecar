@@ -544,7 +544,6 @@ func Example_ByServiceWithoutMatcher() {
 func Example_ByServiceWithMatcher() {
 	state := NewServicesState()
 	state.Servers[hostname] = NewServer(hostname)
-	state.ServiceNameMatch = regexp.MustCompile("^(.+)(-[0-9a-z]{7,14})$")
 	svcId1 := "deadbeef123"
 	svcId2 := "deadbeef101"
 	svcId3 := "deadbeef105"

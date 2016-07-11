@@ -37,7 +37,6 @@ type Monitor struct {
 	CheckInterval        time.Duration
 	DefaultCheckHost     string
 	DiscoveryFn          func() []service.Service
-	ServiceNameFn        func(*service.Service) string
 	DefaultCheckEndpoint string
 	sync.RWMutex
 }
