@@ -69,7 +69,7 @@ func (d *DockerLabelNamer) ServiceName(container *docker.APIContainers) string {
 		}
 	}
 
-	log.Warnf(
+	log.Debugf(
 		"Found container with no '%s' label: %s (%s), returning '%s'", d.Label,
 		container.ID, container.Names[0], container.Image,
 	)
