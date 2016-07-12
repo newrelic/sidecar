@@ -152,12 +152,14 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 	state.AddListener(eventChannel)
 
 	for event := range eventChannel {
-		log.Println("State change event from " + event.Hostname)
+		log.Println("State change event from " + event.Service.Hostname)
 		err := h.WriteAndReload(state)
 		if err != nil {
 			log.Error(err.Error())
 		}
 	}
+
+	// TODO this should really clean up the listener
 }
 
 // Write out the the HAproxy config and reload the service.
