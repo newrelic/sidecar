@@ -461,8 +461,8 @@ func Test_Listeners(t *testing.T) {
 			state.AddServiceEntry(svc1)
 
 			wg.Wait()
-			So(result.Hostname, ShouldEqual, hostname)
-			So(result2.Hostname, ShouldEqual, hostname)
+			So(result.Service.Hostname, ShouldEqual, hostname)
+			So(result2.Service.Hostname, ShouldEqual, hostname)
 		})
 
 		Reset(func() {
