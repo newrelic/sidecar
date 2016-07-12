@@ -9,10 +9,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
-	"github.com/nitro/memberlist"
-	"github.com/relistan/go-director"
 	"github.com/newrelic/sidecar/output"
 	"github.com/newrelic/sidecar/service"
+	"github.com/nitro/memberlist"
+	"github.com/relistan/go-director"
 )
 
 // catalog handles all of the eventual-consistency mechanisms for
@@ -61,12 +61,12 @@ func NewServer(name string) *Server {
 // Holds the state about all the servers in the cluster
 type ServicesState struct {
 	Servers             map[string]*Server
-	Hostname            string
-	Broadcasts          chan [][]byte
 	LastChanged         time.Time
-	listeners           []chan ChangeEvent
-	listenerLock        sync.Mutex
-	tombstoneRetransmit time.Duration
+	Hostname            string             `json:"-"`
+	Broadcasts          chan [][]byte      `json:"-"`
+	listeners           []chan ChangeEvent `json:"-"`
+	listenerLock        sync.Mutex         `json:"-"`
+	tombstoneRetransmit time.Duration      `json:"-"`
 	sync.Mutex
 }
 
@@ -94,7 +94,7 @@ func (server *Server) HasService(id string) bool {
 // Return a Marshaled/Encoded byte array that can be deocoded with
 // catalog.Decode()
 func (state *ServicesState) Encode() []byte {
-	jsonData, err := json.Marshal(state.Servers)
+	jsonData, err := json.Marshal(state)
 	if err != nil {
 		log.Error("ERROR: Failed to Marshal state")
 		return []byte{}
@@ -344,7 +344,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 				log.Debug("Found service changes in BroadcastServices()")
 				haveNewServices = true
 				services = append(services, svc)
-			// Check that refresh window... is it time?
+				// Check that refresh window... is it time?
 			} else if time.Now().UTC().Add(0 - ALIVE_BROADCAST_INTERVAL).After(lastTime) {
 				services = append(services, svc)
 			}
@@ -547,7 +547,7 @@ func makeServiceMapping(svcList []service.Service) map[string]*service.Service {
 // Take a byte slice and return a properly reconstituted state struct
 func Decode(data []byte) (*ServicesState, error) {
 	newState := NewServicesState()
-	err := json.Unmarshal(data, &newState.Servers)
+	err := json.Unmarshal(data, &newState)
 	if err != nil {
 		log.Errorf("Error decoding state! (%s)", err.Error())
 	}
