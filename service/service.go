@@ -130,7 +130,7 @@ func ToService(container *docker.APIContainers) Service {
 	return svc
 }
 
-func StatusString(status int) {
+func StatusString(status int) string {
 	switch status {
 	case ALIVE:
 		return "Alive"
