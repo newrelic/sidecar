@@ -14,7 +14,7 @@
            margin-bottom: 5px;
 		}
 		body {
-			font-size: 10px;
+			width: 100%;
 		}
 	</style>
 </head>
@@ -30,7 +30,6 @@
   </div>
 </nav>
 
-<div class="row">
   <div class="col-md-8 col-md-offset-2">
     <div class="panel panel-primary">
       <div class="panel-heading"><h4>Cluster - {{ clusterName }}<h4></div>
@@ -52,9 +51,22 @@
 	  </div>
 	</div>
   </div>
-</div>
+
+  <div class="col-md-2">
+    <div class="panel panel-default">
+      <div class="panel-heading"><h5>Services<h5></div>
+	    <div class="panel-body">
+	      <ul class="list-group">
+          {{ range $svcName, $services := .Services }}
+	        <li class="list-group-item"><span class="badge">{{ $services | len }}</span><a href="#{{ $svcName }}">{{ $svcName }}</a></li>
+          {{ end }}
+	      </ul>
+	    </div>
+	  </div>
+	</div>
+  </div>
+
 {{ range $svcName, $services := .Services }}
-<div class="row">
   <div class="col-md-8 col-md-offset-2">
     <div class="panel panel-default">
       <div class="panel-heading"><h4>{{ $svcName }}<h4></div>
@@ -86,7 +98,6 @@
       </div>
     </div>
   </div>
-</div>
 {{ end }}
 </body>
 </html>
