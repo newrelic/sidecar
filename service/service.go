@@ -27,15 +27,15 @@ type Port struct {
 }
 
 type Service struct {
-	ID          string
-	Name        string
-	Image       string
-	Created     time.Time
-	Hostname    string
-	Ports       []Port
-	Updated     time.Time
+	ID        string
+	Name      string
+	Image     string
+	Created   time.Time
+	Hostname  string
+	Ports     []Port
+	Updated   time.Time
 	ProxyMode string
-	Status      int
+	Status    int
 }
 
 func (svc Service) Encode() ([]byte, error) {
@@ -43,16 +43,7 @@ func (svc Service) Encode() ([]byte, error) {
 }
 
 func (svc *Service) StatusString() string {
-	switch svc.Status {
-	case ALIVE:
-		return "Alive"
-	case UNHEALTHY:
-		return "Unhealthy"
-	case UNKNOWN:
-		return "Unknown"
-	default:
-		return "Tombstone"
-	}
+	return StatusString(svc.Status)
 }
 
 func (svc *Service) IsAlive() bool {
@@ -137,6 +128,19 @@ func ToService(container *docker.APIContainers) Service {
 	}
 
 	return svc
+}
+
+func StatusString(status int) {
+	switch status {
+	case ALIVE:
+		return "Alive"
+	case UNHEALTHY:
+		return "Unhealthy"
+	case UNKNOWN:
+		return "Unknown"
+	default:
+		return "Tombstone"
+	}
 }
 
 // Figure out the correct port configuration for a service
