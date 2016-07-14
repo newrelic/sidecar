@@ -54,7 +54,7 @@
 
   <div class="col-md-2 pull-right">
     <div class="panel panel-default">
-      <div class="panel-heading"><h4>Services<h4></div>
+      <div class="panel-heading"><h4>Services &nbsp;<span class="badge">{{ .Services | len }}</span><h4></div>
 	    <div class="panel-body">
 	      <ul class="list-group">
           {{ range $svcName, $services := .Services }}
