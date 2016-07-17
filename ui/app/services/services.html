@@ -1,0 +1,113 @@
+<link rel="stylesheet" type="text/css" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+<style>
+    .panel-heading {
+       padding: 5px 15px;
+    }
+    h4 {
+       margin-top: 5px;
+       margin-bottom: 5px;
+    }
+    .table {
+       margin-bottom: 5px;
+    }
+    body {
+        width: 100%;
+    }
+    table {
+       table-layout: fixed;
+    }
+    tr {
+        width: 100%;
+    }
+    .hostname {
+        font-weight: bold;
+        font-size: large;
+        float: left;
+        width: 30%;
+    }
+</style>
+
+<body ng-app="SidecarApp">
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <div class="navbar-header">
+        <h1>Sidecar
+        <a class="navbar-brand" rel="home" href="#" title="Sidecar">
+          <img style="max-width:100px; margin-top: -25px;" src="Sidecar.png">
+        </a></h1>
+    </div>
+  </div>
+</nav>
+
+  <div class="col-md-8 col-md-offset-2">
+    <div class="panel panel-primary">
+      <div class="panel-heading"><h4>Cluster - {{ clusterName }}</h4></div>
+      <div class="panel-body">
+        <ul class="list-group">
+        <li ng-repeat="(hostname, contents) in serverList" class="list-group-item">
+          
+          <span class="hostname"><span class="glyphicon glyphicon-briefcase"></span>&nbsp;{{ hostname }}</span>
+          <span>{{ contents.LastUpdated | timeAgo }}</span>
+          <span>{{ contents.ServiceCount == 0 ? 'no' : contents.ServiceCount }} services</span>
+        </li>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8 col-md-offset-2" ng-repeat="(svcName, services) in servicesList">
+    <div class="panel panel-default pull-left">
+      <div class="panel-heading" id="{{ svcName }}">
+        <h4 class="float-left">
+          <span class="glyphicon glyphicon-folder-open"></span>&nbsp;
+          {{ svcName }}
+        <h4/>
+      </div>
+
+      <div class="panel-body" ng-controller="servicesCtrl">
+        <table class="table table-striped table-condensed table-responsive">
+          <tr>
+            <th></th><th>Version</th><th>Ports</th>
+            <th>Created</th><th>Updated</th><th>Status</th>
+          </tr>
+
+          <tr ng-repeat="group in services" 
+              ng-class="{'success': group[0].Status == 0, 'warning': group[0].Status == 1, 'danger': group[0].Status == 2 }">
+            <td><span style="font-size: large" class="badge">{{ group.length }}</span></td>
+            <td>{{ group[0].Image | extractTag }}</td>
+            <td>{{ group[0].Ports | portsStr }}</td>
+            <td>{{ group[0].Created | timeAgo }}</td>
+            <td>{{ group[0].Updated | timeAgo }}</td>
+            <td>{{ group[0].Status | statusStr }}</td>
+          </tr>
+        </table>
+
+        <button ng-click="toggleCollapse(svcName)"> Details </button>
+        <div uib-collapse="isCollapsed(svcName)">
+          <table ng-repeat="group in services" class="table table-striped table-condensed table-responsive">
+            <tr>
+              <th>Hostname</th><th>Version</th><th>Ports</th>
+              <th>Created</th><th>Updated</th><th>Status</th>
+            </tr>
+
+            <tr ng-repeat="svc in group" 
+                ng-class="{'success': group[0].Status == 0, 'warning': group[0].Status == 1, 'danger': group[0].Status == 2 }">
+              <td>{{ svc.Hostname }}</td>
+              <td>{{ svc.Image | extractTag }}</td>
+              <td>{{ svc.Ports | portsStr }}</td>
+              <td>{{ svc.Created | timeAgo }}</td>
+              <td>{{ svc.Updated | timeAgo }}</td>
+              <td>{{ svc.Status | statusStr }}</td>
+            </tr>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <script src="bower_components/angular/angular.js"></script>
+  <script src="bower_components/angular-route/angular-route.js"></script>
+  <script src="app.js"></script>
+  <script src="components/version/version.js"></script>
+  <script src="components/version/version-directive.js"></script>
+  <script src="components/version/interpolate-filter.js"></script>
+</body>
