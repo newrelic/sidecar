@@ -259,6 +259,9 @@ func main() {
 
 	configureMetrics(&config)
 
+	// Register the cluster name with the state object
+	state.ClusterName = *opts.ClusterName
+
 	disco := configureDiscovery(&config)
 	go disco.Run(discoLooper)
 

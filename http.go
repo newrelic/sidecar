@@ -17,6 +17,18 @@ import (
 	"github.com/nitro/memberlist"
 )
 
+type ApiServer struct {
+	Name         string
+	LastUpdated  time.Time
+	ServiceCount int
+}
+
+type ApiServices struct {
+	Services       map[string][]*service.Service
+	ClusterMembers map[string]*ApiServer
+	ClusterName    string
+}
+
 func makeHandler(fn func(http.ResponseWriter, *http.Request,
 	*memberlist.Memberlist, *catalog.ServicesState),
 	list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
@@ -55,7 +67,36 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 
 	if params["extension"] == ".json" {
 		response.Header().Set("Content-Type", "application/json")
-		jsonStr, _ := json.MarshalIndent(state.ByService(), "", "  ")
+		response.Header().Set("Access-Control-Allow-Origin", "*")
+		response.Header().Set("Access-Control-Allow-Methods", "GET")
+
+		listMembers := list.Members()
+		sort.Sort(listByName(listMembers))
+		members := make(map[string]*ApiServer, len(listMembers))
+
+		for _, member := range listMembers {
+			if state.HasServer(member.Name) {
+				members[member.Name] = &ApiServer{
+					Name:         member.Name,
+					LastUpdated:  state.Servers[member.Name].LastUpdated,
+					ServiceCount: len(state.Servers[member.Name].Services),
+				}
+			} else {
+				members[member.Name] = &ApiServer{
+					Name:         member.Name,
+					LastUpdated:  time.Unix(0, 0),
+					ServiceCount: 0,
+				}
+			}
+		}
+
+		result := ApiServices{
+			Services:       state.ByService(),
+			ClusterMembers: members,
+			ClusterName:    list.ClusterName(),
+		}
+
+		jsonStr, _ := json.MarshalIndent(&result, "", "  ")
 		response.Write(jsonStr)
 		return
 	}
@@ -79,9 +120,17 @@ func stateHandler(response http.ResponseWriter, req *http.Request, list *memberl
 
 	if params["extension"] == ".json" {
 		response.Header().Set("Content-Type", "application/json")
+		response.Header().Set("Access-Control-Allow-Origin", "*")
+		response.Header().Set("Access-Control-Allow-Methods", "GET")
 		response.Write(state.Encode())
 		return
 	}
+}
+
+func optionsHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
+	response.Header().Set("Access-Control-Allow-Origin", "*")
+	response.Header().Set("Access-Control-Allow-Methods", "GET")
+	return
 }
 
 func statusStr(status int) string {
@@ -156,7 +205,7 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 
 	compiledMembers := make([]*Member, len(members))
 	for i, member := range members {
-		if _, ok := state.Servers[member.Name]; ok {
+		if state.HasServer(member.Name) {
 			compiledMembers[i] = &Member{member, state.Servers[member.Name].LastUpdated}
 		} else {
 			compiledMembers[i] = &Member{Node: member}
@@ -177,8 +226,14 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 	t.ExecuteTemplate(response, "services.html", viewData)
 }
 
+func uiRedirectHandler(response http.ResponseWriter, req *http.Request) {
+	http.Redirect(response, req, "/ui/", 301)
+}
+
 func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	router := mux.NewRouter()
+
+	router.HandleFunc("/", uiRedirectHandler).Methods("GET")
 
 	router.HandleFunc(
 		"/services{extension}", makeHandler(servicesHandler, list, state),
@@ -200,9 +255,15 @@ func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 		"/watch", makeHandler(watchHandler, list, state),
 	).Methods("GET")
 
-	fs := http.FileServer(http.Dir("views/static/"))
+	router.HandleFunc(
+		"/{path}", makeHandler(optionsHandler, list, state),
+	).Methods("OPTIONS")
 
-	router.Handle("/static/{file}", http.StripPrefix("/static/", fs))
+	staticFs := http.FileServer(http.Dir("views/static"))
+	router.PathPrefix("/static").Handler(http.StripPrefix("/static", staticFs))
+
+	uiFs := http.FileServer(http.Dir("ui/app"))
+	router.PathPrefix("/ui").Handler(http.StripPrefix("/ui", uiFs))
 
 	http.Handle("/", router)
 
