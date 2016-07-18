@@ -63,6 +63,7 @@ func NewServer(name string) *Server {
 type ServicesState struct {
 	Servers             map[string]*Server
 	LastChanged         time.Time
+	ClusterName         string
 	Hostname            string             `json:"-"`
 	Broadcasts          chan [][]byte      `json:"-"`
 	listeners           []chan ChangeEvent `json:"-"`
