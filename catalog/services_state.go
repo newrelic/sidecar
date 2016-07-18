@@ -64,7 +64,7 @@ type ServicesState struct {
 	Servers             map[string]*Server
 	LastChanged         time.Time
 	ClusterName         string
-	Hostname            string             `json:"-"`
+	Hostname            string
 	Broadcasts          chan [][]byte      `json:"-"`
 	listeners           []chan ChangeEvent `json:"-"`
 	listenerLock        sync.Mutex         `json:"-"`
