@@ -8,4 +8,5 @@ die() {
 file ../sidecar | grep "ELF.*LSB" || die "../sidecar is missing or not a Linux binary"
 test -f sidecar.toml || cp sidecar.docker.toml sidecar.toml
 echo "Building..."
+cd ../ui && npm install
 cd .. && docker build -f docker/Dockerfile -t sidecar . || die "Failed to build"
