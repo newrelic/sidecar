@@ -6,3 +6,4 @@ sidecar.cpu.prof
 docker/views
 bower_components
 node_modules
+npm-debug.log
