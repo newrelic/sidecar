@@ -4,3 +4,5 @@ sidecar
 sidecar.toml
 sidecar.cpu.prof
 docker/views
+bower_components
+node_modules
