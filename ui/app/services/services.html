@@ -96,7 +96,13 @@
               <td>{{ svc.Ports | portsStr }}</td>
               <td>{{ svc.Created | timeAgo }}</td>
               <td>{{ svc.Updated | timeAgo }}</td>
-              <td>{{ svc.Status | statusStr }}</td>
+              <td>
+			      {{ svc.Status | statusStr }}
+                  <span ng-class="{
+					 'glyphicon glyphicon-ok': haproxyHas(svc) == true,
+                     'glyphicon glyphicon-remove': haproxyHas(svc) == false
+				  }">&nbsp;</span>
+              </td>
             </tr>
           </table>
         </div>
@@ -104,10 +110,4 @@
       </div>
     </div>
   </div>
-  <script src="bower_components/angular/angular.js"></script>
-  <script src="bower_components/angular-route/angular-route.js"></script>
-  <script src="app.js"></script>
-  <script src="components/version/version.js"></script>
-  <script src="components/version/version-directive.js"></script>
-  <script src="components/version/interpolate-filter.js"></script>
 </body>

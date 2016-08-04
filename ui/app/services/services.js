@@ -18,7 +18,19 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
         url: '/services.json',
 		dataType: 'json',
       });
-    }
+    };
+
+	var haproxyUrl = window.location.protocol + 
+		'//' + window.location.hostname +
+		':3212/;csv;norefresh';
+
+	state.getHaproxy = function() {
+		return $http({
+			method: 'GET',
+			url: haproxyUrl,
+			dataType: 'text/plain',
+		});
+	};
 
     return state;
 })
@@ -28,6 +40,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 	$scope.clusterName = "";
 	$scope.servicesList = {};
 	$scope.collapsed = {};
+	$scope.haproxyInfo = {};
 
 	$scope.toggleCollapse = function(svcName) {
 		$scope.collapsed[svcName] = !$scope.isCollapsed(svcName);
@@ -36,8 +49,17 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 	$scope.isCollapsed = function(svcName) {
 		return $scope.collapsed[svcName] == null || $scope.collapsed[svcName];
 	};
+
+	$scope.haproxyHas = function(svc) {
+		if ($scope.haproxyInfo[svc.Name] == null) return false;
+		if ($scope.haproxyInfo[svc.Name][svc.Hostname] == null) return false;
+		if ($scope.haproxyInfo[svc.Name][svc.Hostname][svc.ID] == null) return false;
+
+		return true;
+	};
 	
 	var getData = function() {
+
     	stateService.getServices().success(function (response) {
 			var services = {};
 			for (var svcName in response.Services) {
@@ -53,6 +75,37 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 			$scope.clusterName = response.ClusterName;
 			$scope.serverList = response.ClusterMembers;
     	});
+
+		stateService.getHaproxy().success(function (response) {
+			var raw = Papa.parse(response, { header: true });
+
+			var transform = function(memo, item) {
+				if (item.svname == 'FRONTEND' || item.svname == 'BACKEND' ||
+				   item['# pxname'] == 'stats' || item['# pxname'] == 'stats_proxy' ||
+				   item['# pxname'] == '') {
+					return memo
+				}
+
+				// Transform the resulting HAproxy structure into something we can use
+				var fields = item['# pxname'].split('-');
+				var svcPort = fields[fields.length-1];
+				var svcName = fields.slice(0, fields.length-1).join('-');
+
+				fields = item.svname.split('-');
+				var hostname = fields.slice(0, fields.length-1).join('-');
+				var containerID = fields[fields.length-1];
+
+				// Store by servce -> hostname -> container
+				memo[svcName] = memo[svcName] || {};
+				memo[svcName][hostname] = memo[svcName][hostname] || {}
+				memo[svcName][hostname][containerID] = item;
+
+				return memo
+			};
+
+			var processed = _.inject(raw.data, transform, {});
+			$scope.haproxyInfo = processed;
+		});
 	};
 
 	getData();
