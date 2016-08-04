@@ -20,9 +20,11 @@ SmartStack. But, we believe it has a few advantages over SmartStack:
 **See it in Action:** We've presented Sidecar at Velocity 2015 and recorded a [YouTube
 video](https://www.youtube.com/watch?v=VA43yWVUnMA) demonstrating Sidecar with
 [Centurion](https://github.com/newrelic/centurion), deploying services in
-Docker containers, and seeing Sidecar discover and health check them.
+Docker containers, and seeing Sidecar discover and health check them. The second
+video shows the current state of the UI which is improved since the first video.
 
 [![YouTube Video](views/static/youtube.png)](https://www.youtube.com/watch?v=VA43yWVUnMA)
+[![YouTube Video2](views/static/youtube2.png)](https://www.youtube.com/watch?v=5MQujt36hkI)
 
 Overview and Theory
 -------------------
