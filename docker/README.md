@@ -95,3 +95,8 @@ $ docker run --label HealthCheck=HttpGet \ # Specify HttpGet health check type
 	--label HealthCheckArgs="http://{{ host }}:{{ tcp 8080 }}/" \ # Health check this URL
 	-d -P nginx                    # Detach and map ports
 ```
+
+For regular testing, a script called `run-services` in this directory will start
+up three instances of the `nginx` container with the appropriate labels and
+dynamically bound ports. This is useful if you have a Sidecar installation up and
+want to see a service show up in HAproxy.
