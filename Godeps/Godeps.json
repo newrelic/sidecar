@@ -14,12 +14,20 @@
 			"Rev": "cd7d1bbe41066b6c1f19780f895901052150a575"
 		},
 		{
+			"ImportPath": "github.com/alecthomas/template",
+			"Rev": "a0175ee3bccc567396460bf5acd36800cb10c49c"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/template/parse",
+			"Rev": "a0175ee3bccc567396460bf5acd36800cb10c49c"
+		},
+		{
 			"ImportPath": "github.com/alecthomas/units",
 			"Rev": "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
 		},
 		{
 			"ImportPath": "github.com/armon/go-metrics",
-			"Rev": "88b7658f24511c4b885942b26e9ea7a61ee37ebc"
+			"Rev": "06b60999766278efd6d2b5d8418a58c3d5b99e87"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/opts",
@@ -103,7 +111,7 @@
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
-			"Rev": "71c2886f5a673a35f909803f38ece5810165097b"
+			"Rev": "fa3f63826f7c23912c15263591e65d54d080b458"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/go-multierror",
@@ -164,9 +172,9 @@
 			"Rev": "833a04a10549a95dc34458c195cbad61bbb6cb4d"
 		},
 		{
-			"ImportPath": "gopkg.in/alecthomas/kingpin.v1",
-			"Comment": "v1.3.7",
-			"Rev": "45f9714aa86a9624491adeaab1e9df1baf84dd38"
+			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
+			"Comment": "v2.1.11",
+			"Rev": "8cccfa8eb2e3183254457fb1749b2667fbc364c7"
 		}
 	]
 }

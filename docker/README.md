@@ -42,7 +42,7 @@ of the cluster seed hosts.
 SIDECAR_SEEDS="seed1 host2 seed3" # Required
 ADVERTISE_IP="192.168.168.5"      # Optional
 SIDECAR_LOGGING_LEVEL="debug"     # Optional
-SIDECAR_CLUSTERNAME="some-name"   # Optional
+SIDECAR_CLUSTER_NAME="some-name"  # Optional
 ```
 
 The seed hosts passed via `SIDECAR_SEEDS` are formatted as
@@ -58,7 +58,7 @@ Sidecar logs in `info` mode by default. You can switch this to one of: `error`,
 `warn`, `debug` using the `SIDECAR_LOGGING_LEVEL` environment variable.
 
 The default cluster name is `default` but can be changed with the appropriately
-named `SIDECAR_CLUSTERNAME` env var.
+named `SIDECAR_CLUSTER_NAME` env var.
 
 How It Works
 ------------
