@@ -66,13 +66,20 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 	return proxy
 }
 
-func configureDiscovery(config *Config) discovery.Discoverer {
+func configureDiscovery(config *Config, opts *CliOpts) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
 	var svcNamer discovery.ServiceNamer
 	var usingDocker bool
+	var discoverers []string
 
-	for _, method := range config.Sidecar.Discovery {
+	if opts.Discover != nil && len(*opts.Discover) > 0 {
+		discoverers = *opts.Discover
+	} else {
+		discoverers = config.Sidecar.Discovery
+	}
+
+	for _, method := range discoverers {
 		if method == "docker" {
 			usingDocker = true
 		}
@@ -93,7 +100,7 @@ func configureDiscovery(config *Config) discovery.Discoverer {
 		}
 	}
 
-	for _, method := range config.Sidecar.Discovery {
+	for _, method := range discoverers {
 		switch method {
 		case "docker":
 			disco.Discoverers = append(
@@ -268,7 +275,7 @@ func main() {
 	// Register the cluster name with the state object
 	state.ClusterName = *opts.ClusterName
 
-	disco := configureDiscovery(&config)
+	disco := configureDiscovery(&config, opts)
 	go disco.Run(discoLooper)
 
 	// Configure the monitor and use the public address as the default
