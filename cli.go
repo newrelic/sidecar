@@ -8,12 +8,13 @@ import (
 )
 
 type CliOpts struct {
-	AdvertiseIP  *string
-	ClusterIPs   *[]string
-	ConfigFile   *string
-	ClusterName  *string
-	CpuProfile   *bool
-	LoggingLevel *string
+	AdvertiseIP    *string
+	ClusterIPs     *[]string
+	ConfigFile     *string
+	ClusterName    *string
+	CpuProfile     *bool
+	LoggingLevel   *string
+	HAproxyDisable *bool
 }
 
 func exitWithError(err error, message string) {
@@ -32,6 +33,7 @@ func parseCommandLine() *CliOpts {
 	opts.ClusterName = app.Flag("cluster-name", "The cluster we're part of").Short('n').Default("default").String()
 	opts.CpuProfile = app.Flag("cpuprofile", "Enable CPU profiling").Short('p').Bool()
 	opts.LoggingLevel = app.Flag("logging-level", "Set the logging level").Short('l').String()
+	opts.HAproxyDisable = app.Flag("haproxy-disable", "Disable managing HAproxy").Short('x').Bool()
 	app.DefaultEnvars()
 	app.Parse(os.Args[1:])
 

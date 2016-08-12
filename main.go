@@ -234,6 +234,7 @@ func main() {
 	log.Printf("Push/Pull Interval: %s", config.Sidecar.PushPullInterval.Duration.String())
 	log.Printf("Gossip Messages: %d", config.Sidecar.GossipMessages)
 	log.Printf("Logging level: %s", config.Sidecar.LoggingLevel)
+	log.Printf("Running HAproxy: %t", !config.HAproxy.Disable && !*opts.HAproxyDisable)
 	log.Println("----------------------------------")
 
 	list, err := memberlist.Create(mlConfig)
@@ -280,7 +281,7 @@ func main() {
 	// discovered services, and then won't write them out.
 	var proxy *haproxy.HAproxy
 
-	if !config.HAproxy.Disable {
+	if !*opts.HAproxyDisable && !config.HAproxy.Disable {
 		proxy = configureHAproxy(config)
 		go proxy.Watch(state)
 	}
@@ -299,7 +300,7 @@ func main() {
 	go monitor.Watch(disco, healthWatchLooper)
 	go monitor.Run(healthLooper)
 
-	if !config.HAproxy.Disable {
+	if !*opts.HAproxyDisable && !config.HAproxy.Disable {
 		proxy.WriteAndReload(state)
 	}
 

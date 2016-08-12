@@ -137,7 +137,7 @@ func (d *servicesDelegate) LocalState(join bool) []byte {
 func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 	defer metrics.MeasureSince([]string{"delegate", "MergeRemoteState"}, time.Now())
 
-	log.Debugf("MergeRemoteState(): %s %b", string(buf), join)
+	log.Debugf("MergeRemoteState(): %s %t", string(buf), join)
 
 	otherState, err := catalog.Decode(buf)
 	if err != nil {

@@ -164,6 +164,10 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 
 // Write out the the HAproxy config and reload the service.
 func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) error {
+	if h.ConfigFile == "" {
+		return fmt.Errorf("Trying to write HAproxy config, but no filename specified!")
+	}
+
 	outfile, err := os.Create(h.ConfigFile)
 	if err != nil {
 		return fmt.Errorf("Unable to write to %s! (%s)", h.ConfigFile, err.Error())
