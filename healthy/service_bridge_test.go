@@ -24,6 +24,10 @@ func (m *mockDiscoverer) HealthCheck(svc *service.Service) (string, string) {
 		return "HttpGet", "http://{{ host }}:{{ tcp 8081 }}/status/check"
 	}
 
+	if svc.Name == "containerCheck" {
+		return "HttpGet", "http://{{ container }}:{{ tcp 8081 }}/status/check"
+	}
+
 	return "", ""
 }
 
@@ -177,6 +181,13 @@ func Test_CheckForService(t *testing.T) {
 		Convey("Templates in the check arguments", func() {
 			monitor := NewMonitor(hostname, "/")
 			service1.Name = "hasCheck"
+			check := monitor.CheckForService(&service1, &mockDiscoverer{})
+			So(check.Args, ShouldEqual, "http://indefatigable:1234/status/check")
+		})
+
+		Convey("Supports container hostname", func() {
+			monitor := NewMonitor(hostname, "/")
+			service1.Name = "containerCheck"
 			check := monitor.CheckForService(&service1, &mockDiscoverer{})
 			So(check.Args, ShouldEqual, "http://indefatigable:1234/status/check")
 		})

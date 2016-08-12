@@ -108,6 +108,7 @@ func (m *Monitor) templateCheckArgs(check *Check, svc *service.Service) string {
 		"tcp":  func(p int64) int64 { return svc.PortForServicePort(p, "tcp") },
 		"udp":  func(p int64) int64 { return svc.PortForServicePort(p, "udp") },
 		"host": func() string { return m.DefaultCheckHost },
+		"container": func() string { return svc.Hostname },
 	}
 
 	t, err := template.New("check").Funcs(funcMap).Parse(check.Args)
