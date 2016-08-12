@@ -231,9 +231,11 @@ That in turn points to a static discovery file that looks like this:
             "Ports": [
                 {
                     "Type": "tcp",
-                    "Port": 10234
+                    "Port": 10234,
+					"ServicePort": 9999
                 }
-            ]
+            ],
+			"ProxyMode": "http",
         },
         "Check": {
             "Type": "HttpGet",

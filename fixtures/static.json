@@ -6,9 +6,11 @@
             "Ports": [
                 {
                     "Type": "tcp",
-                    "Port": 10234
+                    "Port": 10234,
+					"ServicePort": 9999
                 }
-            ]
+            ],
+			"ProxyMode": "http",
         },
         "Check": {
             "Type": "HttpGet",
