@@ -1,0 +1,57 @@
+version: "2"
+
+# Docker for Mac dev support for Sidecar containers
+
+# This compose file is intended for use on Docker for Mac
+# which behaves quite differently from normal Docker engine
+# with regard to port  mappings and connectivity to containers.
+# It will _not_ do what you want on other Docker installs.
+
+# Requirements: You must set up an IP alias to lo0 on your
+# Mac with the address 192.168.168.167/32. This is accomplished
+# with:
+#   sudo ifconfig lo0 alias 192.168.168.167/32 
+
+services:
+  sidecar:
+    # We have to hack the hostname so we can expose the right
+    # address to HAproxy as configured by Sidecar.
+    hostname: osx
+    image: gonitro/sidecar:e905262
+    cap_add:
+      - NET_ADMIN
+    labels:
+      SidecarDiscover: "false"
+    environment:
+      - BIND_IP=192.168.168.168
+      - SIDECAR_LOGGING_LEVEL=info
+      - SIDECAR_SEEDS=127.0.0.1
+      - SIDECAR_CLUSTER_NAME=development
+      - "SIDECAR_DISCOVERY=docker static"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/static.json:/sidecar/static.json
+    ports:
+      - 10000-10050:10000-10050
+      - 1777:7777
+    # This combined with setting the hostname above allows us
+    # to connect to the Mac itself in order to talk to other
+    # services.
+    extra_hosts:
+      - "osx:192.168.168.167"
+
+# A sample service that shows how you would set up
+# a service to talk to the configured container above.
+  nginx1:
+    image: "nginx:latest"
+    hostname: nginx1
+    labels:
+      HealthCheck: HttpGet
+      HealthCheckArgs: "http://osx:{{ tcp 10001 }}/"
+      ServiceName: nginx
+      ServicePort_80: "10001"
+    ports:
+      - "80"
+      - "443"
+    extra_hosts:
+      - "osx:192.168.168.167"
