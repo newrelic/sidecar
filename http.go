@@ -76,11 +76,13 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 
 		for _, member := range listMembers {
 			if state.HasServer(member.Name) {
+				state.Servers[member.Name].RLock()
 				members[member.Name] = &ApiServer{
 					Name:         member.Name,
 					LastUpdated:  state.Servers[member.Name].LastUpdated,
 					ServiceCount: len(state.Servers[member.Name].Services),
 				}
+				state.Servers[member.Name].RUnlock()
 			} else {
 				members[member.Name] = &ApiServer{
 					Name:         member.Name,

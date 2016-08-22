@@ -41,10 +41,11 @@ type ChangeEvent struct {
 
 // Holds the state about one server in our cluster
 type Server struct {
-	Name        string
-	Services    map[string]*service.Service
-	LastUpdated time.Time
-	LastChanged time.Time
+	Name         string
+	Services     map[string]*service.Service
+	LastUpdated  time.Time
+	LastChanged  time.Time
+	sync.RWMutex
 }
 
 // Returns a pointer to a properly configured Server
@@ -88,6 +89,7 @@ func NewServicesState() *ServicesState {
 }
 
 // Shortcut for checking if the server has this service or not.
+// Note: Not synchronized!
 func (server *Server) HasService(id string) bool {
 	_, ok := server.Services[id]
 	return ok
@@ -123,6 +125,9 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 		state.Servers[state.Hostname] != nil &&
 		state.Servers[state.Hostname].Services != nil {
 
+		state.Servers[state.Hostname].RLock()
+		defer state.Servers[state.Hostname].RUnlock()
+
 		return state.Servers[state.Hostname].Services[id]
 	}
 
@@ -138,6 +143,7 @@ func (state *ServicesState) ExpireServer(hostname string) {
 
 	log.Infof("Expiring %s", hostname)
 
+	state.Servers[hostname].RLock()
 	tombstones := make([]service.Service, 0, len(state.Servers[hostname].Services))
 
 	for _, svc := range state.Servers[hostname].Services {
@@ -146,6 +152,8 @@ func (state *ServicesState) ExpireServer(hostname string) {
 		svc.Tombstone()
 		tombstones = append(tombstones, *svc)
 	}
+
+	state.Servers[hostname].RUnlock()
 
 	state.SendServices(
 		tombstones,
@@ -161,17 +169,16 @@ func (state *ServicesState) ServiceChanged(svc *service.Service, previousStatus 
 
 // Tell the state that something changed on a particular server so that it
 // can keep the timestamps up to date.
+// Note: not synchronized!
 func (state *ServicesState) serverChanged(hostname string, updated time.Time) {
 	if !state.HasServer(hostname) {
 		log.Errorf("Attempt to change a server we don't have! (%s)", hostname)
 		return
 	}
 
-	state.Lock()
 	state.Servers[hostname].LastUpdated = updated
 	state.Servers[hostname].LastChanged = updated
 	state.LastChanged = updated
-	state.Unlock()
 }
 
 // Tell all of our listeners that something changed for a host at
@@ -219,15 +226,22 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 	}
 
 	server := state.Servers[entry.Hostname]
+	server.Lock()
+	defer server.Unlock()
+
 	// Only apply changes that are newer or services are missing
 	if !server.HasService(entry.ID) {
 		server.Services[entry.ID] = &entry
+		state.Lock()
 		state.ServiceChanged(&entry, service.UNKNOWN, entry.Updated)
+		state.Unlock()
 		state.retransmit(entry)
 	} else if entry.Invalidates(server.Services[entry.ID]) {
 		server.LastUpdated = entry.Updated
 		if server.Services[entry.ID].Status != entry.Status {
+			state.Lock()
 			state.ServiceChanged(&entry, server.Services[entry.ID].Status, entry.Updated)
+			state.Unlock()
 		}
 		server.Services[entry.ID] = &entry
 		// We tell our gossip peers about the updated service
@@ -277,10 +291,12 @@ func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 	outStr += "Services ------------------------------\n"
 	for hostname, server := range state.Servers {
 		outStr += fmt.Sprintf("  %s: (%s)\n", hostname, output.TimeAgo(server.LastUpdated, refTime))
+		server.RLock()
 		for _, service := range server.Services {
 			outStr += service.Format()
 		}
 		outStr += "\n"
+		server.RUnlock()
 	}
 
 	// Don't show member list
@@ -319,7 +335,10 @@ func (state *ServicesState) IsNewService(svc *service.Service) bool {
 	var found *service.Service
 
 	if state.HasServer(svc.Hostname) {
+		server := state.Servers[svc.Hostname]
+		server.RLock()
 		found = state.Servers[svc.Hostname].Services[svc.ID]
+		server.RUnlock()
 	}
 
 	if found == nil || (!svc.IsTombstone() && svc.Status != found.Status) {
@@ -447,7 +466,10 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 	state.EachService(func(hostname *string, id *string, svc *service.Service) {
 		if svc.IsTombstone() &&
 			svc.Updated.Before(time.Now().UTC().Add(0-TOMBSTONE_LIFESPAN)) {
+			state.Servers[*hostname].Lock()
 			delete(state.Servers[*hostname].Services, *id)
+			state.Servers[*hostname].Unlock()
+
 			// If this is the last service, remove the server
 			if len(state.Servers[*hostname].Services) < 1 {
 				delete(state.Servers, *hostname)
@@ -491,7 +513,9 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 	result := make([]service.Service, 0, len(containerList))
 
 	// Copy this so we can change the real list in the loop
+	state.Servers[hostname].RLock()
 	services := state.Servers[hostname].Services
+	state.Servers[hostname].RUnlock()
 
 	// Tombstone our own services that went away
 	for id, svc := range services {
@@ -519,7 +543,11 @@ func (state *ServicesState) EachServer(fn func(hostname *string, server *Server)
 
 func (state *ServicesState) EachService(fn func(hostname *string, serviceId *string, svc *service.Service)) {
 	state.EachServer(func(hostname *string, server *Server) {
-		for id, svc := range server.Services {
+		server.RLock()
+		services := server.Services
+		server.RUnlock()
+
+		for id, svc := range services {
 			fn(hostname, &id, svc)
 		}
 	})

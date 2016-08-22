@@ -90,7 +90,7 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 	log.Debugf("GetBroadcasts(): %d %d", overhead, limit)
 
-	broadcast := make([][]byte, 0, 1)
+	var broadcast [][]byte
 
 	select {
 	case broadcast = <-d.state.Broadcasts:
