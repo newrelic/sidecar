@@ -97,7 +97,11 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 
 		target.Service.ID = string(idBytes)
 		target.Service.Created = time.Now().UTC()
-		target.Service.Hostname = d.Hostname
+		// We _can_ export services for a 3rd party. If we don't specify
+		// the hostname, then it's for this host.
+		if target.Service.Hostname == "" {
+			target.Service.Hostname = d.Hostname
+		}
 		log.Printf("Discovered service: %s, ID: %s",
 			target.Service.Name,
 			target.Service.ID,

@@ -10,6 +10,7 @@ import (
 
 const (
 	STATIC_JSON = "../fixtures/static.json"
+	STATIC_HOSTNAMED_JSON = "../fixtures/static-hostnamed.json"
 )
 
 func Test_ParseConfig(t *testing.T) {
@@ -32,6 +33,11 @@ func Test_ParseConfig(t *testing.T) {
 		Convey("Applies hostnames to services", func() {
 			parsed, _ := disco.ParseConfig(STATIC_JSON)
 			So(parsed[0].Service.Hostname, ShouldEqual, hostname)
+		})
+
+		Convey("Uses the given hostname when specified", func() {
+			parsed, _ := disco.ParseConfig(STATIC_HOSTNAMED_JSON)
+			So(parsed[0].Service.Hostname, ShouldEqual, "chaucer")
 		})
 	})
 }

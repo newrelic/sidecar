@@ -3,6 +3,7 @@
         "Service": {
             "Name": "some_service",
             "Image": "bb6268ff91dc42a51f51db53846f72102ed9ff3f",
+            "Hostname": "chaucer",
             "Ports": [
                 {
                     "Type": "tcp",
