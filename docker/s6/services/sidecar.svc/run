@@ -11,6 +11,11 @@ if [[ -n "$SIDECAR_DISCOVERY" ]]; then
 	done
 fi
 
+# Allow adding a subscriber URL to the listeners
+if [[ -n "$SIDECAR_LISTENER" ]]; then
+	sed -i.bak 's/^urls *= *\[/urls = \[ "'"$SIDECAR_LISTENER"'", /' sidecar.toml
+fi
+
 BIND_IP=`grep bind_ip sidecar.toml | grep -o "[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*"`
 
 # If there's a BIND_IP and we don't already have it, add the
