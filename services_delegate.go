@@ -131,6 +131,8 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
 	log.Debugf("LocalState(): %b", join)
+	d.state.Lock()
+	defer d.state.Unlock()
 	return d.state.Encode()
 }
 
@@ -147,7 +149,9 @@ func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 
 	log.Debugf("Merging state: %s", otherState.Format(nil))
 
+	d.state.Lock()
 	d.state.Merge(otherState)
+	d.state.Unlock()
 }
 
 func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
@@ -156,7 +160,11 @@ func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
 
 func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
 	log.Debugf("NotifyLeave(): %s", node.Name)
-	go d.state.ExpireServer(node.Name)
+	go func() {
+		d.state.Lock()
+		defer state.Unlock()
+		d.state.ExpireServer(node.Name)
+	}()
 }
 
 func (d *servicesDelegate) NotifyUpdate(node *memberlist.Node) {
