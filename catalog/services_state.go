@@ -190,7 +190,7 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 		return
 	}
 
-	log.Infof("Notifying listeners of change at %s", changedTime.String())
+	log.Debugf("Notifying listeners of change at %s", changedTime.String())
 
 	event := ChangeEvent{Service: *svc, PreviousStatus: previousStatus, Time: changedTime}
 	state.listenerLock.Lock()
@@ -348,7 +348,7 @@ func (state *ServicesState) IsNewService(svc *service.Service) bool {
 	return false
 }
 
-// Loops forever, transmitting info about our containers on the
+// BroadcastServices loops forever, transmitting info about our containers on the
 // broadcast channel. Intended to run as a background goroutine.
 func (state *ServicesState) BroadcastServices(fn func() []service.Service, looper director.Looper) {
 	lastTime := time.Unix(0, 0)

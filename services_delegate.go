@@ -123,7 +123,7 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 		len(broadcast), len(broadcast[0]),
 	)
 	if len(leftover) > 0 {
-		log.Warnf("Leaving %d messages unsent", len(leftover))
+		log.Debugf("Leaving %d messages unsent", len(leftover))
 	}
 
 	return broadcast
