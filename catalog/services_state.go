@@ -66,8 +66,8 @@ type ServicesState struct {
 	ClusterName         string
 	Hostname            string
 	Broadcasts          chan [][]byte      `json:"-"`
-	listeners           []chan ChangeEvent `json:"-"`
-	tombstoneRetransmit time.Duration      `json:"-"`
+	listeners           []chan ChangeEvent
+	tombstoneRetransmit time.Duration
 	sync.Mutex
 }
 
