@@ -67,8 +67,6 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 	d.notifications <- message
 
 	// Lazily kick off goroutine
-	d.Lock()
-	defer d.Unlock()
 	if !d.inProcess {
 		go func() {
 			for message := range d.notifications {
@@ -77,7 +75,9 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 					log.Errorf("NotifyMsg(): error decoding!")
 					continue
 				}
+				d.Lock()
 				d.state.AddServiceEntry(*entry)
+				d.Unlock()
 			}
 		}()
 		d.inProcess = true
