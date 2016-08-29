@@ -45,7 +45,6 @@ type Server struct {
 	Services     map[string]*service.Service
 	LastUpdated  time.Time
 	LastChanged  time.Time
-	sync.RWMutex
 }
 
 // Returns a pointer to a properly configured Server
@@ -68,7 +67,6 @@ type ServicesState struct {
 	Hostname            string
 	Broadcasts          chan [][]byte      `json:"-"`
 	listeners           []chan ChangeEvent `json:"-"`
-	listenerLock        sync.Mutex         `json:"-"`
 	tombstoneRetransmit time.Duration      `json:"-"`
 	sync.Mutex
 }
@@ -124,10 +122,6 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 	if state.Servers != nil &&
 		state.Servers[state.Hostname] != nil &&
 		state.Servers[state.Hostname].Services != nil {
-
-		state.Servers[state.Hostname].RLock()
-		defer state.Servers[state.Hostname].RUnlock()
-
 		return state.Servers[state.Hostname].Services[id]
 	}
 
@@ -143,7 +137,6 @@ func (state *ServicesState) ExpireServer(hostname string) {
 
 	log.Infof("Expiring %s", hostname)
 
-	state.Servers[hostname].RLock()
 	tombstones := make([]service.Service, 0, len(state.Servers[hostname].Services))
 
 	for _, svc := range state.Servers[hostname].Services {
@@ -152,8 +145,6 @@ func (state *ServicesState) ExpireServer(hostname string) {
 		svc.Tombstone()
 		tombstones = append(tombstones, *svc)
 	}
-
-	state.Servers[hostname].RUnlock()
 
 	state.SendServices(
 		tombstones,
@@ -193,7 +184,6 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 	log.Debugf("Notifying listeners of change at %s", changedTime.String())
 
 	event := ChangeEvent{Service: *svc, PreviousStatus: previousStatus, Time: changedTime}
-	state.listenerLock.Lock()
 	for _, listener := range state.listeners {
 		select {
 		case listener <- event:
@@ -202,16 +192,13 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 			log.Error("NotifyListeners(): Can't send to listener!")
 		}
 	}
-	state.listenerLock.Unlock()
 }
 
 // Add an event listener channel to the list that will be notified on
 // major state change events. Channels must be buffered by at least 1
 // or they will block. Channels must be ready to receive input.
 func (state *ServicesState) AddListener(listener chan ChangeEvent) {
-	state.listenerLock.Lock()
 	state.listeners = append(state.listeners, listener)
-	state.listenerLock.Unlock()
 	log.Debugf("AddListener(): new count %d", len(state.listeners))
 }
 
@@ -226,22 +213,16 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 	}
 
 	server := state.Servers[entry.Hostname]
-	server.Lock()
-	defer server.Unlock()
 
 	// Only apply changes that are newer or services are missing
 	if !server.HasService(entry.ID) {
 		server.Services[entry.ID] = &entry
-		state.Lock()
 		state.ServiceChanged(&entry, service.UNKNOWN, entry.Updated)
-		state.Unlock()
 		state.retransmit(entry)
 	} else if entry.Invalidates(server.Services[entry.ID]) {
 		server.LastUpdated = entry.Updated
 		if server.Services[entry.ID].Status != entry.Status {
-			state.Lock()
 			state.ServiceChanged(&entry, server.Services[entry.ID].Status, entry.Updated)
-			state.Unlock()
 		}
 		server.Services[entry.ID] = &entry
 		// We tell our gossip peers about the updated service
@@ -291,12 +272,10 @@ func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 	outStr += "Services ------------------------------\n"
 	for hostname, server := range state.Servers {
 		outStr += fmt.Sprintf("  %s: (%s)\n", hostname, output.TimeAgo(server.LastUpdated, refTime))
-		server.RLock()
 		for _, service := range server.Services {
 			outStr += service.Format()
 		}
 		outStr += "\n"
-		server.RUnlock()
 	}
 
 	// Don't show member list
@@ -319,10 +298,13 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 	log.Println(state.Format(list))
 }
 
-// Talk to the discovery mechanism and track any services we don't
-// already know about.
+// TrackNewServices talks to the discovery mechanism and tracks any services we
+// don't already know about.
 func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
+		state.Lock()
+		defer state.Unlock()
+
 		for _, container := range fn() {
 			state.AddServiceEntry(container)
 		}
@@ -335,10 +317,7 @@ func (state *ServicesState) IsNewService(svc *service.Service) bool {
 	var found *service.Service
 
 	if state.HasServer(svc.Hostname) {
-		server := state.Servers[svc.Hostname]
-		server.RLock()
 		found = state.Servers[svc.Hostname].Services[svc.ID]
-		server.RUnlock()
 	}
 
 	if found == nil || (!svc.IsTombstone() && svc.Status != found.Status) {
@@ -359,6 +338,9 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 		haveNewServices := false
 
 		servicesList := fn()
+
+		state.Lock()
+		defer state.Unlock()
 
 		for _, svc := range servicesList {
 			isNew := state.IsNewService(&svc)
@@ -430,6 +412,9 @@ func (state *ServicesState) SendServices(services []service.Service, looper dire
 
 func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
+		state.Lock()
+		defer state.Unlock()
+
 		metrics.MeasureSince([]string{"services_state", "BroadcastTombstones"}, time.Now())
 
 		containerList := fn()
@@ -466,9 +451,7 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 	state.EachService(func(hostname *string, id *string, svc *service.Service) {
 		if svc.IsTombstone() &&
 			svc.Updated.Before(time.Now().UTC().Add(0-TOMBSTONE_LIFESPAN)) {
-			state.Servers[*hostname].Lock()
 			delete(state.Servers[*hostname].Services, *id)
-			state.Servers[*hostname].Unlock()
 
 			// If this is the last service, remove the server
 			if len(state.Servers[*hostname].Services) < 1 {
@@ -513,9 +496,7 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 	result := make([]service.Service, 0, len(containerList))
 
 	// Copy this so we can change the real list in the loop
-	state.Servers[hostname].RLock()
 	services := state.Servers[hostname].Services
-	state.Servers[hostname].RUnlock()
 
 	// Tombstone our own services that went away
 	for id, svc := range services {
@@ -543,9 +524,7 @@ func (state *ServicesState) EachServer(fn func(hostname *string, server *Server)
 
 func (state *ServicesState) EachService(fn func(hostname *string, serviceId *string, svc *service.Service)) {
 	state.EachServer(func(hostname *string, server *Server) {
-		server.RLock()
 		services := server.Services
-		server.RUnlock()
 
 		for id, svc := range services {
 			fn(hostname, &id, svc)

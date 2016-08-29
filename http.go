@@ -44,19 +44,37 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	response.Header().Set("Content-Type", "application/json")
 
 	lastChange := time.Unix(0, 0)
+	var jsonBytes []byte
+	var err error
 
 	for {
-		if state.LastChanged.After(lastChange) {
-			lastChange = state.LastChanged
-			jsonStr, _ := json.Marshal(state.ByService())
-			response.Write(jsonStr)
+		var changed bool
+
+		func() { // Wrap critical section
+			state.Lock()
+			defer state.Unlock()
+
+			if state.LastChanged.After(lastChange) {
+				lastChange = state.LastChanged
+				jsonBytes, err = json.Marshal(state.ByService())
+				if err != nil {
+					log.Errorf("Error marshaling state in watchHandler: %s", err.Error())
+					return
+				}
+				changed = true // Trigger sending new encoding
+			}
+		}()
+
+		if changed {
 			// In order to flush immediately, we have to cast to a Flusher.
 			// The normal HTTP library supports this but not all do, so we
 			// check just in case.
 			if f, ok := response.(http.Flusher); ok {
 				f.Flush()
 			}
+			response.Write(jsonBytes)
 		}
+
 		time.Sleep(250 * time.Millisecond)
 	}
 }
@@ -74,32 +92,43 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 		sort.Sort(listByName(listMembers))
 		members := make(map[string]*ApiServer, len(listMembers))
 
-		for _, member := range listMembers {
-			if state.HasServer(member.Name) {
-				state.Servers[member.Name].RLock()
-				members[member.Name] = &ApiServer{
-					Name:         member.Name,
-					LastUpdated:  state.Servers[member.Name].LastUpdated,
-					ServiceCount: len(state.Servers[member.Name].Services),
-				}
-				state.Servers[member.Name].RUnlock()
-			} else {
-				members[member.Name] = &ApiServer{
-					Name:         member.Name,
-					LastUpdated:  time.Unix(0, 0),
-					ServiceCount: 0,
+		var jsonBytes []byte
+		var err error
+
+		func() { // Wrap critical section
+			state.Lock()
+			defer state.Unlock()
+
+			for _, member := range listMembers {
+				if state.HasServer(member.Name) {
+					members[member.Name] = &ApiServer{
+						Name:         member.Name,
+						LastUpdated:  state.Servers[member.Name].LastUpdated,
+						ServiceCount: len(state.Servers[member.Name].Services),
+					}
+				} else {
+					members[member.Name] = &ApiServer{
+						Name:         member.Name,
+						LastUpdated:  time.Unix(0, 0),
+						ServiceCount: 0,
+					}
 				}
 			}
+
+			result := ApiServices{
+				Services:       state.ByService(),
+				ClusterMembers: members,
+				ClusterName:    list.ClusterName(),
+			}
+
+			jsonBytes, err = json.MarshalIndent(&result, "", "  ")
+		}()
+
+		if err != nil {
+			log.Errorf("Error marshaling state in servicesHandler: %s", err.Error())
 		}
 
-		result := ApiServices{
-			Services:       state.ByService(),
-			ClusterMembers: members,
-			ClusterName:    list.ClusterName(),
-		}
-
-		jsonStr, _ := json.MarshalIndent(&result, "", "  ")
-		response.Write(jsonStr)
+		response.Write(jsonBytes)
 		return
 	}
 }
@@ -108,6 +137,9 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 	defer req.Body.Close()
 
 	response.Header().Set("Content-Type", "text/html")
+	state.Lock()
+	defer state.Unlock()
+
 	response.Write(
 		[]byte(`
  			<head>
@@ -119,6 +151,9 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 func stateHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
 	params := mux.Vars(req)
 	defer req.Body.Close()
+
+	state.Lock()
+	defer state.Unlock()
 
 	if params["extension"] == ".json" {
 		response.Header().Set("Content-Type", "application/json")
@@ -204,6 +239,9 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 
 	members := list.Members()
 	sort.Sort(listByName(members))
+
+	state.Lock()
+	defer state.Unlock()
 
 	compiledMembers := make([]*Member, len(members))
 	for i, member := range members {

@@ -1,6 +1,7 @@
 package haproxy
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -84,9 +85,12 @@ func sanitizeName(image string) string {
 // builds a list of unique ports for all services, then passes these to the
 // template. Ports are looked up by the func getPorts().
 func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) error {
+
+	state.Lock()
 	services := servicesWithPorts(state)
 	ports := h.makePortmap(services)
 	modes := getModes(state)
+	state.Unlock()
 
 	data := struct {
 		Services map[string][]*service.Service
@@ -114,7 +118,15 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	if err != nil {
 		return fmt.Errorf("Error Parsing template '%s': %s", h.Template, err.Error())
 	}
-	t.ExecuteTemplate(output, path.Base(h.Template), data)
+
+	// We write into a buffer so disk IO doesn't hold up the whole state lock
+	buf := bytes.NewBuffer(make([]byte, 32768))
+	state.Lock()
+	t.ExecuteTemplate(buf, path.Base(h.Template), data)
+	defer state.Unlock()
+
+	// This is the potentially slowest bit, do it outside the critical section
+	io.Copy(output, buf)
 
 	return nil
 }

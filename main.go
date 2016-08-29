@@ -30,7 +30,9 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 			log.Debugf("Meta: %s", string(member.Meta))
 		}
 
+		state.Lock()
 		log.Debug(state.Format(list))
+		state.Unlock()
 
 		time.Sleep(2 * time.Second)
 	}
@@ -282,6 +284,7 @@ func main() {
 	// check address.
 	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.DefaultCheckEndpoint)
 
+	// Wrap the monitor Services function as a simple func without the receiver
 	serviceFunc := func() []service.Service { return monitor.Services() }
 
 	// Need to call HAproxy first, otherwise won't see first events from
