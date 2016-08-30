@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"sync"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/newrelic/sidecar/catalog"
@@ -23,7 +21,6 @@ type servicesDelegate struct {
 	notifications     chan []byte
 	inProcess         bool
 	Metadata          NodeMetadata
-	sync.Mutex
 }
 
 type NodeMetadata struct {
@@ -75,9 +72,9 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 					log.Errorf("NotifyMsg(): error decoding!")
 					continue
 				}
-				d.Lock()
+				d.state.Lock()
 				d.state.AddServiceEntry(*entry)
-				d.Unlock()
+				d.state.Unlock()
 			}
 		}()
 		d.inProcess = true
@@ -162,7 +159,7 @@ func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
 	log.Debugf("NotifyLeave(): %s", node.Name)
 	go func() {
 		d.state.Lock()
-		defer state.Unlock()
+		defer d.state.Unlock()
 		d.state.ExpireServer(node.Name)
 	}()
 }
