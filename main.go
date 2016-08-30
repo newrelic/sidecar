@@ -139,6 +139,8 @@ func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDel
 		State:       "Running",
 	}
 
+	delegate.Start()
+
 	return delegate
 }
 

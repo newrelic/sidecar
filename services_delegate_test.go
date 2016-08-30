@@ -20,13 +20,16 @@ func Test_GetBroadcasts(t *testing.T) {
 			[]byte(`{"ID":"deadbeefabba","Name":"/dockercon-6c01869525db08","Image":"nginx:latest","Created":"2015-02-25T19:04:46Z","Hostname":"docker2","Ports":[{"Type":"tcp","Port":10234}],"Updated":"2015-03-04T01:12:46.669648453Z","Status":0}`),
 		}
 
-		Convey("NotifyMsg()", func() {
-			Convey("Lazily kicks off goroutine", func() {
-				So(delegate.inProcess, ShouldBeFalse)
-				delegate.NotifyMsg(bCast[0])
-				So(delegate.inProcess, ShouldBeTrue)
+		Convey("Start()", func() {
+			Convey("Kicks off goroutine", func() {
+				So(delegate.Started, ShouldBeFalse)
+				delegate.Start()
+				So(delegate.Started, ShouldBeTrue)
 			})
+		})
 
+
+		Convey("NotifyMsg()", func() {
 			Convey("Pushes a message into the channel", func() {
 				delegate.NotifyMsg(bCast[0])
 				msg := <-delegate.notifications

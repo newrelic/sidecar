@@ -20,6 +20,7 @@ type servicesDelegate struct {
 	pendingBroadcasts [][]byte
 	notifications     chan []byte
 	inProcess         bool
+	Started           bool
 	Metadata          NodeMetadata
 }
 
@@ -33,11 +34,28 @@ func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 		state:             state,
 		pendingBroadcasts: make([][]byte, 0),
 		notifications:     make(chan []byte, 25),
-		inProcess:         false,
 		Metadata:          NodeMetadata{ClusterName: "default"},
 	}
 
 	return &delegate
+}
+
+func (d *servicesDelegate) Start() {
+	// Kick off the goroutine that will process notifications
+	go func() {
+		for message := range d.notifications {
+			entry := service.Decode(message)
+			if entry == nil {
+				log.Errorf("NotifyMsg(): error decoding!")
+				continue
+			}
+			d.state.Lock()
+			d.state.AddServiceEntry(*entry)
+			d.state.Unlock()
+		}
+	}()
+
+	d.Started = true
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
@@ -62,23 +80,6 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 
 	// TODO don't just send container structs, send message structs
 	d.notifications <- message
-
-	// Lazily kick off goroutine
-	if !d.inProcess {
-		go func() {
-			for message := range d.notifications {
-				entry := service.Decode(message)
-				if entry == nil {
-					log.Errorf("NotifyMsg(): error decoding!")
-					continue
-				}
-				d.state.Lock()
-				d.state.AddServiceEntry(*entry)
-				d.state.Unlock()
-			}
-		}()
-		d.inProcess = true
-	}
 }
 
 func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
