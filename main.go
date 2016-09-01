@@ -188,7 +188,14 @@ func main() {
 		pprof.StartCPUProfile(profilerFile)
 		log.Debug("Profiling!")
 	}
+
+	// Create a new state instance and fire up the processor
 	state := catalog.NewServicesState()
+	svcMsgLooper := director.NewFreeLooper(
+		director.FOREVER, make(chan error),
+	)
+	go state.ProcessServiceMsgs(svcMsgLooper)
+
 	delegate := configureDelegate(state, opts)
 
 	config := parseConfig(*opts.ConfigFile)

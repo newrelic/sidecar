@@ -16,6 +16,19 @@ import (
 var hostname = "shakespeare"
 var anotherHostname = "chaucer"
 
+type mockListener struct {
+	name string
+	events chan ChangeEvent
+}
+
+func (l *mockListener) Name() string {
+	return l.name
+}
+
+func (l *mockListener) Chan() chan ChangeEvent {
+	return l.events
+}
+
 func Test_NewServer(t *testing.T) {
 
 	Convey("Invoking NewServer()", t, func() {
@@ -225,6 +238,7 @@ func Test_ServicesStateWithData(t *testing.T) {
 			secondState := NewServicesState()
 			firstState.AddServiceEntry(svc)
 			secondState.Merge(firstState)
+			secondState.ProcessServiceMsgs(director.NewFreeLooper(director.ONCE, nil))
 
 			So(len(secondState.Servers), ShouldEqual, len(firstState.Servers))
 			So(secondState.Servers[svcId], ShouldEqual, firstState.Servers[svcId])
@@ -276,9 +290,10 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 		Convey("All of the services are added to state", func() {
 			looper := director.NewFreeLooper(1, make(chan error))
-
 			go state.TrackNewServices(containerFn, looper)
+			state.ProcessServiceMsgs(director.NewFreeLooper(2, nil))
 			looper.Wait()
+			fmt.Println(state.Format(nil))
 
 			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
 			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)
@@ -433,8 +448,8 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 func Test_Listeners(t *testing.T) {
 	Convey("Working with state Listeners", t, func() {
 		state := NewServicesState()
-		listener := make(chan ChangeEvent, 1)
-		listener2 := make(chan ChangeEvent, 1)
+		listener := &mockListener{ "listener1", make(chan ChangeEvent, 1) }
+		listener2 := &mockListener{ "listener2", make(chan ChangeEvent, 1) }
 		svcId1 := "deadbeef123"
 		baseTime := time.Now().UTC().Round(time.Second)
 		svc1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
@@ -450,8 +465,8 @@ func Test_Listeners(t *testing.T) {
 			var result2 ChangeEvent
 			var wg sync.WaitGroup
 			wg.Add(2)
-			go func() { result = <-listener; wg.Done() }()
-			go func() { result2 = <-listener2; wg.Done() }()
+			go func() { result = <-listener.Chan(); wg.Done() }()
+			go func() { result2 = <-listener2.Chan(); wg.Done() }()
 			state.AddListener(listener)
 			state.AddListener(listener2)
 

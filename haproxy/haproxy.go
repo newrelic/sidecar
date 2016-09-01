@@ -23,14 +23,15 @@ type portmap map[string]portset
 
 // Configuration and state for the HAproxy management module
 type HAproxy struct {
-	ReloadCmd  string `toml:"reload_cmd"`
-	VerifyCmd  string `toml:"verify_cmd"`
-	BindIP     string `toml:"bind_ip"`
-	Template   string `toml:"template"`
-	ConfigFile string `toml:"config_file"`
-	PidFile    string `toml:"pid_file"`
-	User       string `toml:"user"`
-	Group      string `toml:"group"`
+	ReloadCmd    string `toml:"reload_cmd"`
+	VerifyCmd    string `toml:"verify_cmd"`
+	BindIP       string `toml:"bind_ip"`
+	Template     string `toml:"template"`
+	ConfigFile   string `toml:"config_file"`
+	PidFile      string `toml:"pid_file"`
+	User         string `toml:"user"`
+	Group        string `toml:"group"`
+	eventChannel chan catalog.ChangeEvent
 }
 
 // Constructs a properly configured HAProxy and returns a pointer to it
@@ -160,10 +161,10 @@ func (h *HAproxy) Verify() error {
 // the service that it needs to reload once the new file has been written
 // and verified.
 func (h *HAproxy) Watch(state *catalog.ServicesState) {
-	eventChannel := make(chan catalog.ChangeEvent, 2)
-	state.AddListener(eventChannel)
+	h.eventChannel = make(chan catalog.ChangeEvent, 2)
+	state.AddListener(h)
 
-	for event := range eventChannel {
+	for event := range h.eventChannel {
 		log.Println("State change event from " + event.Service.Hostname)
 		err := h.WriteAndReload(state)
 		if err != nil {
@@ -196,6 +197,16 @@ func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) error {
 	h.Reload()
 
 	return nil
+}
+
+// Name is part of the catalog.Listener interface. Returns the listener name.
+func (h *HAproxy) Name() string {
+	return "HAproxy"
+}
+
+// Chan is part of the catalog.Listener interface. Returns the channel we listen on.
+func (h *HAproxy) Chan() chan catalog.ChangeEvent {
+	return h.eventChannel
 }
 
 func getModes(state *catalog.ServicesState) map[string]string {

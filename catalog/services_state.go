@@ -41,10 +41,10 @@ type ChangeEvent struct {
 
 // Holds the state about one server in our cluster
 type Server struct {
-	Name         string
-	Services     map[string]*service.Service
-	LastUpdated  time.Time
-	LastChanged  time.Time
+	Name        string
+	Services    map[string]*service.Service
+	LastUpdated time.Time
+	LastChanged time.Time
 }
 
 // Returns a pointer to a properly configured Server
@@ -65,10 +65,16 @@ type ServicesState struct {
 	LastChanged         time.Time
 	ClusterName         string
 	Hostname            string
-	Broadcasts          chan [][]byte      `json:"-"`
-	listeners           []chan ChangeEvent
+	Broadcasts          chan [][]byte         `json:"-"`
+	ServiceMsgs         chan service.Service `json:"-"`
+	listeners           []Listener
 	tombstoneRetransmit time.Duration
 	sync.Mutex
+}
+
+type Listener interface {
+	Chan() chan ChangeEvent
+	Name() string
 }
 
 // Returns a pointer to a properly configured ServicesState
@@ -83,6 +89,8 @@ func NewServicesState() *ServicesState {
 		log.Errorf("Error getting hostname! %s", err.Error())
 	}
 	state.tombstoneRetransmit = TOMBSTONE_RETRANSMIT
+	state.ServiceMsgs = make(chan service.Service, 25)
+
 	return &state
 }
 
@@ -103,6 +111,16 @@ func (state *ServicesState) Encode() []byte {
 	}
 
 	return jsonData
+}
+
+// ProcessNewServiceMsgs is to be run in a goroutine, and processes incoming
+// service notices.
+func (state *ServicesState) ProcessServiceMsgs(looper director.Looper) {
+	looper.Loop(func() error {
+		service := <-state.ServiceMsgs
+		state.AddServiceEntry(service)
+		return nil
+	})
 }
 
 // Shortcut for checking if the Servers map has an entry for this
@@ -186,10 +204,10 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 	event := ChangeEvent{Service: *svc, PreviousStatus: previousStatus, Time: changedTime}
 	for _, listener := range state.listeners {
 		select {
-		case listener <- event:
+		case listener.Chan() <- event:
 			continue
 		default:
-			log.Error("NotifyListeners(): Can't send to listener!")
+			log.Warnf("Can't notify listener (%s). May not be ready yet.", listener.Name())
 		}
 	}
 }
@@ -197,9 +215,9 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 // Add an event listener channel to the list that will be notified on
 // major state change events. Channels must be buffered by at least 1
 // or they will block. Channels must be ready to receive input.
-func (state *ServicesState) AddListener(listener chan ChangeEvent) {
+func (state *ServicesState) AddListener(listener Listener) {
 	state.listeners = append(state.listeners, listener)
-	log.Debugf("AddListener(): new count %d", len(state.listeners))
+	log.Debugf("AddListener(): added %s, new count %d", listener.Name(), len(state.listeners))
 }
 
 // Take a service and merge it into our state. Correctly handle
@@ -207,6 +225,9 @@ func (state *ServicesState) AddListener(listener chan ChangeEvent) {
 // know about. Retransmits updates to cluster peers.
 func (state *ServicesState) AddServiceEntry(entry service.Service) {
 	defer metrics.MeasureSince([]string{"services_state", "AddServiceEntry"}, time.Now())
+
+	state.Lock()
+	defer state.Unlock()
 
 	if !state.HasServer(entry.Hostname) {
 		state.Servers[entry.Hostname] = NewServer(entry.Hostname)
@@ -238,7 +259,7 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 func (state *ServicesState) Merge(otherState *ServicesState) {
 	for _, server := range otherState.Servers {
 		for _, service := range server.Services {
-			state.AddServiceEntry(*service)
+			state.ServiceMsgs <-*service
 		}
 	}
 }
@@ -302,11 +323,8 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 // don't already know about.
 func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
-		state.Lock()
-		defer state.Unlock()
-
 		for _, container := range fn() {
-			state.AddServiceEntry(container)
+			state.ServiceMsgs <-container
 		}
 		return nil
 	})
@@ -386,7 +404,7 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 func (state *ServicesState) SendServices(services []service.Service, looper director.Looper) {
 	// Announce these every second for awhile
 	go func() {
-		metrics.MeasureSince([]string{"services_state", "SendServices"}, time.Now())
+		defer metrics.MeasureSince([]string{"services_state", "SendServices"}, time.Now())
 
 		additionalTime := 0 * time.Second
 		looper.Loop(func() error {
@@ -412,10 +430,10 @@ func (state *ServicesState) SendServices(services []service.Service, looper dire
 
 func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
+		defer metrics.MeasureSince([]string{"services_state", "BroadcastTombstones"}, time.Now())
+
 		state.Lock()
 		defer state.Unlock()
-
-		metrics.MeasureSince([]string{"services_state", "BroadcastTombstones"}, time.Now())
 
 		containerList := fn()
 		// Tell people about our dead services
@@ -440,7 +458,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 }
 
 func (state *ServicesState) TombstoneOthersServices() []service.Service {
-	metrics.MeasureSince([]string{"services_state", "TombstoneOthersServices"}, time.Now())
+	defer metrics.MeasureSince([]string{"services_state", "TombstoneOthersServices"}, time.Now())
 
 	result := make([]service.Service, 0, 1)
 

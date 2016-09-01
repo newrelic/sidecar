@@ -19,7 +19,6 @@ type servicesDelegate struct {
 	state             *catalog.ServicesState
 	pendingBroadcasts [][]byte
 	notifications     chan []byte
-	inProcess         bool
 	Started           bool
 	Metadata          NodeMetadata
 }
@@ -40,8 +39,8 @@ func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 	return &delegate
 }
 
+// Start kicks off the goroutine that will process incoming notifications of services
 func (d *servicesDelegate) Start() {
-	// Kick off the goroutine that will process notifications
 	go func() {
 		for message := range d.notifications {
 			entry := service.Decode(message)
@@ -49,9 +48,7 @@ func (d *servicesDelegate) Start() {
 				log.Errorf("NotifyMsg(): error decoding!")
 				continue
 			}
-			d.state.Lock()
-			d.state.AddServiceEntry(*entry)
-			d.state.Unlock()
+			d.state.ServiceMsgs <- *entry
 		}
 	}()
 
@@ -147,9 +144,7 @@ func (d *servicesDelegate) MergeRemoteState(buf []byte, join bool) {
 
 	log.Debugf("Merging state: %s", otherState.Format(nil))
 
-	d.state.Lock()
 	d.state.Merge(otherState)
-	d.state.Unlock()
 }
 
 func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
@@ -159,6 +154,7 @@ func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
 func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
 	log.Debugf("NotifyLeave(): %s", node.Name)
 	go func() {
+		// TODO move this to a channel and remove lock
 		d.state.Lock()
 		defer d.state.Unlock()
 		d.state.ExpireServer(node.Name)

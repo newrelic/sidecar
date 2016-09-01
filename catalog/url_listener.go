@@ -56,8 +56,16 @@ func withRetries(count int, fn func() error) error {
 	return result
 }
 
+func (u *UrlListener) Name() string {
+	return "UrlListener(" + u.Url + ")"
+}
+
+func (u *UrlListener) Chan() chan ChangeEvent {
+	return u.eventChannel
+}
+
 func (u *UrlListener) Watch(state *ServicesState) {
-	state.AddListener(u.eventChannel)
+	state.AddListener(u)
 
 	go func() {
 		u.looper.Loop(func() error {
