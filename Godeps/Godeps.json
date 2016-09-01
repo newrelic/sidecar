@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/newrelic/sidecar",
-	"GoVersion": "go1.5.2",
-	"GodepVersion": "v67",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
