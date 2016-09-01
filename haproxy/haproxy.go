@@ -87,11 +87,11 @@ func sanitizeName(image string) string {
 // template. Ports are looked up by the func getPorts().
 func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) error {
 
-	state.Lock()
+	state.RLock()
 	services := servicesWithPorts(state)
 	ports := h.makePortmap(services)
 	modes := getModes(state)
-	state.Unlock()
+	state.RUnlock()
 
 	data := struct {
 		Services map[string][]*service.Service
@@ -122,9 +122,9 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 
 	// We write into a buffer so disk IO doesn't hold up the whole state lock
 	buf := bytes.NewBuffer(make([]byte, 32768))
-	state.Lock()
+	state.RLock()
 	t.ExecuteTemplate(buf, path.Base(h.Template), data)
-	defer state.Unlock()
+	state.RUnlock()
 
 	// This is the potentially slowest bit, do it outside the critical section
 	io.Copy(output, buf)

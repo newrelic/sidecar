@@ -51,8 +51,8 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 		var changed bool
 
 		func() { // Wrap critical section
-			state.Lock()
-			defer state.Unlock()
+			state.RLock()
+			defer state.RUnlock()
 
 			if state.LastChanged.After(lastChange) {
 				lastChange = state.LastChanged
@@ -96,8 +96,8 @@ func servicesHandler(response http.ResponseWriter, req *http.Request, list *memb
 		var err error
 
 		func() { // Wrap critical section
-			state.Lock()
-			defer state.Unlock()
+			state.RLock()
+			defer state.RUnlock()
 
 			for _, member := range listMembers {
 				if state.HasServer(member.Name) {
@@ -137,8 +137,8 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 	defer req.Body.Close()
 
 	response.Header().Set("Content-Type", "text/html")
-	state.Lock()
-	defer state.Unlock()
+	state.RLock()
+	defer state.RUnlock()
 
 	response.Write(
 		[]byte(`
@@ -152,8 +152,8 @@ func stateHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	params := mux.Vars(req)
 	defer req.Body.Close()
 
-	state.Lock()
-	defer state.Unlock()
+	state.RLock()
+	defer state.RUnlock()
 
 	if params["extension"] == ".json" {
 		response.Header().Set("Content-Type", "application/json")
@@ -240,8 +240,8 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 	members := list.Members()
 	sort.Sort(listByName(members))
 
-	state.Lock()
-	defer state.Unlock()
+	state.RLock()
+	defer state.RUnlock()
 
 	compiledMembers := make([]*Member, len(members))
 	for i, member := range members {

@@ -69,7 +69,7 @@ type ServicesState struct {
 	ServiceMsgs         chan service.Service `json:"-"`
 	listeners           []Listener
 	tombstoneRetransmit time.Duration
-	sync.Mutex
+	sync.RWMutex
 }
 
 type Listener interface {
@@ -357,8 +357,8 @@ func (state *ServicesState) BroadcastServices(fn func() []service.Service, loope
 
 		servicesList := fn()
 
-		state.Lock()
-		defer state.Unlock()
+		state.RLock()
+		defer state.RUnlock()
 
 		for _, svc := range servicesList {
 			isNew := state.IsNewService(&svc)

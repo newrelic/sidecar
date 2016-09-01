@@ -30,9 +30,9 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 			log.Debugf("Meta: %s", string(member.Meta))
 		}
 
-		state.Lock()
+		state.RLock()
 		log.Debug(state.Format(list))
-		state.Unlock()
+		state.RUnlock()
 
 		time.Sleep(2 * time.Second)
 	}

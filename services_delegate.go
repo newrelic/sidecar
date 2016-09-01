@@ -126,8 +126,8 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
 	log.Debugf("LocalState(): %b", join)
-	d.state.Lock()
-	defer d.state.Unlock()
+	d.state.RLock()
+	defer d.state.RUnlock()
 	return d.state.Encode()
 }
 
