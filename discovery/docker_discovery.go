@@ -228,7 +228,7 @@ func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 				continue
 			}
 			if event.ID[:12] == service.ID {
-				log.Printf("Deleting %s based on Docker '%s' event\n", event.Status, service.ID)
+				log.Printf("Deleting %s based on Docker '%s' event\n", service.ID, event.Status)
 				// Delete the entry in the slice
 				d.services[i] = nil
 				d.services = append(d.services[:i], d.services[i+1:]...)
