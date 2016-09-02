@@ -75,6 +75,8 @@ func (m *Monitor) GetCommandNamed(name string) Checker {
 		return &HttpGetCmd{}
 	case "External":
 		return &ExternalCmd{}
+	case "AlwaysSuccessful":
+		return &AlwaysSuccessfulCmd{}
 	default:
 		return &HttpGetCmd{}
 	}
