@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"net/url"
 	"testing"
 
 	"github.com/newrelic/sidecar/mockhttp"
@@ -18,6 +19,30 @@ func Test_NewUrlListener(t *testing.T) {
 		So(listener.Client, ShouldNotBeNil)
 		So(listener.Url, ShouldEqual, url)
 		So(listener.looper, ShouldNotBeNil)
+	})
+}
+
+func Test_prepareCookieJar(t *testing.T) {
+	Convey("When preparing the cookie jar", t, func() {
+		listenurl := "http://beowulf.example.com/"
+
+		Convey("We get a properly generated cookie for our url", func() {
+			jar := prepareCookieJar(listenurl)
+			cookieUrl, _ := url.Parse(listenurl)
+			cookies := jar.Cookies(cookieUrl)
+
+			So(len(cookies), ShouldEqual, 1)
+			So(cookies[0].Value, ShouldNotBeEmpty)
+			So(cookies[0].Expires, ShouldNotBeEmpty)
+		})
+
+		Convey("We only get the right cookies", func() {
+			jar := prepareCookieJar(listenurl)
+			wrongUrl, _ := url.Parse("http://wrong.example.com")
+			cookies := jar.Cookies(wrongUrl)
+
+			So(len(cookies), ShouldEqual, 0)
+		})
 	})
 }
 

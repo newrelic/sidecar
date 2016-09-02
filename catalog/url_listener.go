@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"os"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,13 +32,39 @@ type StateChangedEvent struct {
 	ChangeEvent ChangeEvent
 }
 
-func NewUrlListener(url string) *UrlListener {
+func prepareCookieJar(listenurl string) *cookiejar.Jar {
+	cookieJar, err := cookiejar.New(nil)
+	hostname, err2 := os.Hostname()
+	cookieUrl, err3 := url.Parse(listenurl)
+
+	if err != nil || err2 != nil || err3 != nil {
+		log.Errorf("Failed to prepare HTTP cookie jar for UrlListener(%s)", listenurl)
+		return nil
+	}
+
+	expiration := time.Now().Add(365 * 24 * time.Hour)
+	cookie := &http.Cookie{
+		Name:    "sidecar-session-host",
+		Value:   hostname + "-" + time.Now().UTC().String(),
+		Expires: expiration,
+	}
+
+	cookieJar.SetCookies(cookieUrl, []*http.Cookie{cookie})
+
+	return cookieJar
+}
+
+func NewUrlListener(listenurl string) *UrlListener {
 	errorChan := make(chan error, 1)
 
+	// Primarily for the purpose of load balancers that look
+	// at a cookie for session affinity.
+	cookieJar := prepareCookieJar(listenurl)
+
 	return &UrlListener{
-		Url:          url,
+		Url:          listenurl,
 		looper:       director.NewFreeLooper(director.FOREVER, errorChan),
-		Client:       &http.Client{Timeout: CLIENT_TIMEOUT},
+		Client:       &http.Client{Timeout: CLIENT_TIMEOUT, Jar: cookieJar},
 		eventChannel: make(chan ChangeEvent, 20),
 		Retries:      DEFAULT_RETRIES,
 	}
