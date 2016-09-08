@@ -54,9 +54,9 @@ func New(configFile string, pidFile string) *HAproxy {
 func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 	ports := make(portmap)
 
-	for name, svcList := range services {
-		if _, ok := ports[name]; !ok {
-			ports[name] = make(portset, 5)
+	for svcName, svcList := range services {
+		if _, ok := ports[svcName]; !ok {
+			ports[svcName] = make(portset, 5)
 		}
 
 		for _, service := range svcList {
@@ -66,7 +66,7 @@ func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 				if port.Type == "tcp" && port.ServicePort != 0 {
 					svcPort := strconv.FormatInt(port.ServicePort, 10)
 					internalPort := strconv.FormatInt(port.Port, 10)
-					ports[name][svcPort] = internalPort
+					ports[svcName][svcPort] = internalPort
 				}
 			}
 		}
@@ -79,6 +79,24 @@ func (h *HAproxy) makePortmap(services map[string][]*service.Service) portmap {
 func sanitizeName(image string) string {
 	replace := regexp.MustCompile("[^a-z0-9-]")
 	return replace.ReplaceAllString(image, "-")
+}
+
+// Find a matching Port when given a ServicePort
+func findPortForService(svcPort string, svc *service.Service) string {
+	matchPort, err := strconv.ParseInt(svcPort, 10, 64)
+	if err != nil {
+		log.Errorf("Invalid value from template ('%s') can't parse as int64: %s", svcPort, err.Error())
+		return "-1"
+	}
+
+	for _, port := range svc.Ports {
+		if port.ServicePort == matchPort {
+			internalPort := strconv.FormatInt(port.Port, 10)
+			return internalPort
+		}
+	}
+
+	return "-1"
 }
 
 // Create an HAproxy config from the supplied ServicesState. Write it out to the
@@ -111,6 +129,7 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 		"getPorts": func(k string) map[string]string {
 			return ports[k]
 		},
+		"portFor":      findPortForService,
 		"bindIP":       func() string { return h.BindIP },
 		"sanitizeName": sanitizeName,
 	}
@@ -123,8 +142,11 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	// We write into a buffer so disk IO doesn't hold up the whole state lock
 	buf := bytes.NewBuffer(make([]byte, 32768))
 	state.RLock()
-	t.ExecuteTemplate(buf, path.Base(h.Template), data)
+	err = t.ExecuteTemplate(buf, path.Base(h.Template), data)
 	state.RUnlock()
+	if err != nil {
+		return fmt.Errorf("Error executing template '%s': %s", h.Template, err.Error())
+	}
 
 	// This is the potentially slowest bit, do it outside the critical section
 	io.Copy(output, buf)
