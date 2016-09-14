@@ -30,41 +30,42 @@ func Test_HAproxy(t *testing.T) {
 
 		ports1 := []service.Port{service.Port{"tcp", 10450, 8080}, service.Port{"tcp", 10020, 9000}}
 		ports2 := []service.Port{service.Port{"tcp", 9999, 8090}}
+		ports3 := []service.Port{service.Port{"tcp", 32763, 8080}, service.Port{"tcp", 10020, 9000}}
 
 		services := []service.Service{
 			service.Service{
-				ID:          svcId1,
-				Name:        "awesome-svc",
-				Image:       "awesome-svc",
-				Hostname:    hostname1,
-				Updated:     baseTime.Add(5 * time.Second),
+				ID:        svcId1,
+				Name:      "awesome-svc",
+				Image:     "awesome-svc",
+				Hostname:  hostname1,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "http",
-				Ports:       ports1,
+				Ports:     ports1,
 			},
 			service.Service{
-				ID:          svcId2,
-				Name:        "awesome-svc",
-				Image:       "awesome-svc",
-				Hostname:    hostname2,
-				Updated:     baseTime.Add(5 * time.Second),
+				ID:        svcId2,
+				Name:      "awesome-svc",
+				Image:     "awesome-svc",
+				Hostname:  hostname2,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "http",
-				Ports:       ports1,
+				Ports:     ports3,
 			},
 			service.Service{
-				ID:          svcId3,
-				Name:        "some-svc",
-				Image:       "some-svc",
-				Hostname:    hostname2,
-				Updated:     baseTime.Add(5 * time.Second),
+				ID:        svcId3,
+				Name:      "some-svc",
+				Image:     "some-svc",
+				Hostname:  hostname2,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "tcp",
-				Ports:       ports2,
+				Ports:     ports2,
 			},
 			service.Service{
-				ID:          svcId4,
-				Name:        "some-svc",
-				Image:       "some-svc",
-				Hostname:    hostname2,
-				Updated:     baseTime.Add(5 * time.Second),
+				ID:        svcId4,
+				Name:      "some-svc",
+				Image:     "some-svc",
+				Hostname:  hostname2,
+				Updated:   baseTime.Add(5 * time.Second),
 				ProxyMode: "tcp",
 				// No ports!
 			},
@@ -133,6 +134,7 @@ func Test_HAproxy(t *testing.T) {
 			So(output, ShouldMatch, "frontend awesome-svc-8080")
 			So(output, ShouldMatch, "backend awesome-svc-8080")
 			So(output, ShouldMatch, "server.*indefatigable:10020")
+			So(output, ShouldMatch, "server.*indefatigable:32763")
 			So(output, ShouldMatch, "bind 192.168.168.168:9000")
 			So(output, ShouldMatch, "frontend some-svc-8090")
 			So(output, ShouldMatch, "backend some-svc-8090")
