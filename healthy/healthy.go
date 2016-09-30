@@ -169,8 +169,12 @@ func (m *Monitor) Run(looper director.Looper) {
 
 		var wg sync.WaitGroup
 
-		wg.Add(len(m.Checks))
-		for _, check := range m.Checks {
+		m.RLock()
+		checks := m.Checks
+		m.RUnlock()
+
+		wg.Add(len(checks))
+		for _, check := range checks {
 			// Run all checks in parallel in goroutines
 			resultChan := make(chan checkResult, 1)
 
