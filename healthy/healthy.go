@@ -173,12 +173,15 @@ func (m *Monitor) Run(looper director.Looper) {
 		for _, check := range m.Checks {
 			// Run all checks in parallel in goroutines
 			resultChan := make(chan checkResult, 1)
-			go func(check *Check) {
+
+			go func(check *Check, resultChan chan checkResult) {
 				result, err := check.Command.Run(check.Args)
 				resultChan <- checkResult{result, err}
-			}(check) // copy check pointer for the goroutine
+			}(check, resultChan) // copy check pointer for the goroutine
 
-			go func(check *Check) {
+			go func(check *Check, resultChan chan checkResult) {
+				defer wg.Done()
+
 				// We make the call but we time out if it gets too close to the
 				// m.CheckInterval.
 				select {
@@ -188,8 +191,7 @@ func (m *Monitor) Run(looper director.Looper) {
 					log.Errorf("Error, check %s timed out! (%v)", check.ID, check.Args)
 					check.UpdateStatus(UNKNOWN, errors.New("Timed out!"))
 				}
-				wg.Done()
-			}(check) // copy check pointer for the goroutine
+			}(check, resultChan) // copy check pointer for the goroutine
 		}
 
 		// Let's make sure we don't continue to spool up
