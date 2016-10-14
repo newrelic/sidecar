@@ -169,8 +169,12 @@ func (m *Monitor) Run(looper director.Looper) {
 
 		var wg sync.WaitGroup
 
+		// Make immutable copy of m.Checks (checks are still mutable)
 		m.RLock()
-		checks := m.Checks
+		checks := make(map[string]*Check, len(m.Checks))
+		for k, v := range m.Checks {
+			checks[k] = v
+		}
 		m.RUnlock()
 
 		wg.Add(len(checks))
