@@ -150,12 +150,17 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 
 .filter('timeAgo', function() {
 	return function(textDate) {
-		if (textDate == null || textDate == "" || textDate == "1970-01-01T01:00:00+01:00") {
+		if (textDate == null || textDate == "") {
 			return "never";
 		}
 
 		var date = Date.parse(textDate)
 	    var seconds = Math.floor((new Date() - date) / 1000);
+
+		// Filter things which aren't quite Unix epoch zero but are still bogus
+		if (seconds > 630720000) { // More than 20 years ago
+			return "never";
+		}
 	
 	    var interval = Math.floor(seconds / 31536000);
 	
