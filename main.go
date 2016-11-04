@@ -319,11 +319,11 @@ func main() {
 	go monitor.Watch(disco, healthWatchLooper)
 	go monitor.Run(healthLooper)
 
+	go serveHttp(list, state)
+
 	if !*opts.HAproxyDisable && !config.HAproxy.Disable {
 		proxy.WriteAndReload(state)
 	}
-
-	serveHttp(list, state)
 
 	select {}
 }
