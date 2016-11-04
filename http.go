@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	_ "net/http/pprof"
 	"sort"
 	"strings"
 	"time"
