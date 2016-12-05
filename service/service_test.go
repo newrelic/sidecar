@@ -116,7 +116,7 @@ func Test_ToService(t *testing.T) {
 
 	Convey("ToService()", t, func() {
 
-		Convey("Decodes Profile correctly", func() {
+		Convey("Decodes everything correctly", func() {
 			service := ToService(sampleAPIContainer)
 			So(service.ID, ShouldEqual, sampleAPIContainer.ID[:12])
 			So(service.Image, ShouldEqual, sampleAPIContainer.Image)
@@ -127,6 +127,13 @@ func Test_ToService(t *testing.T) {
 			So(service.Updated, ShouldNotBeNil)
 			So(service.Profile, ShouldEqual, "special")
 			So(service.Status, ShouldEqual, 0)
+		})
+
+		Convey("Sets default Profile properly", func() {
+			delete(sampleAPIContainer.Labels, "ServiceProfile")
+
+			service := ToService(sampleAPIContainer)
+			So(service.Profile, ShouldEqual, "default")
 		})
 	})
 }

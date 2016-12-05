@@ -127,7 +127,6 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	state.RLock()
 	services := servicesWithPorts(state)
 	ports := h.makePortmap(services)
-	modes := getModes(state)
 	state.RUnlock()
 
 	data := struct {
@@ -140,14 +139,17 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 		Group:    h.Group,
 	}
 
+	var t *template.Template
+
 	funcMap := template.FuncMap{
-		"bindIP": func() string { return h.BindIP },
-		"dict":   dict,
-		"getMode": func(k string) string {
-			return modes[k]
-		},
-		"getPorts": func(k string) map[string]string {
-			return ports[k]
+		"bindIP":   func() string { return h.BindIP },
+		"dict":     dict,
+		"getPorts": func(k string) map[string]string { return ports[k] },
+		"render": func(svcs []*service.Service, partial string, dict map[string]interface{}) string {
+			if len(svcs) < 1 {
+				return ""
+			}
+			return render(svcs[0], partial, dict, t)
 		},
 		"now":          time.Now().UTC,
 		"portFor":      findPortForService,
@@ -159,7 +161,7 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 		return fmt.Errorf("Error reading template dir '%s': '%s'", h.TemplateDir, err.Error())
 	}
 
-	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles(templates...)
+	t, err = template.New("haproxy").Funcs(funcMap).ParseFiles(templates...)
 	if err != nil {
 		return fmt.Errorf("Error Parsing templates from '%s': %s", h.TemplateDir, err.Error())
 	}
@@ -256,16 +258,6 @@ func (h *HAproxy) Chan() chan catalog.ChangeEvent {
 	return h.eventChannel
 }
 
-func getModes(state *catalog.ServicesState) map[string]string {
-	modeMap := make(map[string]string)
-	state.EachServiceSorted(
-		func(hostname *string, serviceId *string, svc *service.Service) {
-			modeMap[svc.Name] = svc.ProxyMode
-		},
-	)
-	return modeMap
-}
-
 // Like state.ByService() but only stores information for services which
 // actually have public ports. Only matches services that have the same name
 // and the same ports. Otherwise log an error.
@@ -319,6 +311,19 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 	)
 
 	return serviceMap
+}
+
+// Return the template for a service and partial (section)
+func render(svc *service.Service, partial string, dict map[string]interface{}, t *template.Template) string {
+	profile := svc.Profile
+	buf := bytes.NewBuffer(make([]byte, 16384))
+	err := t.ExecuteTemplate(buf, profile+"-"+partial+".cfg", dict)
+	if err != nil {
+		log.Errorf("Error rendering partial %s for service %s: %s", partial, svc.Name, err.Error())
+		return ""
+	}
+
+	return string(buf.Bytes())
 }
 
 func getSortedServicePorts(svc *service.Service) []string {

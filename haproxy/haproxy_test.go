@@ -34,39 +34,39 @@ func Test_HAproxy(t *testing.T) {
 
 		services := []service.Service{
 			service.Service{
-				ID:        svcId1,
-				Name:      "awesome-svc",
-				Image:     "awesome-svc",
-				Hostname:  hostname1,
-				Updated:   baseTime.Add(5 * time.Second),
-				ProxyMode: "http",
-				Ports:     ports1,
+				ID:       svcId1,
+				Name:     "awesome-svc",
+				Image:    "awesome-svc",
+				Hostname: hostname1,
+				Updated:  baseTime.Add(5 * time.Second),
+				Profile:  "default",
+				Ports:    ports1,
 			},
 			service.Service{
-				ID:        svcId2,
-				Name:      "awesome-svc",
-				Image:     "awesome-svc",
-				Hostname:  hostname2,
-				Updated:   baseTime.Add(5 * time.Second),
-				ProxyMode: "http",
-				Ports:     ports3,
+				ID:       svcId2,
+				Name:     "awesome-svc",
+				Image:    "awesome-svc",
+				Hostname: hostname2,
+				Updated:  baseTime.Add(5 * time.Second),
+				Profile:  "default",
+				Ports:    ports3,
 			},
 			service.Service{
-				ID:        svcId3,
-				Name:      "some-svc",
-				Image:     "some-svc",
-				Hostname:  hostname2,
-				Updated:   baseTime.Add(5 * time.Second),
-				ProxyMode: "tcp",
-				Ports:     ports2,
+				ID:       svcId3,
+				Name:     "some-svc",
+				Image:    "some-svc",
+				Hostname: hostname2,
+				Updated:  baseTime.Add(5 * time.Second),
+				Profile:  "default",
+				Ports:    ports2,
 			},
 			service.Service{
-				ID:        svcId4,
-				Name:      "some-svc",
-				Image:     "some-svc",
-				Hostname:  hostname2,
-				Updated:   baseTime.Add(5 * time.Second),
-				ProxyMode: "tcp",
+				ID:       svcId4,
+				Name:     "some-svc",
+				Image:    "some-svc",
+				Hostname: hostname2,
+				Updated:  baseTime.Add(5 * time.Second),
+				Profile:  "default",
 				// No ports!
 			},
 		}
@@ -94,15 +94,6 @@ func Test_HAproxy(t *testing.T) {
 			So(len(result[services[2].Image]), ShouldEqual, 1)
 		})
 
-		Convey("getModes() generates a correct mode map", func() {
-			result := getModes(state)
-			fmt.Println(result)
-
-			So(len(result), ShouldEqual, 2)
-			So(result["awesome-svc"], ShouldEqual, "http")
-			So(result["some-svc"], ShouldEqual, "tcp")
-		})
-
 		Convey("servicesWithPorts() groups services by name and port", func() {
 			badSvc := service.Service{
 				ID:       "0000bad00000",
@@ -124,76 +115,102 @@ func Test_HAproxy(t *testing.T) {
 			So(len(svcList[badSvc.Name]), ShouldEqual, 1)
 		})
 
-		Convey("WriteConfig() writes a template from a file", func() {
-			buf := bytes.NewBuffer(make([]byte, 0, 2048))
-			err := proxy.WriteConfig(state, buf)
+		Convey("WriteConfig()", func() {
 
-			output := buf.Bytes()
-			// Look at a bunch of things we should see
-			So(err, ShouldBeNil)
-			So(output, ShouldMatch, "frontend awesome-svc-8080")
-			So(output, ShouldMatch, "backend awesome-svc-8080")
-			So(output, ShouldMatch, "server.*indefatigable:10020")
-			So(output, ShouldMatch, "server.*indefatigable:32763")
-			So(output, ShouldMatch, "bind 192.168.168.168:9000")
-			So(output, ShouldMatch, "frontend some-svc-8090")
-			So(output, ShouldMatch, "backend some-svc-8090")
-			So(output, ShouldMatch, "server indefatigable-deadbeef105 indefatigable:9999 cookie indefatigable-9999")
+			Convey("writes a template from a file", func() {
+				buf := bytes.NewBuffer(make([]byte, 0, 2048))
+				err := proxy.WriteConfig(state, buf)
+
+				output := buf.Bytes()
+				// Look at a bunch of things we should see
+				So(err, ShouldBeNil)
+				So(output, ShouldMatch, "frontend awesome-svc-8080")
+				So(output, ShouldMatch, "backend awesome-svc-8080")
+				So(output, ShouldMatch, "server.*indefatigable:10020")
+				So(output, ShouldMatch, "server.*indefatigable:32763")
+				So(output, ShouldMatch, "bind 192.168.168.168:9000")
+				So(output, ShouldMatch, "frontend some-svc-8090")
+				So(output, ShouldMatch, "backend some-svc-8090")
+				So(output, ShouldMatch, "server indefatigable-deadbeef105 indefatigable:9999 cookie indefatigable-9999")
+			})
+
+			Convey("bubbles up templater errors", func() {
+				proxy.TemplateDir = "/somewhere-that-doesnt-exist-at-all"
+				buf := bytes.NewBuffer(make([]byte, 0, 2048))
+				err := proxy.WriteConfig(state, buf)
+
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("only writes out healthy services", func() {
+				badSvc := service.Service{
+					ID:       "0000bad00000",
+					Name:     "some-svc-0155555789a",
+					Image:    "some-svc",
+					Hostname: "titanic",
+					Status:   service.UNHEALTHY,
+					Updated:  baseTime.Add(5 * time.Second),
+					Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
+				}
+				badSvc2 := service.Service{
+					ID:       "0000bad00001",
+					Name:     "some-svc-0155555789a",
+					Image:    "some-svc",
+					Hostname: "titanic",
+					Status:   service.UNKNOWN,
+					Updated:  baseTime.Add(5 * time.Second),
+					Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
+				}
+				state.AddServiceEntry(badSvc)
+				state.AddServiceEntry(badSvc2)
+
+				buf := bytes.NewBuffer(make([]byte, 0, 2048))
+				proxy.WriteConfig(state, buf)
+
+				output := buf.Bytes()
+				// Look for a few things we should NOT see
+				So(output, ShouldNotMatch, "0000bad00000")
+				So(output, ShouldNotMatch, "0000bad00001")
+			})
+
+			Convey("renders the correct partials", func() {
+				svc := service.Service{
+					ID:       "000deadbeef000",
+					Name:     "some-svc-123123333",
+					Image:    "some-svc",
+					Hostname: "titanic",
+					Status:   service.ALIVE,
+					Profile:  "longtimeout",
+					Updated:  baseTime.Add(5 * time.Second),
+					Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
+				}
+				state.AddServiceEntry(svc)
+
+				buf := bytes.NewBuffer(make([]byte, 0, 2048))
+				proxy.WriteConfig(state, buf)
+
+				output := buf.Bytes()
+				So(output, ShouldMatch, "timeout server 605s")
+				So(output, ShouldMatch, "timeout client 605s")
+			})
 		})
 
-		Convey("WriteConfig() bubbles up templater errors", func() {
-			proxy.TemplateDir = "/somewhere-that-doesnt-exist-at-all"
-			buf := bytes.NewBuffer(make([]byte, 0, 2048))
-			err := proxy.WriteConfig(state, buf)
+		Convey("Reload()", func() {
+			Convey("doesn't return an error when it works", func() {
+				proxy.ReloadCmd = "/usr/bin/true"
+				err := proxy.Reload()
+				So(err, ShouldBeNil)
+			})
 
-			So(err, ShouldNotBeNil)
-		})
+			Convey("returns an error when it fails", func() {
+				proxy.ReloadCmd = "/usr/bin/false"
+				err := proxy.Reload()
+				So(err.Error(), ShouldEqual, "exit status 1")
 
-		Convey("WriteConfig() only writes out healthy services", func() {
-			badSvc := service.Service{
-				ID:       "0000bad00000",
-				Name:     "some-svc-0155555789a",
-				Image:    "some-svc",
-				Hostname: "titanic",
-				Status:   service.UNHEALTHY,
-				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
-			}
-			badSvc2 := service.Service{
-				ID:       "0000bad00001",
-				Name:     "some-svc-0155555789a",
-				Image:    "some-svc",
-				Hostname: "titanic",
-				Status:   service.UNKNOWN,
-				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{service.Port{"tcp", 666, 6666}},
-			}
-			state.AddServiceEntry(badSvc)
-			state.AddServiceEntry(badSvc2)
-
-			buf := bytes.NewBuffer(make([]byte, 0, 2048))
-			proxy.WriteConfig(state, buf)
-
-			output := buf.Bytes()
-			// Look for a few things we should NOT see
-			So(output, ShouldNotMatch, "0000bad00000")
-			So(output, ShouldNotMatch, "0000bad00001")
-		})
-
-		Convey("Reload() doesn't return an error when it works", func() {
-			proxy.ReloadCmd = "/usr/bin/true"
-			err := proxy.Reload()
-			So(err, ShouldBeNil)
-		})
-
-		Convey("Reload() returns an error when it fails", func() {
-			proxy.ReloadCmd = "/usr/bin/false"
-			err := proxy.Reload()
-			So(err.Error(), ShouldEqual, "exit status 1")
-
-			proxy.ReloadCmd = "yomomma"
-			err = proxy.Reload()
-			So(err.Error(), ShouldEqual, "exit status 127")
+				proxy.ReloadCmd = "yomomma"
+				err = proxy.Reload()
+				So(err.Error(), ShouldEqual, "exit status 127")
+			})
 		})
 
 		Convey("WriteAndReload() bubbles up errors on failure", func() {
@@ -227,6 +244,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:    "some-svc",
 				Hostname: hostname2,
 				Updated:  newTime,
+				Profile:  "default",
 				Ports:    []service.Port{service.Port{"tcp", 1337, 8090}},
 			}
 			time.Sleep(5 * time.Millisecond)

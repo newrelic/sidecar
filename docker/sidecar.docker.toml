@@ -17,7 +17,7 @@ name_label = "ServiceName"
 
 [haproxy]
 bind_ip       = "192.168.168.168"
-template_file = "views/haproxy.cfg"
+template_dir  = "views/haproxy"
 config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"
 user          = "haproxy"
