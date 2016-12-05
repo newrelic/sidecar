@@ -77,13 +77,13 @@ func Test_HAproxy(t *testing.T) {
 
 		proxy := New("tmpConfig", "tmpPid")
 		proxy.BindIP = "192.168.168.168"
-		proxy.Template = "../views/haproxy.cfg"
+		proxy.TemplateDir = "../views/haproxy"
 
 		Convey("New() returns a properly configured struct", func() {
 			p := New("tmpConfig", "tmpPid")
 			So([]byte(p.ReloadCmd), ShouldMatch, "^haproxy .*")
 			So([]byte(p.VerifyCmd), ShouldMatch, "^haproxy .*")
-			So([]byte(p.Template), ShouldMatch, "views/haproxy.cfg")
+			So([]byte(p.TemplateDir), ShouldMatch, "views/haproxy")
 		})
 
 		Convey("makePortmap() generates a properly formatted list", func() {
@@ -142,7 +142,7 @@ func Test_HAproxy(t *testing.T) {
 		})
 
 		Convey("WriteConfig() bubbles up templater errors", func() {
-			proxy.Template = "/"
+			proxy.TemplateDir = "/somewhere-that-doesnt-exist-at-all"
 			buf := bytes.NewBuffer(make([]byte, 0, 2048))
 			err := proxy.WriteConfig(state, buf)
 
