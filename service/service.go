@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
+	"github.com/kennygrant/sanitize"
 	"github.com/newrelic/sidecar/output"
 )
 
@@ -114,7 +115,8 @@ func ToService(container *docker.APIContainers) Service {
 	svc.Status = ALIVE
 
 	if _, ok := container.Labels["ServiceProfile"]; ok {
-		svc.Profile = container.Labels["ServiceProfile"]
+		svc.Profile = sanitize.Path(container.Labels["ServiceProfile"])
+		svc.Profile = strings.Replace(svc.Profile, "/", "", -1)
 	} else {
 		svc.Profile = "default"
 	}
