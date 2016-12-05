@@ -98,7 +98,7 @@ func Test_ToService(t *testing.T) {
 		Names:      []string{"/sample-app-go-worker-eebb5aad1a17ee"},
 		Labels: map[string]string{
 			"ServicePort_8080": "17010",
-			"ProxyMode":      "tcp",
+			"ServiceProfile":   "special",
 			"HealthCheck":      "HttpGet",
 			"HealthCheckArgs":  "http://127.0.0.1:39519/status/check",
 		},
@@ -116,7 +116,7 @@ func Test_ToService(t *testing.T) {
 
 	Convey("ToService()", t, func() {
 
-		Convey("Decodes HAProxy mode correctly", func() {
+		Convey("Decodes Profile correctly", func() {
 			service := ToService(sampleAPIContainer)
 			So(service.ID, ShouldEqual, sampleAPIContainer.ID[:12])
 			So(service.Image, ShouldEqual, sampleAPIContainer.Image)
@@ -125,7 +125,7 @@ func Test_ToService(t *testing.T) {
 			So(service.Hostname, ShouldEqual, sampleHostname)
 			So(reflect.DeepEqual(samplePorts, service.Ports), ShouldBeTrue)
 			So(service.Updated, ShouldNotBeNil)
-			So(service.ProxyMode, ShouldEqual, "tcp")
+			So(service.Profile, ShouldEqual, "special")
 			So(service.Status, ShouldEqual, 0)
 		})
 	})

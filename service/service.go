@@ -27,15 +27,15 @@ type Port struct {
 }
 
 type Service struct {
-	ID        string
-	Name      string
-	Image     string
-	Created   time.Time
-	Hostname  string
-	Ports     []Port
-	Updated   time.Time
-	ProxyMode string
-	Status    int
+	ID       string
+	Name     string
+	Image    string
+	Created  time.Time
+	Hostname string
+	Ports    []Port
+	Updated  time.Time
+	Profile  string
+	Status   int
 }
 
 func (svc Service) Encode() ([]byte, error) {
@@ -113,10 +113,10 @@ func ToService(container *docker.APIContainers) Service {
 	svc.Hostname = hostname
 	svc.Status = ALIVE
 
-	if _, ok := container.Labels["ProxyMode"]; ok {
-		svc.ProxyMode = container.Labels["ProxyMode"]
+	if _, ok := container.Labels["ServiceProfile"]; ok {
+		svc.Profile = container.Labels["ServiceProfile"]
 	} else {
-		svc.ProxyMode = "http"
+		svc.Profile = "default"
 	}
 
 	svc.Ports = make([]Port, 0)
