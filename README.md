@@ -183,17 +183,11 @@ container itself. This is accomplished with another Docker label like so:
 	SidecarDiscover=false
 ```
 
-By default, HAProxy will run in HTTP mode. The mode can be changed to TCP by setting the following Docker label:
-
-```
-ProxyMode=tcp
-```
-
-Finally, you sometimes need to pass information in the Docker labels which
-is not available to you at the time of container creation. One example of this
-is the need to identify the actual Docker-bound port when running the health
-check. For this reason, Sidecar allows simple templating in the labels. Here's
-an example.
+You sometimes need to pass information in the Docker labels which is not
+available to you at the time of container creation. One example of this is the
+need to identify the actual Docker-bound port when running the health check.
+For this reason, Sidecar allows simple templating in the labels. Here's an
+example.
 
 If you have a service that is exposing port 8080 and Docker dynamically assigns
 it the port 31445 at runtime, your health check for that port will be impossible
@@ -209,6 +203,32 @@ example.
 **Note** that the `tcp` and `udp` method calls in the templates refer only
 to ports mapped with `ServicePort` labels. You will need to use the port
 number that you expect HAproxy to use.
+
+#### HAproxy configuration
+
+You can control the HAproxy configuration used for each service by specifying a
+set of templates to use when adding the service to the configuration. This is
+called the service "Profile" and will be used to identify the set of templates
+to use. If you don't specify a profile, "default" will be used. You change
+this setting with a Docker label like:
+
+```
+	ServiceProfile=limited-connections
+```
+
+This will then look for templates in the path where you've configured your
+HAproxy templates to live (normally `views/haproxy`) called
+`limited-connections-frontend.cfg` and `limited-connections-backend.cfg` when
+templating this service into the config. **Note** there can be some ambiguity
+around how this is handled if you have different hosts running this service
+and reporting different `ServiceProfile` tags. Sidecar will used the **first**
+service it finds in the list as the source of this configuration. You should
+make sure you run consistent tags across all of your services.
+
+Two examples are provided `default` and `longtimeout`. An example of where this
+might be useful is if you have services that need to always contain a
+particular backend, or you need to proxy with TCP rather than HTTP as the proxy
+protocol.
 
 ####Configuring Static Discovery
 
@@ -235,7 +255,7 @@ That in turn points to a static discovery file that looks like this:
 					"ServicePort": 9999
                 }
             ],
-			"ProxyMode": "http",
+			"Profile": "longtimeout",
         },
         "Check": {
             "Type": "HttpGet",
