@@ -21,6 +21,6 @@ name_label = "ServiceName"
 # bind_ip is optional. Default is the frst interface with
 # a private IP address.
 bind_ip       = "192.168.168.168"
-template_file = "views/haproxy.cfg"
+template_dir  = "views/haproxy"
 config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"

@@ -14,7 +14,7 @@ type HAproxyConfig struct {
 	ReloadCmd    string `toml:"reload_command"`
 	VerifyCmd    string `toml:"verify_command"`
 	BindIP       string `toml:"bind_ip"`
-	TemplateFile string `toml:"template_file"`
+	TemplateDir  string `toml:"template_dir"`
 	ConfigFile   string `toml:"config_file"`
 	PidFile      string `toml:"pid_file"`
 	Disable      bool   `toml:"disable"`

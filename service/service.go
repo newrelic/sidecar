@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
+	"github.com/kennygrant/sanitize"
 	"github.com/newrelic/sidecar/output"
 )
 
@@ -27,15 +28,15 @@ type Port struct {
 }
 
 type Service struct {
-	ID        string
-	Name      string
-	Image     string
-	Created   time.Time
-	Hostname  string
-	Ports     []Port
-	Updated   time.Time
-	ProxyMode string
-	Status    int
+	ID       string
+	Name     string
+	Image    string
+	Created  time.Time
+	Hostname string
+	Ports    []Port
+	Updated  time.Time
+	Profile  string
+	Status   int
 }
 
 func (svc Service) Encode() ([]byte, error) {
@@ -113,10 +114,11 @@ func ToService(container *docker.APIContainers) Service {
 	svc.Hostname = hostname
 	svc.Status = ALIVE
 
-	if _, ok := container.Labels["ProxyMode"]; ok {
-		svc.ProxyMode = container.Labels["ProxyMode"]
+	if _, ok := container.Labels["ServiceProfile"]; ok {
+		svc.Profile = sanitize.Path(container.Labels["ServiceProfile"])
+		svc.Profile = strings.Replace(svc.Profile, "/", "", -1)
 	} else {
-		svc.ProxyMode = "http"
+		svc.Profile = "default"
 	}
 
 	svc.Ports = make([]Port, 0)

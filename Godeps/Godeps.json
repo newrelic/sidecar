@@ -122,6 +122,11 @@
 			"Rev": "9a4a02dbe491bef4bab3c24fd9f3087d6c4c6690"
 		},
 		{
+			"ImportPath": "github.com/kennygrant/sanitize",
+			"Comment": "v1.1",
+			"Rev": "7fdd72ab580907c39c5f0b8b98b8d89e5476f424"
+		},
+		{
 			"ImportPath": "github.com/miekg/dns",
 			"Rev": "5d001d020961ae1c184f9f8152fdc73810481677"
 		},
@@ -165,6 +170,14 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
+			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html",
+			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html/atom",
 			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
 		},
 		{

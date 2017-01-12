@@ -11,7 +11,7 @@
                     "ServicePort": 9999
                 }
             ],
-            "ProxyMode": "http"
+            "Profile": "default"
         },
         "Check": {
             "Type": "HttpGet",

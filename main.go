@@ -53,8 +53,8 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 		proxy.VerifyCmd = config.HAproxy.VerifyCmd
 	}
 
-	if len(config.HAproxy.TemplateFile) > 0 {
-		proxy.Template = config.HAproxy.TemplateFile
+	if len(config.HAproxy.TemplateDir) > 0 {
+		proxy.TemplateDir = config.HAproxy.TemplateDir
 	}
 
 	if len(config.HAproxy.User) > 0 {

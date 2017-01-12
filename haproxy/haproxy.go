@@ -2,11 +2,13 @@ package haproxy
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -26,7 +28,7 @@ type HAproxy struct {
 	ReloadCmd    string `toml:"reload_cmd"`
 	VerifyCmd    string `toml:"verify_cmd"`
 	BindIP       string `toml:"bind_ip"`
-	Template     string `toml:"template"`
+	TemplateDir  string `toml:"template_dir"`
 	ConfigFile   string `toml:"config_file"`
 	PidFile      string `toml:"pid_file"`
 	User         string `toml:"user"`
@@ -40,11 +42,11 @@ func New(configFile string, pidFile string) *HAproxy {
 	verifyCmd := "haproxy -c -f " + configFile
 
 	proxy := HAproxy{
-		ReloadCmd:  reloadCmd,
-		VerifyCmd:  verifyCmd,
-		Template:   "views/haproxy.cfg",
-		ConfigFile: configFile,
-		PidFile:    pidFile,
+		ReloadCmd:   reloadCmd,
+		VerifyCmd:   verifyCmd,
+		TemplateDir: "views/haproxy",
+		ConfigFile:  configFile,
+		PidFile:     pidFile,
 	}
 
 	return &proxy
@@ -99,6 +101,23 @@ func findPortForService(svcPort string, svc *service.Service) string {
 	return "-1"
 }
 
+// Templating function used to pass more than one var to a sub-template
+func dict(values ...interface{}) (map[string]interface{}, error) {
+	if len(values)%2 != 0 {
+		return nil, errors.New("invalid dict call")
+	}
+
+	dict := make(map[string]interface{}, len(values)/2)
+	for i := 0; i < len(values); i += 2 {
+		key, ok := values[i].(string)
+		if !ok {
+			return nil, errors.New("dict keys must be strings")
+		}
+		dict[key] = values[i+1]
+	}
+	return dict, nil
+}
+
 // Create an HAproxy config from the supplied ServicesState. Write it out to the
 // supplied io.Writer interface. This gets a list from servicesWithPorts() and
 // builds a list of unique ports for all services, then passes these to the
@@ -108,7 +127,6 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	state.RLock()
 	services := servicesWithPorts(state)
 	ports := h.makePortmap(services)
-	modes := getModes(state)
 	state.RUnlock()
 
 	data := struct {
@@ -121,31 +139,40 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 		Group:    h.Group,
 	}
 
+	var t *template.Template
+
 	funcMap := template.FuncMap{
-		"now": time.Now().UTC,
-		"getMode": func(k string) string {
-			return modes[k]
+		"bindIP":   func() string { return h.BindIP },
+		"dict":     dict,
+		"getPorts": func(k string) map[string]string { return ports[k] },
+		"render": func(svcs []*service.Service, partial string, dict map[string]interface{}) string {
+			if len(svcs) < 1 {
+				return ""
+			}
+			return render(svcs[0], partial, dict, t)
 		},
-		"getPorts": func(k string) map[string]string {
-			return ports[k]
-		},
+		"now":          time.Now().UTC,
 		"portFor":      findPortForService,
-		"bindIP":       func() string { return h.BindIP },
 		"sanitizeName": sanitizeName,
 	}
 
-	t, err := template.New("haproxy").Funcs(funcMap).ParseFiles(h.Template)
+	templates, err := filepath.Glob(path.Join(h.TemplateDir, "*.cfg"))
 	if err != nil {
-		return fmt.Errorf("Error Parsing template '%s': %s", h.Template, err.Error())
+		return fmt.Errorf("Error reading template dir '%s': '%s'", h.TemplateDir, err.Error())
+	}
+
+	t, err = template.New("haproxy").Funcs(funcMap).ParseFiles(templates...)
+	if err != nil {
+		return fmt.Errorf("Error Parsing templates from '%s': %s", h.TemplateDir, err.Error())
 	}
 
 	// We write into a buffer so disk IO doesn't hold up the whole state lock
-	buf := bytes.NewBuffer(make([]byte, 32768))
+	buf := bytes.NewBuffer(make([]byte, 65536))
 	state.RLock()
-	err = t.ExecuteTemplate(buf, path.Base(h.Template), data)
+	err = t.ExecuteTemplate(buf, path.Base("haproxy.cfg"), data)
 	state.RUnlock()
 	if err != nil {
-		return fmt.Errorf("Error executing template '%s': %s", h.Template, err.Error())
+		return fmt.Errorf("Error executing templates from '%s': %s", h.TemplateDir, err.Error())
 	}
 
 	// This is the potentially slowest bit, do it outside the critical section
@@ -231,16 +258,6 @@ func (h *HAproxy) Chan() chan catalog.ChangeEvent {
 	return h.eventChannel
 }
 
-func getModes(state *catalog.ServicesState) map[string]string {
-	modeMap := make(map[string]string)
-	state.EachServiceSorted(
-		func(hostname *string, serviceId *string, svc *service.Service) {
-			modeMap[svc.Name] = svc.ProxyMode
-		},
-	)
-	return modeMap
-}
-
 // Like state.ByService() but only stores information for services which
 // actually have public ports. Only matches services that have the same name
 // and the same ports. Otherwise log an error.
@@ -294,6 +311,19 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 	)
 
 	return serviceMap
+}
+
+// Return the template for a service and partial (section)
+func render(svc *service.Service, partial string, dict map[string]interface{}, t *template.Template) string {
+	profile := svc.Profile
+	buf := bytes.NewBuffer(make([]byte, 16384))
+	err := t.ExecuteTemplate(buf, profile+"-"+partial+".cfg", dict)
+	if err != nil {
+		log.Errorf("Error rendering partial %s for service %s: %s", partial, svc.Name, err.Error())
+		return ""
+	}
+
+	return string(buf.Bytes())
 }
 
 func getSortedServicePorts(svc *service.Service) []string {
