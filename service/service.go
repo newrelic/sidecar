@@ -10,7 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
-	"github.com/newrelic/sidecar/output"
+	"github.com/Nitro/sidecar/output"
 )
 
 const (

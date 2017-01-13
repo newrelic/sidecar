@@ -3,7 +3,7 @@ package catalog
 import (
 	"sort"
 
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/service"
 )
 
 // These are functions useful in viewing the contents of the state

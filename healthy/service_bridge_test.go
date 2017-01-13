@@ -6,7 +6,7 @@ import (
 
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/service"
 )
 
 var hostname string = "indefatigable"

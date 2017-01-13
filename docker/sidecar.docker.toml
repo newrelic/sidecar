@@ -2,17 +2,15 @@
 exclude_ips = [ "192.168.168.168" ]
 discovery = [ "docker" ]
 push_pull_interval = "20s"
+default_check_endpoint = "/version"
 logging_level = "info"
+gossip_messages = 15
 
 [docker_discovery]
 docker_url = "unix:///var/run/docker.sock"
 
 [services]
 namer = "docker_label"
-# Centurion format, looks like: service-name-deadbeef12312
-# returns first match: "service-name" . This is used only
-# when namer = "regex"
-name_match = "^/(.+)(-[0-9a-z]{7,14})$"
 name_label = "ServiceName"
 
 [haproxy]
@@ -22,4 +20,6 @@ config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"
 user          = "haproxy"
 group         = "haproxy"
-# disable     = true
+
+[listeners]
+urls = [ "http://192.168.168.168:7778/update" ]

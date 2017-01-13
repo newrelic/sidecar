@@ -11,7 +11,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 )
 

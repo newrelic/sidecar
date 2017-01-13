@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/newrelic/sidecar/mockhttp"
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/mockhttp"
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 )

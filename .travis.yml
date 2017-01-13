@@ -1,0 +1,36 @@
+
+language: go
+
+go:
+  - 1.7.x
+  - master
+
+sudo: required
+
+services:
+  - docker
+
+before_install:
+  - sudo apt-get install -y nodejs npm
+
+script:
+  - go test -v ./... && (CGO_ENABLED=0 GOOS=linux go build -ldflags '-d')
+  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ]; then
+      echo "Building container gonitro/sidecar:${TRAVIS_COMMIT::7}" &&
+      cd ui && npm install && cd .. &&
+      cp docker/sidecar.docker.toml docker/sidecar.toml &&
+      docker build -f docker/Dockerfile -t sidecar .  &&
+      docker tag sidecar gonitro/sidecar:${TRAVIS_COMMIT::7} &&
+      docker tag sidecar gonitro/sidecar:latest;
+    fi
+
+after_success:
+  - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+  - echo "Building on Go version ${TRAVIS_GO_VERSION} for branch ${TRAVIS_BRANCH}"
+  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ]; then
+      echo "Pushing container gonitro/sidecar:${TRAVIS_COMMIT::7}" &&
+      docker push gonitro/sidecar:${TRAVIS_COMMIT::7};
+    fi
+  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ] && [ -z "${NO_PUSH_LATEST}" ]; then
+      docker push gonitro/sidecar:latest;
+    fi

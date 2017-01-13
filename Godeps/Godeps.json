@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/newrelic/sidecar",
+	"ImportPath": "github.com/nitro/sidecar",
 	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Deps": [
@@ -7,6 +7,40 @@
 			"ImportPath": "github.com/BurntSushi/toml",
 			"Comment": "v0.1.0-21-g056c9bc",
 			"Rev": "056c9bc7be7190eaa7715723883caffa5f8fa3e4"
+		},
+		{
+			"ImportPath": "github.com/Nitro/memberlist",
+			"Rev": "490eb18c36b5181b667a4cf41d05eabacd855aad"
+		},
+		{
+			"ImportPath": "github.com/Nitro/sidecar/catalog",
+			"Comment": "v1.0.0-20-g0c7e33a",
+			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
+		},
+		{
+			"ImportPath": "github.com/Nitro/sidecar/discovery",
+			"Comment": "v1.0.0-20-g0c7e33a",
+			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
+		},
+		{
+			"ImportPath": "github.com/Nitro/sidecar/haproxy",
+			"Comment": "v1.0.0-20-g0c7e33a",
+			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
+		},
+		{
+			"ImportPath": "github.com/Nitro/sidecar/healthy",
+			"Comment": "v1.0.0-20-g0c7e33a",
+			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
+		},
+		{
+			"ImportPath": "github.com/Nitro/sidecar/output",
+			"Comment": "v1.0.0-20-g0c7e33a",
+			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
+		},
+		{
+			"ImportPath": "github.com/Nitro/sidecar/service",
+			"Comment": "v1.0.0-20-g0c7e33a",
+			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -126,17 +160,13 @@
 			"Rev": "5d001d020961ae1c184f9f8152fdc73810481677"
 		},
 		{
-			"ImportPath": "github.com/nitro/memberlist",
-			"Rev": "490eb18c36b5181b667a4cf41d05eabacd855aad"
-		},
-		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
 			"Comment": "v0.1.1-93-gc6a791b",
 			"Rev": "c6a791bef906b0dfdf81e85b840bec475b8ec75e"
 		},
 		{
 			"ImportPath": "github.com/relistan/go-director",
-			"Rev": "95dd09f61051613106a9b3cd9813bda3f5f5f87d"
+			"Rev": "9273dae8c839a114aa4472165f84e057d5b12e09"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions",
@@ -150,18 +180,18 @@
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey",
-			"Comment": "1.5.0-457-g899ed5a",
-			"Rev": "899ed5a77548ac0bc086467509ff3dc49c63a814"
+			"Comment": "1.6.2-15-g3c25728",
+			"Rev": "3c2572876754c4669ae7417b219f0b30a29b32c7"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey/gotest",
-			"Comment": "1.5.0-457-g899ed5a",
-			"Rev": "899ed5a77548ac0bc086467509ff3dc49c63a814"
+			"Comment": "1.6.2-15-g3c25728",
+			"Rev": "3c2572876754c4669ae7417b219f0b30a29b32c7"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey/reporting",
-			"Comment": "1.5.0-457-g899ed5a",
-			"Rev": "899ed5a77548ac0bc086467509ff3dc49c63a814"
+			"Comment": "1.6.2-15-g3c25728",
+			"Rev": "3c2572876754c4669ae7417b219f0b30a29b32c7"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
@@ -169,7 +199,7 @@
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "833a04a10549a95dc34458c195cbad61bbb6cb4d"
+			"Rev": "002cbb5f952456d0c50e0d2aff17ea5eca716979"
 		},
 		{
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",

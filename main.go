@@ -1,4 +1,4 @@
-package main // import "github.com/newrelic/sidecar"
+package main // import "github.com/Nitro/sidecar"
 
 import (
 	"os"
@@ -9,12 +9,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
-	"github.com/newrelic/sidecar/catalog"
-	"github.com/newrelic/sidecar/discovery"
-	"github.com/newrelic/sidecar/haproxy"
-	"github.com/newrelic/sidecar/healthy"
-	"github.com/newrelic/sidecar/service"
-	"github.com/nitro/memberlist"
+	"github.com/Nitro/sidecar/catalog"
+	"github.com/Nitro/sidecar/discovery"
+	"github.com/Nitro/sidecar/haproxy"
+	"github.com/Nitro/sidecar/healthy"
+	"github.com/Nitro/sidecar/service"
+	"github.com/Nitro/memberlist"
 	"github.com/relistan/go-director"
 )
 

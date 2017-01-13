@@ -7,7 +7,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/fsouza/go-dockerclient"
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 )
 

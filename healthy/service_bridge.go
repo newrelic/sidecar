@@ -6,8 +6,8 @@ import (
 	"text/template"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/newrelic/sidecar/discovery"
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/discovery"
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 )
 

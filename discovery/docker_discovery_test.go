@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/service"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

@@ -9,9 +9,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
-	"github.com/newrelic/sidecar/output"
-	"github.com/newrelic/sidecar/service"
-	"github.com/nitro/memberlist"
+	"github.com/Nitro/sidecar/output"
+	"github.com/Nitro/sidecar/service"
+	"github.com/Nitro/memberlist"
 	"github.com/relistan/go-director"
 )
 

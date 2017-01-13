@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic/sidecar/catalog"
-	"github.com/newrelic/sidecar/service"
+	"github.com/Nitro/sidecar/catalog"
+	"github.com/Nitro/sidecar/service"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -181,13 +181,13 @@ func Test_HAproxy(t *testing.T) {
 		})
 
 		Convey("Reload() doesn't return an error when it works", func() {
-			proxy.ReloadCmd = "/usr/bin/true"
+			proxy.ReloadCmd = "sh -c 'exit 0'"
 			err := proxy.Reload()
 			So(err, ShouldBeNil)
 		})
 
 		Convey("Reload() returns an error when it fails", func() {
-			proxy.ReloadCmd = "/usr/bin/false"
+			proxy.ReloadCmd = "sh -c 'exit 1'"
 			err := proxy.Reload()
 			So(err.Error(), ShouldEqual, "exit status 1")
 

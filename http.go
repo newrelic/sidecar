@@ -12,10 +12,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	"github.com/newrelic/sidecar/catalog"
-	"github.com/newrelic/sidecar/output"
-	"github.com/newrelic/sidecar/service"
-	"github.com/nitro/memberlist"
+	"github.com/Nitro/sidecar/catalog"
+	"github.com/Nitro/sidecar/output"
+	"github.com/Nitro/sidecar/service"
+	"github.com/Nitro/memberlist"
 )
 
 type ApiServer struct {
