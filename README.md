@@ -1,6 +1,8 @@
 Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
+![travis](https://travis-ci.org/Nitro/sidecar.svg?branch=master)
+
 Sidecar is a dynamic service discovery platform requiring no external
 coordination service. It's a peer-to-peer system that uses a gossip protocol
 for all communication between hosts. Sidecar health checks local services
