@@ -3,15 +3,16 @@ package catalog
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/armon/go-metrics"
+	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/output"
 	"github.com/Nitro/sidecar/service"
-	"github.com/Nitro/memberlist"
+	log "github.com/Sirupsen/logrus"
+	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
 )
 
@@ -65,7 +66,7 @@ type ServicesState struct {
 	LastChanged         time.Time
 	ClusterName         string
 	Hostname            string
-	Broadcasts          chan [][]byte         `json:"-"`
+	Broadcasts          chan [][]byte        `json:"-"`
 	ServiceMsgs         chan service.Service `json:"-"`
 	listeners           []Listener
 	tombstoneRetransmit time.Duration
@@ -259,7 +260,7 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 func (state *ServicesState) Merge(otherState *ServicesState) {
 	for _, server := range otherState.Servers {
 		for _, service := range server.Services {
-			state.ServiceMsgs <-*service
+			state.ServiceMsgs <- *service
 		}
 	}
 }
@@ -324,7 +325,7 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
 		for _, container := range fn() {
-			state.ServiceMsgs <-container
+			state.ServiceMsgs <- container
 		}
 		return nil
 	})
@@ -565,6 +566,20 @@ func (state *ServicesState) ByService() map[string][]*service.Service {
 	)
 
 	return serviceMap
+}
+
+func DecodeStream(input io.Reader, callback func(map[string][]*service.Service, error) error) error {
+	dec := json.NewDecoder(input)
+	for dec.More() {
+		var conf map[string][]*service.Service
+		err := dec.Decode(&conf)
+		callback(conf, err)
+		if err != nil {
+			log.Errorf("Error decoding stream (%s)", err.Error())
+			return err
+		}
+	}
+	return nil
 }
 
 func makeServiceMapping(svcList []service.Service) map[string]*service.Service {

@@ -3,21 +3,23 @@ package catalog
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/Nitro/sidecar/service"
+	"github.com/jarcoal/httpmock"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/Nitro/sidecar/service"
 )
 
 var hostname = "shakespeare"
 var anotherHostname = "chaucer"
 
 type mockListener struct {
-	name string
+	name   string
 	events chan ChangeEvent
 }
 
@@ -448,8 +450,8 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 func Test_Listeners(t *testing.T) {
 	Convey("Working with state Listeners", t, func() {
 		state := NewServicesState()
-		listener := &mockListener{ "listener1", make(chan ChangeEvent, 1) }
-		listener2 := &mockListener{ "listener2", make(chan ChangeEvent, 1) }
+		listener := &mockListener{"listener1", make(chan ChangeEvent, 1)}
+		listener2 := &mockListener{"listener2", make(chan ChangeEvent, 1)}
 		svcId1 := "deadbeef123"
 		baseTime := time.Now().UTC().Round(time.Second)
 		svc1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
@@ -524,6 +526,40 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 			So(lastChanged.Before(state.LastChanged), ShouldBeTrue)
 		})
 
+	})
+}
+
+func Test_DecodeStream(t *testing.T) {
+	Convey("When managing cluster members", t, func() {
+		serv := service.Service{ID: "007", Name: "api", Hostname: "some-aws-host", Status: 1}
+		state := NewServicesState()
+		state.AddServiceEntry(serv)
+
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+
+		httpmock.RegisterResponder("GET", "http://sidecar.service/watch",
+			func(req *http.Request) (*http.Response, error) {
+
+				jsonBytes, _ := json.Marshal(state.ByService())
+				resp := httpmock.NewBytesResponse(200, jsonBytes)
+				return resp, nil
+			},
+		)
+
+		client := &http.Client{Timeout: 2}
+		resp, _ := client.Get("http://sidecar.service/watch")
+
+		var compareMap map[string][]*service.Service
+		mockCallback := func(sidecarStates map[string][]*service.Service, err error) error {
+			compareMap = sidecarStates
+			return nil
+		}
+
+		err := DecodeStream(resp.Body, mockCallback)
+		So(err, ShouldBeNil)
+		So(compareMap["api"][0].Hostname, ShouldEqual, "some-aws-host")
+		So(compareMap["api"][0].Status, ShouldEqual, 1)
 	})
 }
 

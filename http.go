@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/gorilla/mux"
+	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/output"
 	"github.com/Nitro/sidecar/service"
-	"github.com/Nitro/memberlist"
+	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/mux"
 )
 
 type ApiServer struct {
@@ -70,12 +70,11 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 			// In order to flush immediately, we have to cast to a Flusher.
 			// The normal HTTP library supports this but not all do, so we
 			// check just in case.
+			response.Write(jsonBytes)
 			if f, ok := response.(http.Flusher); ok {
 				f.Flush()
 			}
-			response.Write(jsonBytes)
 		}
-
 		time.Sleep(250 * time.Millisecond)
 	}
 }
