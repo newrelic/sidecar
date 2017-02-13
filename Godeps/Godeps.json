@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/nitro/sidecar",
+	"ImportPath": "github.com/Nitro/sidecar",
 	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Deps": [
@@ -11,36 +11,6 @@
 		{
 			"ImportPath": "github.com/Nitro/memberlist",
 			"Rev": "490eb18c36b5181b667a4cf41d05eabacd855aad"
-		},
-		{
-			"ImportPath": "github.com/Nitro/sidecar/catalog",
-			"Comment": "v1.0.0-20-g0c7e33a",
-			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
-		},
-		{
-			"ImportPath": "github.com/Nitro/sidecar/discovery",
-			"Comment": "v1.0.0-20-g0c7e33a",
-			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
-		},
-		{
-			"ImportPath": "github.com/Nitro/sidecar/haproxy",
-			"Comment": "v1.0.0-20-g0c7e33a",
-			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
-		},
-		{
-			"ImportPath": "github.com/Nitro/sidecar/healthy",
-			"Comment": "v1.0.0-20-g0c7e33a",
-			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
-		},
-		{
-			"ImportPath": "github.com/Nitro/sidecar/output",
-			"Comment": "v1.0.0-20-g0c7e33a",
-			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
-		},
-		{
-			"ImportPath": "github.com/Nitro/sidecar/service",
-			"Comment": "v1.0.0-20-g0c7e33a",
-			"Rev": "0c7e33aa6e81890af7b003eeea57260703174c75"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
