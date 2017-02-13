@@ -214,6 +214,7 @@ func Test_HAproxy(t *testing.T) {
 		})
 
 		Convey("Watch() writes out a config when the state changes", func() {
+			startTime := time.Now().Truncate(time.Second) // Localized to compare with os.Stat
 			tmpDir, _ := ioutil.TempDir("/tmp", "sidecar-test")
 			config := fmt.Sprintf("%s/haproxy.cfg", tmpDir)
 			proxy.ConfigFile = config
@@ -229,9 +230,21 @@ func Test_HAproxy(t *testing.T) {
 				Updated:  newTime,
 				Ports:    []service.Port{service.Port{"tcp", 1337, 8090}},
 			}
-			time.Sleep(5 * time.Millisecond)
-			state.AddServiceEntry(svc)
-			time.Sleep(5 * time.Millisecond)
+			go state.AddServiceEntry(svc)
+
+			// We have to wait until the file has the right data in it to avoid
+			// race conditions during testing. This is a little tedious and a bit
+			// slow, but without substantially refactoring the HAproxy code, this
+			// is seemingly the best solution.
+			for {
+				stat, _ := os.Stat(config)
+				if stat != nil {
+					if startTime.Before(stat.ModTime()) || startTime.Equal(stat.ModTime()) &&
+						stat.Size() > 10000 {
+						break
+					}
+				}
+			}
 
 			result, _ := ioutil.ReadFile(config)
 			So(result, ShouldMatch, "port 8090")

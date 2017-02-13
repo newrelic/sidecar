@@ -194,7 +194,9 @@ func (state *ServicesState) serverChanged(hostname string, updated time.Time) {
 // set timestamp. See AddListener() for information about how channels
 // must be configured.
 func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus int, changedTime time.Time) {
-	if len(state.listeners) < 1 {
+	listeners := state.listeners
+
+	if len(listeners) < 1 {
 		log.Debugf("Skipping listeners, there are none")
 		return
 	}
@@ -202,7 +204,11 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 	log.Debugf("Notifying listeners of change at %s", changedTime.String())
 
 	event := ChangeEvent{Service: *svc, PreviousStatus: previousStatus, Time: changedTime}
-	for _, listener := range state.listeners {
+	for _, listener := range listeners {
+		if listener == nil {
+			continue
+		}
+
 		select {
 		case listener.Chan() <- event:
 			continue
@@ -216,6 +222,9 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 // major state change events. Channels must be buffered by at least 1
 // or they will block. Channels must be ready to receive input.
 func (state *ServicesState) AddListener(listener Listener) {
+	state.Lock()
+	defer state.Unlock()
+
 	state.listeners = append(state.listeners, listener)
 	log.Debugf("AddListener(): added %s, new count %d", listener.Name(), len(state.listeners))
 }
