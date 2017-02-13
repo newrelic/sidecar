@@ -1,16 +1,15 @@
 package catalog
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"regexp"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Nitro/sidecar/service"
-	"github.com/jarcoal/httpmock"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -530,33 +529,24 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 }
 
 func Test_DecodeStream(t *testing.T) {
-	Convey("When managing cluster members", t, func() {
+	Convey("Test decoding stream", t, func() {
 		serv := service.Service{ID: "007", Name: "api", Hostname: "some-aws-host", Status: 1}
 		state := NewServicesState()
 		state.AddServiceEntry(serv)
 
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-
-		httpmock.RegisterResponder("GET", "http://sidecar.service/watch",
-			func(req *http.Request) (*http.Response, error) {
-
-				jsonBytes, _ := json.Marshal(state.ByService())
-				resp := httpmock.NewBytesResponse(200, jsonBytes)
-				return resp, nil
-			},
-		)
-
-		client := &http.Client{Timeout: 2}
-		resp, _ := client.Get("http://sidecar.service/watch")
+		jsonBytes, err := json.Marshal(state.ByService())
+		if err != nil {
+			panic(err)
+		}
 
 		var compareMap map[string][]*service.Service
-		mockCallback := func(sidecarStates map[string][]*service.Service, err error) error {
+		MockCallback := func(sidecarStates map[string][]*service.Service, err error) error {
 			compareMap = sidecarStates
 			return nil
 		}
 
-		err := DecodeStream(resp.Body, mockCallback)
+		buf := bytes.NewBufferString(string(jsonBytes))
+		err = DecodeStream(buf, MockCallback)
 		So(err, ShouldBeNil)
 		So(compareMap["api"][0].Hostname, ShouldEqual, "some-aws-host")
 		So(compareMap["api"][0].Status, ShouldEqual, 1)
