@@ -540,13 +540,13 @@ func Test_DecodeStream(t *testing.T) {
 		}
 
 		var compareMap map[string][]*service.Service
-		MockCallback := func(sidecarStates map[string][]*service.Service, err error) error {
+		mockCallback := func(sidecarStates map[string][]*service.Service, err error) error {
 			compareMap = sidecarStates
 			return nil
 		}
 
 		buf := bytes.NewBufferString(string(jsonBytes))
-		err = DecodeStream(buf, MockCallback)
+		err = DecodeStream(buf, mockCallback)
 		So(err, ShouldBeNil)
 		So(compareMap["api"][0].Hostname, ShouldEqual, "some-aws-host")
 		So(compareMap["api"][0].Status, ShouldEqual, 1)
