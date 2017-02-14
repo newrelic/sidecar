@@ -76,10 +76,18 @@ alive lifespan may be negatively impacted.
 Running it
 ----------
 
-It's a Go application so just install Godep and build it with:
+You can download the latest release from the [GitHub
+Releases](https://github.com/Nitro/sidecar/releases) page.
+
+If you'd rather build it yourself, you should install the latest version of
+the Go compiler. Sidecar has not been tested with gccgo, only the mainstream
+Go compiler.
+
+It's a Go application and the dependencies are all vendored into the `vendor/`
+directory so you should be able to build it out of the box.
 
 ```bash
-$ godep go build
+$ go build
 ```
 
 Or you can run it like this:
@@ -97,6 +105,11 @@ multiple hosts. It is recommended to use more than one when possible.
 
 The easiest way to deploy Sidecar to your Docker fleet is to run it in a
 container itself. [Instructions for doing that are provided](docker/README.md).
+
+Nitro Software maintains builds of the [Docker container
+image](https://hub.docker.com/r/gonitro/sidecar/) on Docker Hub. Note that
+the [README](docker/README.md) describes how to configure this container.
+
 
 Configuration
 -------------
