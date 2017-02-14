@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/armon/go-metrics"
+	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
-	"github.com/Nitro/memberlist"
+	log "github.com/Sirupsen/logrus"
+	"github.com/armon/go-metrics"
 )
 
 const (

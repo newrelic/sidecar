@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/armon/go-metrics"
+	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/discovery"
 	"github.com/Nitro/sidecar/haproxy"
 	"github.com/Nitro/sidecar/healthy"
 	"github.com/Nitro/sidecar/service"
-	"github.com/Nitro/memberlist"
+	log "github.com/Sirupsen/logrus"
+	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
 )
 

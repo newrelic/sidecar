@@ -28,7 +28,6 @@ func Test_GetBroadcasts(t *testing.T) {
 			})
 		})
 
-
 		Convey("NotifyMsg()", func() {
 			Convey("Pushes a message into the channel", func() {
 				delegate.NotifyMsg(bCast[0])

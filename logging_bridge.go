@@ -10,8 +10,8 @@ import (
 // Go logger and reformat them into properly leveled logrus lines. If
 // only the stdlib log.Logger were an interface and not a type...
 
-type LoggingBridge struct{
-	testing bool
+type LoggingBridge struct {
+	testing     bool
 	lastLevel   []byte
 	lastMessage []byte
 }
