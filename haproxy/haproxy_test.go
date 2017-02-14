@@ -214,7 +214,6 @@ func Test_HAproxy(t *testing.T) {
 		})
 
 		Convey("Watch() writes out a config when the state changes", func() {
-			startTime := time.Now().Truncate(time.Second) // Localized to compare with os.Stat
 			tmpDir, _ := ioutil.TempDir("/tmp", "sidecar-test")
 			config := fmt.Sprintf("%s/haproxy.cfg", tmpDir)
 			proxy.ConfigFile = config
@@ -239,8 +238,7 @@ func Test_HAproxy(t *testing.T) {
 			for {
 				stat, _ := os.Stat(config)
 				if stat != nil {
-					if startTime.Before(stat.ModTime()) || startTime.Equal(stat.ModTime()) &&
-						stat.Size() > 10000 {
+					if stat.Size() > 10000 {
 						break
 					}
 				}
