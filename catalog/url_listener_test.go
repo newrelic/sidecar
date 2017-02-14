@@ -74,7 +74,7 @@ func Test_Listen(t *testing.T) {
 		state.Servers[hostname].Services[service1.ID].Tombstone()
 
 		Convey("handles a bad post", func() {
-			listener.eventChannel <-ChangeEvent{}
+			listener.eventChannel <- ChangeEvent{}
 			listener.Retries = 0
 			listener.Watch(state)
 			listener.looper.Wait()

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fsouza/go-dockerclient"
 	"github.com/Nitro/sidecar/service"
+	"github.com/fsouza/go-dockerclient"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

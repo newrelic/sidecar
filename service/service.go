@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Nitro/sidecar/output"
 	log "github.com/Sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
-	"github.com/Nitro/sidecar/output"
 )
 
 const (

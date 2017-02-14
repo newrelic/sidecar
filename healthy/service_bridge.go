@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"text/template"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/Nitro/sidecar/discovery"
 	"github.com/Nitro/sidecar/service"
+	log "github.com/Sirupsen/logrus"
 	"github.com/relistan/go-director"
 )
 
@@ -107,9 +107,9 @@ func (m *Monitor) fetchCheckForService(svc *service.Service, disco discovery.Dis
 // we won't know the actual Port that the container will bind to, for example.
 func (m *Monitor) templateCheckArgs(check *Check, svc *service.Service) string {
 	funcMap := template.FuncMap{
-		"tcp":  func(p int64) int64 { return svc.PortForServicePort(p, "tcp") },
-		"udp":  func(p int64) int64 { return svc.PortForServicePort(p, "udp") },
-		"host": func() string { return m.DefaultCheckHost },
+		"tcp":       func(p int64) int64 { return svc.PortForServicePort(p, "tcp") },
+		"udp":       func(p int64) int64 { return svc.PortForServicePort(p, "udp") },
+		"host":      func() string { return m.DefaultCheckHost },
 		"container": func() string { return svc.Hostname },
 	}
 

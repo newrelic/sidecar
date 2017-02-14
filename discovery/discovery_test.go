@@ -3,9 +3,9 @@ package discovery
 import (
 	"testing"
 
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/Nitro/sidecar/service"
 )
 
 type mockDiscoverer struct {
@@ -45,8 +45,8 @@ func Test_MultiDiscovery(t *testing.T) {
 		svc1 := service.Service{Name: "svc1"}
 		svc2 := service.Service{Name: "svc2"}
 
-		disco1 := &mockDiscoverer{ []service.Service{ svc1 }, false, false, done1, "one" }
-		disco2 := &mockDiscoverer{ []service.Service{ svc2 }, false, false, done2, "two" }
+		disco1 := &mockDiscoverer{[]service.Service{svc1}, false, false, done1, "one"}
+		disco2 := &mockDiscoverer{[]service.Service{svc2}, false, false, done2, "two"}
 
 		multi := &MultiDiscovery{[]Discoverer{disco1, disco2}}
 

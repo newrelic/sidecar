@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/Nitro/sidecar/service"
 )
 
 var hostname = "shakespeare"
 var anotherHostname = "chaucer"
 
 type mockListener struct {
-	name string
+	name   string
 	events chan ChangeEvent
 }
 
@@ -448,8 +448,8 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 func Test_Listeners(t *testing.T) {
 	Convey("Working with state Listeners", t, func() {
 		state := NewServicesState()
-		listener := &mockListener{ "listener1", make(chan ChangeEvent, 1) }
-		listener2 := &mockListener{ "listener2", make(chan ChangeEvent, 1) }
+		listener := &mockListener{"listener1", make(chan ChangeEvent, 1)}
+		listener2 := &mockListener{"listener2", make(chan ChangeEvent, 1)}
 		svcId1 := "deadbeef123"
 		baseTime := time.Now().UTC().Round(time.Second)
 		svc1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}

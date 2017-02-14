@@ -23,15 +23,15 @@ type portmap map[string]portset
 
 // Configuration and state for the HAproxy management module
 type HAproxy struct {
-	ReloadCmd      string `toml:"reload_cmd"`
-	VerifyCmd      string `toml:"verify_cmd"`
-	BindIP         string `toml:"bind_ip"`
-	Template       string `toml:"template"`
-	ConfigFile     string `toml:"config_file"`
-	PidFile        string `toml:"pid_file"`
-	User           string `toml:"user"`
-	Group          string `toml:"group"`
-	eventChannel   chan catalog.ChangeEvent
+	ReloadCmd    string `toml:"reload_cmd"`
+	VerifyCmd    string `toml:"verify_cmd"`
+	BindIP       string `toml:"bind_ip"`
+	Template     string `toml:"template"`
+	ConfigFile   string `toml:"config_file"`
+	PidFile      string `toml:"pid_file"`
+	User         string `toml:"user"`
+	Group        string `toml:"group"`
+	eventChannel chan catalog.ChangeEvent
 }
 
 // Constructs a properly configured HAProxy and returns a pointer to it

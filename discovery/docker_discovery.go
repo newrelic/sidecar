@@ -6,8 +6,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/fsouza/go-dockerclient"
 	"github.com/Nitro/sidecar/service"
+	"github.com/fsouza/go-dockerclient"
 	"github.com/relistan/go-director"
 )
 
@@ -175,7 +175,7 @@ func (d *DockerDiscovery) getContainers() {
 
 // Loop through the current cache and remove anything that has disappeared
 func (d *DockerDiscovery) pruneContainerCache(liveContainers map[string]interface{}) {
-	for id, _ := range d.containerCache {
+	for id := range d.containerCache {
 		if _, ok := liveContainers[id]; !ok {
 			delete(d.containerCache, id)
 		}

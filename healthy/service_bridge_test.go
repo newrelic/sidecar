@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/Nitro/sidecar/service"
 )
 
 var hostname string = "indefatigable"
@@ -31,7 +31,7 @@ func (m *mockDiscoverer) HealthCheck(svc *service.Service) (string, string) {
 	return "", ""
 }
 
-func (m *mockDiscoverer) Run(director.Looper) { }
+func (m *mockDiscoverer) Run(director.Looper) {}
 
 func Test_ServicesBridge(t *testing.T) {
 	Convey("The services bridge", t, func() {
@@ -132,11 +132,11 @@ func Test_ServicesBridge(t *testing.T) {
 		Convey("Responds to changes in a list of services", func() {
 			So(len(monitor.Checks), ShouldEqual, 4)
 
-			ports := []service.Port{service.Port{"udp", 11234, 8080}, service.Port{"tcp", 1234, 8081}}
+			ports := []service.Port{{"udp", 11234, 8080}, {"tcp", 1234, 8081}}
 			svc := service.Service{ID: "babbacabba", Name: "testing-12312312", Ports: ports}
 			svcList := []service.Service{svc}
 
-			disco := &mockDiscoverer{ listFn: func() []service.Service { return svcList } }
+			disco := &mockDiscoverer{listFn: func() []service.Service { return svcList }}
 
 			cmd := HttpGetCmd{}
 			check := &Check{
@@ -160,8 +160,8 @@ func Test_CheckForService(t *testing.T) {
 	Convey("When building a default check", t, func() {
 		svcId1 := "deadbeef123"
 		ports := []service.Port{
-			service.Port{"udp", 11234, 8080},
-			service.Port{"tcp", 1234, 8081},
+			{"udp", 11234, 8080},
+			{"tcp", 1234, 8081},
 		}
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Ports: ports}
 

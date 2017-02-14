@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/Nitro/sidecar/service"
+	log "github.com/Sirupsen/logrus"
 	"github.com/relistan/go-director"
 )
 

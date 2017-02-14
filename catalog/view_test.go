@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/Nitro/sidecar/service"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (

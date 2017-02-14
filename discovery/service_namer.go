@@ -15,7 +15,7 @@ type ServiceNamer interface {
 // or else uses the image as the service name.
 type RegexpNamer struct {
 	ServiceNameMatch string
-	expression *regexp.Regexp
+	expression       *regexp.Regexp
 }
 
 // Return a properly regex-matched name for the service, or failing that,
@@ -32,7 +32,7 @@ func (r *RegexpNamer) ServiceName(container *docker.APIContainers) string {
 		r.expression, err = regexp.Compile(r.ServiceNameMatch)
 		if err != nil {
 			log.Errorf("Invalid regex, can't compile: %s", r.ServiceNameMatch)
-			return  container.Image
+			return container.Image
 		}
 	}
 

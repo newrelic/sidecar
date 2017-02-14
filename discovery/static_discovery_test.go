@@ -3,13 +3,13 @@ package discovery
 import (
 	"testing"
 
+	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/Nitro/sidecar/service"
 )
 
 const (
-	STATIC_JSON = "../fixtures/static.json"
+	STATIC_JSON           = "../fixtures/static.json"
 	STATIC_HOSTNAMED_JSON = "../fixtures/static-hostnamed.json"
 )
 
