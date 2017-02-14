@@ -553,7 +553,7 @@ func Test_DecodeStream(t *testing.T) {
 	})
 }
 
-func Example_ByServiceWithoutMatcher() {
+func ExampleServicesState_ByService_withoutmatcher() {
 	state := NewServicesState()
 	state.Servers[hostname] = NewServer(hostname)
 	svcId1 := "deadbeef123"
@@ -582,7 +582,7 @@ func Example_ByServiceWithoutMatcher() {
 	// Output:
 }
 
-func Example_ByServiceWithMatcher() {
+func ExampleServicesState_ByService_withmatcher() {
 	state := NewServicesState()
 	state.Servers[hostname] = NewServer(hostname)
 	svcId1 := "deadbeef123"
@@ -611,7 +611,7 @@ func Example_ByServiceWithMatcher() {
 	// Output:
 }
 
-func Example_BroadcastTombstones() {
+func ExampleServicesState_BroadcastTombstones() {
 	state := NewServicesState()
 	state.Hostname = "something"
 
