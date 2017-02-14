@@ -3,6 +3,7 @@ package catalog
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -574,6 +575,20 @@ func (state *ServicesState) ByService() map[string][]*service.Service {
 	)
 
 	return serviceMap
+}
+
+func DecodeStream(input io.Reader, callback func(map[string][]*service.Service, error) error) error {
+	dec := json.NewDecoder(input)
+	for dec.More() {
+		var conf map[string][]*service.Service
+		err := dec.Decode(&conf)
+		callback(conf, err)
+		if err != nil {
+			log.Errorf("Error decoding stream (%s)", err.Error())
+			return err
+		}
+	}
+	return nil
 }
 
 func makeServiceMapping(svcList []service.Service) map[string]*service.Service {

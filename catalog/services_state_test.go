@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -524,6 +525,31 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 			So(lastChanged.Before(state.LastChanged), ShouldBeTrue)
 		})
 
+	})
+}
+
+func Test_DecodeStream(t *testing.T) {
+	Convey("Test decoding stream", t, func() {
+		serv := service.Service{ID: "007", Name: "api", Hostname: "some-aws-host", Status: 1}
+		state := NewServicesState()
+		state.AddServiceEntry(serv)
+
+		jsonBytes, err := json.Marshal(state.ByService())
+		if err != nil {
+			panic(err)
+		}
+
+		var compareMap map[string][]*service.Service
+		mockCallback := func(sidecarStates map[string][]*service.Service, err error) error {
+			compareMap = sidecarStates
+			return nil
+		}
+
+		buf := bytes.NewBufferString(string(jsonBytes))
+		err = DecodeStream(buf, mockCallback)
+		So(err, ShouldBeNil)
+		So(compareMap["api"][0].Hostname, ShouldEqual, "some-aws-host")
+		So(compareMap["api"][0].Status, ShouldEqual, 1)
 	})
 }
 
