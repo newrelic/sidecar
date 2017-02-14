@@ -34,3 +34,17 @@ after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ] && [ -z "${NO_PUSH_LATEST}" ]; then
       docker push gonitro/sidecar:latest;
     fi
+
+deploy:
+  provider: releases
+
+  api_key:
+    secure: j3UGakWMqMPhqcpdHgwAFeAL2ZrWHgPYoKhGnZFVcbwWCLQb+OtAAVlLVZAMccY38G29U8S1ExOpXxr6n7gG7LM9pEfIASYOfLM1FqYzuFZTn/qPqkw2ENs3zkQlusHXIGFPSQtRcBLPX6OVMMPYtwfIfqdXW1wqLoEeifAIfFaa9ugd4xZ47ib9w5zAB1lOYIn+E7uk5p+8v4AbLfaaxkaHx7bKH2Pe40nyehsU4kwLkq5387mDb+WA2rO1e9E27CZd/7onlMyQzdfxFyzdfOOV2+CiVUOdWK2ISZfAajyfL4/a+SiBkaF92KuTF5PTWdHBTsXxxsLsCa8AXvspfSlsPk1WJvvvfCTMxgM56+xE/R5Ztfj/02g7r2/izKcpguH/smtSm9psDIRsjA/SyKBbxw9nNruIq0DOzcAQQO1kKGzwuonty7IYfPNS/LfZWA6v+xU54czMXfG7iSJGlmmLrCGjmRVmrY99by4d2Ml0dMKqQfLw2OiSBKpLooLKz5Hd9rX0SnrQmp+glmg+cRi1amJ9sPvo+3Ih0gGBnj9YmLowvYVY81TzdTxY6VVbmUsF3F2BFufEMLUsUL9VoyixDbNXFSrJB9ENI960v7gbCUmTRpK/X9GYnSoAKflwc/WrT/AAvlSnwi6SSX8gNpwOB7UUApRiYjjPwZdDFpY=
+
+  file: sidecar
+
+  skip_cleanup: true
+
+  on:
+    tags: true
+    condition: ${TRAVIS_GO_VERSION::3} == ${PRODUCTION_GO_VERSION}
