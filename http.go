@@ -48,6 +48,14 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	var jsonBytes []byte
 	var err error
 
+	//Check for closed client and flip the breakLoop flag
+	notify := response.(http.CloseNotifier).CloseNotify()
+	breakLoop := false
+	go func() {
+		<-notify
+		breakLoop = true
+	}()
+
 	for {
 		var changed bool
 
@@ -76,6 +84,11 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 			}
 		}
 		time.Sleep(250 * time.Millisecond)
+
+		if breakLoop { //if client has been closed, break the loop
+			log.Debugf("HTTP connection just closed.")
+			break
+		}
 	}
 }
 
