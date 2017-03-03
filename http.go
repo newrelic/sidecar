@@ -30,6 +30,31 @@ type ApiServices struct {
 	ClusterName    string
 }
 
+// A ServicesState.Listener that we use for the /watch endpoitn
+type HttpListener struct {
+	eventChan chan catalog.ChangeEvent
+	name      string
+}
+
+func NewHttpListener() *HttpListener {
+	return &HttpListener{
+		// This should be fine enough granularity for practical purpoes
+		name: fmt.Sprintf("httpListener-%d", time.Now().UTC().UnixNano()),
+		// Listeners must have buffered channels. We'll use a
+		// somewhat larger buffer here because of the slow link
+		// problem with http
+		eventChan: make(chan catalog.ChangeEvent, 50),
+	}
+}
+
+func (h *HttpListener) Chan() chan catalog.ChangeEvent {
+	return h.eventChan
+}
+
+func (h *HttpListener) Name() string {
+	return h.name
+}
+
 func makeHandler(fn func(http.ResponseWriter, *http.Request,
 	*memberlist.Memberlist, *catalog.ServicesState),
 	list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
@@ -44,29 +69,29 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 
 	response.Header().Set("Content-Type", "application/json")
 
-	lastChange := time.Unix(0, 0)
 	var jsonBytes []byte
 	var err error
 
+	listener := NewHttpListener()
+
+	// Find out when the http connection closed so we can stop
+	notify := response.(http.CloseNotifier).CloseNotify()
+
+	// Let's subscribe to state change events
+	state.AddListener(listener)
+	defer state.RemoveListener(listener.Name())
+
 	for {
-		var changed bool
+		select {
+		case <-notify:
+			break
 
-		func() { // Wrap critical section
-			state.RLock()
-			defer state.RUnlock()
-
-			if state.LastChanged.After(lastChange) {
-				lastChange = state.LastChanged
-				jsonBytes, err = json.Marshal(state.ByService())
-				if err != nil {
-					log.Errorf("Error marshaling state in watchHandler: %s", err.Error())
-					return
-				}
-				changed = true // Trigger sending new encoding
+		case <-listener.Chan():
+			jsonBytes, err = json.Marshal(state.ByService())
+			if err != nil {
+				log.Errorf("Error marshaling state in watchHandler: %s", err.Error())
+				return
 			}
-		}()
-
-		if changed {
 			// In order to flush immediately, we have to cast to a Flusher.
 			// The normal HTTP library supports this but not all do, so we
 			// check just in case.
@@ -75,7 +100,6 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 				f.Flush()
 			}
 		}
-		time.Sleep(250 * time.Millisecond)
 	}
 }
 
