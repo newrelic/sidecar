@@ -230,6 +230,23 @@ func (state *ServicesState) AddListener(listener Listener) {
 	log.Debugf("AddListener(): added %s, new count %d", listener.Name(), len(state.listeners))
 }
 
+// Remove an event listener channel by name. This will find the first
+// listener in the list with the specified name and will remove it.
+func (state *ServicesState) RemoveListener(name string) error {
+	state.Lock()
+	defer state.Unlock()
+
+	for i := 0; i < len(state.listeners); i++ {
+		if state.listeners[i].Name() == name {
+			state.listeners = append(state.listeners[:i], state.listeners[i+1:]...)
+			log.Debugf("RemoveListener(): removed %s, new count %d", name, len(state.listeners))
+			return nil
+		}
+	}
+
+	return fmt.Errorf("No listener found with the name: %s", name)
+}
+
 // Take a service and merge it into our state. Correctly handle
 // timestamps so we only add things newer than what we already
 // know about. Retransmits updates to cluster peers.
