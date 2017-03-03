@@ -30,7 +30,7 @@ type ApiServices struct {
 	ClusterName    string
 }
 
-// A ServicesState.Listener that we use for the /watch endpoitn
+// A ServicesState.Listener that we use for the /watch endpoint
 type HttpListener struct {
 	eventChan chan catalog.ChangeEvent
 	name      string
@@ -38,7 +38,7 @@ type HttpListener struct {
 
 func NewHttpListener() *HttpListener {
 	return &HttpListener{
-		// This should be fine enough granularity for practical purpoes
+		// This should be fine enough granularity for practical purposes
 		name: fmt.Sprintf("httpListener-%d", time.Now().UTC().UnixNano()),
 		// Listeners must have buffered channels. We'll use a
 		// somewhat larger buffer here because of the slow link
