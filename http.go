@@ -84,7 +84,7 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	for {
 		select {
 		case <-notify:
-			break
+			return
 
 		case <-listener.Chan():
 			jsonBytes, err = json.Marshal(state.ByService())
