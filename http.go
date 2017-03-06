@@ -81,23 +81,40 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	state.AddListener(listener)
 	defer state.RemoveListener(listener.Name())
 
+	pushUpdate := func() error {
+		jsonBytes, err = json.Marshal(state.ByService())
+		if err != nil {
+			return err
+		}
+		// In order to flush immediately, we have to cast to a Flusher.
+		// The normal HTTP library supports this but not all do, so we
+		// check just in case.
+		response.Write(jsonBytes)
+		if f, ok := response.(http.Flusher); ok {
+			f.Flush()
+		}
+
+		return nil
+	}
+
+	// Push the first update right away
+	err = pushUpdate()
+	if err != nil {
+		log.Errorf("Error marshaling state in watchHandler: %s", err.Error())
+		return
+	}
+
+	// Watch for further updates on the channel
 	for {
 		select {
 		case <-notify:
 			return
 
 		case <-listener.Chan():
-			jsonBytes, err = json.Marshal(state.ByService())
+			err = pushUpdate()
 			if err != nil {
 				log.Errorf("Error marshaling state in watchHandler: %s", err.Error())
 				return
-			}
-			// In order to flush immediately, we have to cast to a Flusher.
-			// The normal HTTP library supports this but not all do, so we
-			// check just in case.
-			response.Write(jsonBytes)
-			if f, ok := response.(http.Flusher); ok {
-				f.Flush()
 			}
 		}
 	}
