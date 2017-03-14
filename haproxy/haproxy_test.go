@@ -238,7 +238,7 @@ func Test_HAproxy(t *testing.T) {
 			for {
 				stat, _ := os.Stat(config)
 				if stat != nil {
-					if stat.Size() > 10000 {
+					if stat.Size() > 1000 {
 						break
 					}
 				}
