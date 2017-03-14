@@ -1,10 +1,20 @@
 [sidecar]
+
+# The exclusion list prevents binding on an address
+# we're using solely for purposes of binding HAproxy
+# internally, for example. Or a VPN link, etc.
 exclude_ips = [ "192.168.168.168" ]
 discovery = [ "docker", "static" ]
 push_pull_interval = "20s"
+
+# Controls the logrus output format
 logging_format = "standard" # or "json"
 logging_level = "info" # or "warn", "debug", or "error"
+
+# We can specify a default health check endpoint if
+# many of our services use the same one.
 #default_check_endpoint = "/somewhere/specific/"
+gossip_messages = 20
 
 [docker_discovery]
 docker_url = "unix://var/run/docker.sock"
@@ -13,14 +23,28 @@ docker_url = "unix://var/run/docker.sock"
 config_file = "static.json"
 
 [services]
-namer = "regexp" # or "regex"
-#name_match = "^/(.+)(-[0-9a-z]{7,14})$" # Only used when namer = "regex"
+namer = "docker_label" # or "regex"
 name_label = "ServiceName"
+
+# If the namer is "regex" we need a name_match regex
+# name_match = "^/(.+)(-[0-9a-z]{7,14})$"
 
 [haproxy]
 # bind_ip is optional. Default is the frst interface with
 # a private IP address.
 bind_ip       = "192.168.168.168"
+
+# The following would bind on all interfaces
+# bind_ip       = "0.0.0.0"
+
 template_file = "views/haproxy.cfg"
 config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"
+
+# URLs can be subscribed to Sidecar state change events.
+# Each URL in the list will be posted to with a copy
+# of the event, which contains the service that changed
+# and all of the current state. This is used by e.g.
+# https://github.com/Nitro/haproxy-api
+#[listeners]
+#urls = [ "http://localhost:7778/api/update" ]
