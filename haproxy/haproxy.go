@@ -140,7 +140,7 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	}
 
 	// We write into a buffer so disk IO doesn't hold up the whole state lock
-	buf := bytes.NewBuffer(make([]byte, 32768))
+	buf := bytes.NewBuffer(make([]byte, 0, 65535))
 	state.RLock()
 	err = t.ExecuteTemplate(buf, path.Base(h.Template), data)
 	state.RUnlock()
