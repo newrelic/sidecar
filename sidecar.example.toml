@@ -14,6 +14,9 @@ logging_level = "info" # or "warn", "debug", or "error"
 # We can specify a default health check endpoint if
 # many of our services use the same one.
 #default_check_endpoint = "/somewhere/specific/"
+
+# How many gossip messages per interval? This is the
+# number one thing that needs tuning in larger clusters.
 gossip_messages = 20
 
 [docker_discovery]
@@ -37,6 +40,10 @@ bind_ip       = "192.168.168.168"
 # The following would bind on all interfaces
 # bind_ip       = "0.0.0.0"
 
+# Where we find the HAproxy settings and templates. Note
+# that the user that Sidecar is running under will need
+# to have write permissions to the config_file and pid_file
+# paths.
 template_file = "views/haproxy.cfg"
 config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"
