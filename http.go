@@ -26,7 +26,7 @@ type ApiServer struct {
 
 type ApiServices struct {
 	Services       map[string][]*service.Service
-	ClusterMembers map[string]*ApiServer
+	ClusterMembers map[string]*ApiServer `json:",omitempty"`
 	ClusterName    string
 }
 
@@ -56,15 +56,15 @@ func (h *HttpListener) Name() string {
 }
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request,
-	*memberlist.Memberlist, *catalog.ServicesState),
+	*memberlist.Memberlist, *catalog.ServicesState, map[string]string),
 	list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
 
 	return func(response http.ResponseWriter, req *http.Request) {
-		fn(response, req, list, state)
+		fn(response, req, list, state, mux.Vars(req))
 	}
 }
 
-func watchHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
+func watchHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
 	defer req.Body.Close()
 
 	response.Header().Set("Content-Type", "application/json")
@@ -120,61 +120,158 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	}
 }
 
-func servicesHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
-	params := mux.Vars(req)
-	defer req.Body.Close()
-
-	if params["extension"] == ".json" {
-		response.Header().Set("Content-Type", "application/json")
-		response.Header().Set("Access-Control-Allow-Origin", "*")
-		response.Header().Set("Access-Control-Allow-Methods", "GET")
-
-		listMembers := list.Members()
-		sort.Sort(listByName(listMembers))
-		members := make(map[string]*ApiServer, len(listMembers))
-
-		var jsonBytes []byte
-		var err error
-
-		func() { // Wrap critical section
-			state.RLock()
-			defer state.RUnlock()
-
-			for _, member := range listMembers {
-				if state.HasServer(member.Name) {
-					members[member.Name] = &ApiServer{
-						Name:         member.Name,
-						LastUpdated:  state.Servers[member.Name].LastUpdated,
-						ServiceCount: len(state.Servers[member.Name].Services),
-					}
-				} else {
-					members[member.Name] = &ApiServer{
-						Name:         member.Name,
-						LastUpdated:  time.Unix(0, 0),
-						ServiceCount: 0,
-					}
-				}
-			}
-
-			result := ApiServices{
-				Services:       state.ByService(),
-				ClusterMembers: members,
-				ClusterName:    list.ClusterName(),
-			}
-
-			jsonBytes, err = json.MarshalIndent(&result, "", "  ")
-		}()
-
-		if err != nil {
-			log.Errorf("Error marshaling state in servicesHandler: %s", err.Error())
-		}
-
-		response.Write(jsonBytes)
-		return
-	}
+// Reply with an error status and message
+func sendError(response http.ResponseWriter, status int, message string) {
+	response.WriteHeader(status)
+	response.Write([]byte(message))
 }
 
-func serversHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
+// Send back a JSON encoded error and message
+func sendJsonError(response http.ResponseWriter, status int, message string) {
+	output := map[string]string {
+		"status": "error",
+		"message": message,
+	}
+
+	jsonBytes, err := json.Marshal(output)
+
+	if err != nil {
+		log.Errorf("Error encoding json error response: %s", err.Error())
+		response.WriteHeader(500)
+		response.Write([]byte("Interval server error"))
+		return
+	}
+
+	response.WriteHeader(status)
+	response.Write(jsonBytes)
+}
+
+// Helper for returning an error for an incorrect extension
+func invalidContentType(response http.ResponseWriter) {
+	sendError(response, 404, "Not Found - Invalid content type extension")
+}
+
+func oneServiceHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
+	defer req.Body.Close()
+
+	if params["extension"] != "json" {
+		invalidContentType(response)
+		return
+	}
+
+	response.Header().Set("Access-Control-Allow-Origin", "*")
+	response.Header().Set("Access-Control-Allow-Methods", "GET")
+	response.Header().Set("Content-Type", "application/json")
+
+	name, ok := params["name"]
+	if !ok {
+		sendJsonError(response, 404, "Not Found - No service name provided")
+		return
+	}
+
+	if state == nil {
+		sendJsonError(response, 500, "Internal Server Error - Something went terribly wrong")
+		return
+	}
+
+	var instances []*service.Service
+	state.EachService(func(hostname *string, id *string, svc *service.Service) {
+		if svc.Name == name {
+			instances = append(instances, svc)
+		}
+	})
+
+	// Did we have any entries for this service in the catalog?
+	if len(instances) == 0 {
+		sendJsonError(response, 404, fmt.Sprintf("no instances of %s found", name))
+		return
+	}
+
+	clusterName := ""
+	if list != nil {
+		clusterName = list.ClusterName()
+	}
+
+	// Everything went fine, we found entries for this service.
+	// Send the json back.
+	svcInstances := make(map[string][]*service.Service)
+	svcInstances[name] = instances
+	result := ApiServices{
+		Services:       svcInstances,
+		ClusterName:    clusterName,
+	}
+
+	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
+	if err != nil {
+		log.Errorf("Error marshaling state in oneServiceHandler: %s", err.Error())
+		sendJsonError(response, 500, "Internal server error")
+		return
+	}
+
+	response.Write(jsonBytes)
+}
+
+
+func servicesHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
+	defer req.Body.Close()
+
+	response.Header().Set("Access-Control-Allow-Origin", "*")
+	response.Header().Set("Access-Control-Allow-Methods", "GET")
+
+	// We only support JSON
+	if params["extension"] != "json" {
+		invalidContentType(response)
+		return
+	}
+
+	response.Header().Set("Content-Type", "application/json")
+
+	listMembers := list.Members()
+	sort.Sort(listByName(listMembers))
+	members := make(map[string]*ApiServer, len(listMembers))
+
+	var jsonBytes []byte
+	var err error
+
+	func() { // Wrap critical section
+		state.RLock()
+		defer state.RUnlock()
+
+		for _, member := range listMembers {
+			if state.HasServer(member.Name) {
+				members[member.Name] = &ApiServer{
+					Name:         member.Name,
+					LastUpdated:  state.Servers[member.Name].LastUpdated,
+					ServiceCount: len(state.Servers[member.Name].Services),
+				}
+			} else {
+				members[member.Name] = &ApiServer{
+					Name:         member.Name,
+					LastUpdated:  time.Unix(0, 0),
+					ServiceCount: 0,
+				}
+			}
+		}
+
+		result := ApiServices{
+			Services:       state.ByService(),
+			ClusterMembers: members,
+			ClusterName:    list.ClusterName(),
+		}
+
+		jsonBytes, err = json.MarshalIndent(&result, "", "  ")
+	}()
+
+	if err != nil {
+		log.Errorf("Error marshaling state in servicesHandler: %s", err.Error())
+		sendJsonError(response, 500, "Internal server error")
+		return
+	}
+
+	response.Write(jsonBytes)
+}
+
+func serversHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
 	defer req.Body.Close()
 
 	response.Header().Set("Content-Type", "text/html")
@@ -189,14 +286,13 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 	    	<pre>` + state.Format(list) + "</pre>"))
 }
 
-func stateHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
-	params := mux.Vars(req)
+func stateHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
 	defer req.Body.Close()
 
 	state.RLock()
 	defer state.RUnlock()
 
-	if params["extension"] == ".json" {
+	if params["extension"] == "json" {
 		response.Header().Set("Content-Type", "application/json")
 		response.Header().Set("Access-Control-Allow-Origin", "*")
 		response.Header().Set("Access-Control-Allow-Methods", "GET")
@@ -205,7 +301,7 @@ func stateHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	}
 }
 
-func optionsHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
+func optionsHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
 	response.Header().Set("Access-Control-Allow-Origin", "*")
 	response.Header().Set("Access-Control-Allow-Methods", "GET")
 	return
@@ -263,7 +359,7 @@ func lineWrapMembers(cols int, fields []*Member) [][]*Member {
 	return retval
 }
 
-func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState) {
+func viewHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
 	timeAgo := func(when time.Time) string { return output.TimeAgo(when, time.Now().UTC()) }
 
 	funcMap := template.FuncMap{
@@ -317,7 +413,11 @@ func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	router.HandleFunc("/", uiRedirectHandler).Methods("GET")
 
 	router.HandleFunc(
-		"/services{extension}", makeHandler(servicesHandler, list, state),
+		"/services/{name}.{extension}", makeHandler(oneServiceHandler, list, state),
+	).Methods("GET")
+
+	router.HandleFunc(
+		"/services.{extension}", makeHandler(servicesHandler, list, state),
 	).Methods("GET")
 
 	router.HandleFunc(
@@ -329,7 +429,7 @@ func serveHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	).Methods("GET")
 
 	router.HandleFunc(
-		"/state{extension}", makeHandler(stateHandler, list, state),
+		"/state.{extension}", makeHandler(stateHandler, list, state),
 	).Methods("GET")
 
 	router.HandleFunc(
