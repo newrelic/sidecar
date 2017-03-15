@@ -282,6 +282,26 @@ The `/services` endpoint is a very textual web interface for humans. The
 `/services.json` endpoint is JSON-encoded. The JSON is still pretty-printed so
 it's readable by humans.
 
+Sidecar's API
+-------------
+
+Other than the UI that lives on the base URL, there is a minimalist API
+available for querying Sidecar. It supports the following endpoints:
+
+ * `/services.json`: This returns a big JSON blob sorted and grouped by
+   service.
+ * `/state.json`: Returns the whole internal state blob in the internal
+   representation order (servers -> server -> service -> instances)
+ * `/services/<service name>.json`: Returns the same format as the
+   `/service.json` endpoint, but only contains data for a single service.
+ * `/watch`: Inconsistenly named endpoint that returns JSON blobs on a
+   long-poll basis every time the internal state changes. Useful for
+   anything that needs to know what the ongoing service status is.
+
+Sidecar can also be configured to post the internal state to HTTP endpoints on
+any change event. This is configured with listeners in the TOML file and is
+described in the `sidecar.example.toml`.
+
 Contributing
 ------------
 
