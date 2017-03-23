@@ -560,8 +560,7 @@ func Test_DecodeStream(t *testing.T) {
 		}
 
 		buf := bytes.NewBufferString(string(jsonBytes))
-		err = DecodeStream(buf, mockCallback)
-		So(err, ShouldBeNil)
+		DecodeStream(buf, mockCallback)
 		So(compareMap["api"][0].Hostname, ShouldEqual, "some-aws-host")
 		So(compareMap["api"][0].Status, ShouldEqual, 1)
 	})
