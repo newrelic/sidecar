@@ -2,6 +2,8 @@ Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
 ![travis](https://travis-ci.org/Nitro/sidecar.svg?branch=master)
+[![](https://images.microbadger.com/badges/image/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar)
+[![](https://images.microbadger.com/badges/version/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar "Get your own version badge on microbadger.com")
 
 Sidecar is a dynamic service discovery platform requiring no external
 coordination service. It's a peer-to-peer system that uses a gossip protocol
