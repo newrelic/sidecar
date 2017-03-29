@@ -307,19 +307,6 @@ func optionsHandler(response http.ResponseWriter, req *http.Request, list *membe
 	return
 }
 
-func statusStr(status int) string {
-	switch status {
-	case 0:
-		return "Alive"
-	case 1:
-		return "Tombstone"
-	case 2:
-		return "Unhealthy"
-	default:
-		return "Unknown"
-	}
-}
-
 func portsStr(svcPorts []service.Port) string {
 	var ports []string
 
@@ -363,7 +350,7 @@ func viewHandler(response http.ResponseWriter, req *http.Request, list *memberli
 	timeAgo := func(when time.Time) string { return output.TimeAgo(when, time.Now().UTC()) }
 
 	funcMap := template.FuncMap{
-		"statusStr":   statusStr,
+		"statusStr":   service.StatusString,
 		"timeAgo":     timeAgo,
 		"portsStr":    portsStr,
 		"clusterName": func() string { return list.ClusterName() },
