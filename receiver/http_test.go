@@ -81,6 +81,7 @@ func Test_updateHandler(t *testing.T) {
 					Service: service.Service{
 						ID:      "10101010101",
 						Updated: time.Now().UTC(),
+						Created: time.Now().UTC(),
 						Status:  service.ALIVE,
 					},
 					PreviousStatus: service.TOMBSTONE,
