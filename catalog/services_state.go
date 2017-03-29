@@ -562,6 +562,9 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 }
 
 func (state *ServicesState) EachServer(fn func(hostname *string, server *Server)) {
+	if state == nil {
+		return
+	}
 	for hostname, server := range state.Servers {
 		fn(&hostname, server)
 	}
