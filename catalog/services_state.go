@@ -594,7 +594,7 @@ func (state *ServicesState) ByService() map[string][]*service.Service {
 	return serviceMap
 }
 
-func DecodeStream(input io.Reader, callback func(map[string][]*service.Service, error) error) error {
+func DecodeStream(input io.Reader, callback func(map[string][]*service.Service, error)) error {
 	dec := json.NewDecoder(input)
 	for dec.More() {
 		var conf map[string][]*service.Service
