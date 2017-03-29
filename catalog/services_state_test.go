@@ -554,9 +554,8 @@ func Test_DecodeStream(t *testing.T) {
 		}
 
 		var compareMap map[string][]*service.Service
-		mockCallback := func(sidecarStates map[string][]*service.Service, err error) error {
+		mockCallback := func(sidecarStates map[string][]*service.Service, err error) {
 			compareMap = sidecarStates
-			return nil
 		}
 
 		buf := bytes.NewBufferString(string(jsonBytes))
