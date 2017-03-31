@@ -24,6 +24,7 @@ type Port struct {
 	Type        string
 	Port        int64
 	ServicePort int64
+	IP          string
 }
 
 type Service struct {
@@ -101,7 +102,7 @@ func Decode(data []byte) *Service {
 
 // Format an APIContainers struct into a more compact struct we
 // can ship over the wire in a broadcast.
-func ToService(container *docker.APIContainers) Service {
+func ToService(container *docker.APIContainers, ip string) Service {
 	var svc Service
 	hostname, _ := os.Hostname()
 
@@ -123,7 +124,7 @@ func ToService(container *docker.APIContainers) Service {
 
 	for _, port := range container.Ports {
 		if port.PublicPort != 0 {
-			svc.Ports = append(svc.Ports, buildPortFor(&port, container))
+			svc.Ports = append(svc.Ports, buildPortFor(&port, container, ip))
 		}
 	}
 
@@ -144,11 +145,16 @@ func StatusString(status int) string {
 }
 
 // Figure out the correct port configuration for a service
-func buildPortFor(port *docker.APIPort, container *docker.APIContainers) Port {
+func buildPortFor(port *docker.APIPort, container *docker.APIContainers, ip string) Port {
 	// We look up service port labels by convention in the format "ServicePort_80=8080"
 	svcPortLabel := fmt.Sprintf("ServicePort_%d", port.PrivatePort)
 
-	returnPort := Port{Port: port.PublicPort, Type: port.Type}
+	// You can override the default IP by binding your container on a specific IP
+	if port.IP != "0.0.0.0" && port.IP != "" {
+		ip = port.IP
+	}
+
+	returnPort := Port{Port: port.PublicPort, Type: port.Type, IP: ip}
 
 	if svcPort, ok := container.Labels[svcPortLabel]; ok {
 		svcPortInt, err := strconv.Atoi(svcPort)

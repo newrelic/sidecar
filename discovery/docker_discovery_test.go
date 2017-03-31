@@ -62,6 +62,7 @@ func Test_DockerDiscovery(t *testing.T) {
 		endpoint := "http://example.com:2375"
 		svcId1 := "deadbeef1231"
 		svcId2 := "deadbeef1011"
+		ip := "127.0.0.1"
 		baseTime := time.Now().UTC().Round(time.Second)
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
@@ -75,12 +76,16 @@ func Test_DockerDiscovery(t *testing.T) {
 
 		svcNamer := &RegexpNamer{ServiceNameMatch: "^/(.+)(-[0-9a-z]{7,14})$"}
 
-		disco := NewDockerDiscovery(endpoint, svcNamer)
+		disco := NewDockerDiscovery(endpoint, svcNamer, ip)
 		disco.ClientProvider = stubClientProvider
 
 		Convey("New() configures an endpoint and events channel", func() {
 			So(disco.endpoint, ShouldEqual, endpoint)
 			So(disco.events, ShouldNotBeNil)
+		})
+
+		Convey("New() sets the advertiseIp", func() {
+			So(disco.advertiseIp, ShouldEqual, ip)
 		})
 
 		Convey("Services() returns the right list of services", func() {

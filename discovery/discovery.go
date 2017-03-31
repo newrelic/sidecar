@@ -11,7 +11,7 @@ const (
 	SLEEP_INTERVAL = 1 * time.Second
 )
 
-// A Discoverer is responsible for findind services that we care
+// A Discoverer is responsible for finding services that we care
 // about. It must have a method to return the list of services, and
 // a Run() method that will be invoked when the discovery mechanism(s)
 // is/are started.

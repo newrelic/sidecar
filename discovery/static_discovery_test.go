@@ -15,7 +15,8 @@ const (
 
 func Test_ParseConfig(t *testing.T) {
 	Convey("ParseConfig()", t, func() {
-		disco := NewStaticDiscovery(STATIC_JSON)
+		ip := "127.0.0.1"
+		disco := NewStaticDiscovery(STATIC_JSON, ip)
 		disco.Hostname = hostname
 
 		Convey("Errors when there is a problem with the file", func() {
@@ -39,12 +40,18 @@ func Test_ParseConfig(t *testing.T) {
 			parsed, _ := disco.ParseConfig(STATIC_HOSTNAMED_JSON)
 			So(parsed[0].Service.Hostname, ShouldEqual, "chaucer")
 		})
+
+		Convey("Assigns the default IP address when a port doesn't have one", func() {
+			parsed, _ := disco.ParseConfig(STATIC_JSON)
+			So(parsed[0].Service.Ports[0].IP, ShouldEqual, ip)
+		})
 	})
 }
 
 func Test_Services(t *testing.T) {
 	Convey("Services()", t, func() {
-		disco := NewStaticDiscovery(STATIC_JSON)
+		ip := "127.0.0.1"
+		disco := NewStaticDiscovery(STATIC_JSON, ip)
 		tgt1 := &Target{
 			Service: service.Service{ID: "asdf"},
 		}
@@ -72,7 +79,8 @@ func Test_Services(t *testing.T) {
 
 func Test_Run(t *testing.T) {
 	Convey("Run()", t, func() {
-		disco := NewStaticDiscovery(STATIC_JSON)
+		ip := "127.0.0.1"
+		disco := NewStaticDiscovery(STATIC_JSON, ip)
 		looper := director.NewFreeLooper(1, make(chan error))
 
 		Convey("Parses the specified config file", func() {

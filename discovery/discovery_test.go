@@ -57,15 +57,6 @@ func Test_MultiDiscovery(t *testing.T) {
 			So(disco2.RunInvoked, ShouldBeTrue)
 		})
 
-		SkipConvey("Run() propagates the quit signal", func() {
-			multi.Run(looper)
-
-			So(disco1.RunInvoked, ShouldBeTrue)
-			So(disco2.RunInvoked, ShouldBeTrue)
-			So(<-done1, ShouldBeNil)
-			So(<-done2, ShouldBeNil)
-		})
-
 		Convey("Services() invokes the Services() method for all the discoverers", func() {
 			multi.Services()
 

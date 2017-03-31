@@ -132,7 +132,7 @@ func Test_ServicesBridge(t *testing.T) {
 		Convey("Responds to changes in a list of services", func() {
 			So(len(monitor.Checks), ShouldEqual, 4)
 
-			ports := []service.Port{{"udp", 11234, 8080}, {"tcp", 1234, 8081}}
+			ports := []service.Port{{"udp", 11234, 8080, "127.0.0.1"}, {"tcp", 1234, 8081, "127.0.0.1"}}
 			svc := service.Service{ID: "babbacabba", Name: "testing-12312312", Ports: ports}
 			svcList := []service.Service{svc}
 
@@ -160,8 +160,8 @@ func Test_CheckForService(t *testing.T) {
 	Convey("When building a default check", t, func() {
 		svcId1 := "deadbeef123"
 		ports := []service.Port{
-			{"udp", 11234, 8080},
-			{"tcp", 1234, 8081},
+			{"udp", 11234, 8080, "127.0.0.1"},
+			{"tcp", 1234, 8081, "127.0.0.1"},
 		}
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Ports: ports}
 

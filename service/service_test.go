@@ -2,7 +2,6 @@ package service
 
 import (
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/fsouza/go-dockerclient"
@@ -14,8 +13,8 @@ func Test_PortForServicePort(t *testing.T) {
 		svc := &Service{
 			ID: "deadbeef001",
 			Ports: []Port{
-				{"tcp", 8173, 8080},
-				{"udp", 8172, 8080},
+				{"tcp", 8173, 8080, "127.0.0.1"},
+				{"udp", 8172, 8080, "127.0.0.1"},
 			},
 		}
 
@@ -31,30 +30,38 @@ func Test_PortForServicePort(t *testing.T) {
 
 func Test_buildPortFor(t *testing.T) {
 	Convey("buildPortFor()", t, func() {
-		port := docker.APIPort{
+		dPort := docker.APIPort{
 			PrivatePort: 80,
 			PublicPort:  8723,
 			Type:        "tcp",
 		}
 
+		ip := "127.0.0.1"
+
 		container := &docker.APIContainers{
-			Ports: []docker.APIPort{port},
+			Ports: []docker.APIPort{dPort},
 			Labels: map[string]string{
 				"ServicePort_80": "8080",
 			},
 		}
 
 		Convey("Maps service ports to internal ports", func() {
-			port := buildPortFor(&port, container)
+			port := buildPortFor(&dPort, container, ip)
 
 			So(port.ServicePort, ShouldEqual, 8080)
 			So(port.Port, ShouldEqual, 8723)
 			So(port.Type, ShouldEqual, "tcp")
 		})
 
+		Convey("Adds the default IP address", func() {
+			port := buildPortFor(&dPort, container, ip)
+
+			So(port.IP, ShouldEqual, ip)
+		})
+
 		Convey("Skips the service port when there is none", func() {
 			delete(container.Labels, "ServicePort_80")
-			port := buildPortFor(&port, container)
+			port := buildPortFor(&dPort, container, ip)
 
 			So(port.ServicePort, ShouldEqual, 0)
 			So(port.Port, ShouldEqual, 8723)
@@ -63,7 +70,7 @@ func Test_buildPortFor(t *testing.T) {
 
 		Convey("Skips the service port when there is a conversion error", func() {
 			container.Labels["ServicePort_80"] = "not a number"
-			port := buildPortFor(&port, container)
+			port := buildPortFor(&dPort, container, ip)
 
 			So(port.ServicePort, ShouldEqual, 0)
 			So(port.Port, ShouldEqual, 8723)
@@ -109,6 +116,7 @@ func Test_ToService(t *testing.T) {
 			Type:        "tcp",
 			Port:        31355,
 			ServicePort: 17010,
+			IP:          "192.168.77.13",
 		},
 	}
 
@@ -117,13 +125,13 @@ func Test_ToService(t *testing.T) {
 	Convey("ToService()", t, func() {
 
 		Convey("Decodes HAProxy mode correctly", func() {
-			service := ToService(sampleAPIContainer)
+			service := ToService(sampleAPIContainer, "127.0.0.1")
 			So(service.ID, ShouldEqual, sampleAPIContainer.ID[:12])
 			So(service.Image, ShouldEqual, sampleAPIContainer.Image)
 			So(service.Name, ShouldEqual, sampleAPIContainer.Names[0])
 			So(service.Created.String(), ShouldEqual, "2016-03-05 02:26:14 +0000 UTC")
 			So(service.Hostname, ShouldEqual, sampleHostname)
-			So(reflect.DeepEqual(samplePorts, service.Ports), ShouldBeTrue)
+			So(samplePorts, ShouldResemble, service.Ports)
 			So(service.Updated, ShouldNotBeNil)
 			So(service.ProxyMode, ShouldEqual, "tcp")
 			So(service.Status, ShouldEqual, 0)

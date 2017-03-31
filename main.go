@@ -68,7 +68,7 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 	return proxy
 }
 
-func configureDiscovery(config *Config, opts *CliOpts) discovery.Discoverer {
+func configureDiscovery(config *Config, opts *CliOpts, publishedIP string) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
 	var svcNamer discovery.ServiceNamer
@@ -107,12 +107,12 @@ func configureDiscovery(config *Config, opts *CliOpts) discovery.Discoverer {
 		case "docker":
 			disco.Discoverers = append(
 				disco.Discoverers,
-				discovery.NewDockerDiscovery(config.DockerDiscovery.DockerURL, svcNamer),
+				discovery.NewDockerDiscovery(config.DockerDiscovery.DockerURL, svcNamer, publishedIP),
 			)
 		case "static":
 			disco.Discoverers = append(
 				disco.Discoverers,
-				discovery.NewStaticDiscovery(config.StaticDiscovery.ConfigFile),
+				discovery.NewStaticDiscovery(config.StaticDiscovery.ConfigFile, publishedIP),
 			)
 		default:
 		}
@@ -286,7 +286,7 @@ func main() {
 	// Register the cluster name with the state object
 	state.ClusterName = *opts.ClusterName
 
-	disco := configureDiscovery(&config, opts)
+	disco := configureDiscovery(&config, opts, publishedIP)
 	go disco.Run(discoLooper)
 
 	// Configure the monitor and use the public address as the default

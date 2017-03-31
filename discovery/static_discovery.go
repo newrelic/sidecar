@@ -23,6 +23,7 @@ type StaticDiscovery struct {
 	Targets    []*Target
 	ConfigFile string
 	Hostname   string
+	DefaultIP  string
 }
 
 type StaticCheck struct {
@@ -30,7 +31,7 @@ type StaticCheck struct {
 	Args string
 }
 
-func NewStaticDiscovery(filename string) *StaticDiscovery {
+func NewStaticDiscovery(filename string, defaultIP string) *StaticDiscovery {
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Errorf("Error getting hostname! %s", err.Error())
@@ -38,6 +39,7 @@ func NewStaticDiscovery(filename string) *StaticDiscovery {
 	return &StaticDiscovery{
 		ConfigFile: filename,
 		Hostname:   hostname,
+		DefaultIP:  defaultIP,
 	}
 }
 
@@ -102,6 +104,14 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 		if target.Service.Hostname == "" {
 			target.Service.Hostname = d.Hostname
 		}
+
+		// Make sure we have an IP address on ports
+		for i, port := range target.Service.Ports {
+			if len(port.IP) == 0 {
+				target.Service.Ports[i].IP = d.DefaultIP
+			}
+		}
+
 		log.Printf("Discovered service: %s, ID: %s",
 			target.Service.Name,
 			target.Service.ID,
