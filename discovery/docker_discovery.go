@@ -30,15 +30,17 @@ type DockerDiscovery struct {
 	ClientProvider func() (DockerClient, error) // Return the client we'll use to connect
 	containerCache map[string]*docker.Container // Cache of inspected containers
 	serviceNamer   ServiceNamer                 // The service namer implementation
+	advertiseIp    string                       // The address we'll advertise for services
 	sync.RWMutex                                // Reader/Writer lock
 }
 
-func NewDockerDiscovery(endpoint string, svcNamer ServiceNamer) *DockerDiscovery {
+func NewDockerDiscovery(endpoint string, svcNamer ServiceNamer, ip string) *DockerDiscovery {
 	discovery := DockerDiscovery{
 		endpoint:       endpoint,
 		events:         make(chan *docker.APIEvents),
 		containerCache: make(map[string]*docker.Container),
 		serviceNamer:   svcNamer,
+		advertiseIp:    ip,
 	}
 
 	// Default to our own method for returning this
@@ -164,7 +166,7 @@ func (d *DockerDiscovery) getContainers() {
 			continue
 		}
 
-		svc := service.ToService(&container)
+		svc := service.ToService(&container, d.advertiseIp)
 		svc.Name = d.serviceNamer.ServiceName(&container)
 		d.services = append(d.services, &svc)
 		containerMap[svc.ID] = true

@@ -27,10 +27,12 @@ func Test_HAproxy(t *testing.T) {
 		svcId3 := "deadbeef105"
 		svcId4 := "deadbeef999"
 		baseTime := time.Now().UTC().Round(time.Second)
+		ip := "127.0.0.1"
+		ip3 := "127.0.0.3"
 
-		ports1 := []service.Port{{"tcp", 10450, 8080}, {"tcp", 10020, 9000}}
-		ports2 := []service.Port{{"tcp", 9999, 8090}}
-		ports3 := []service.Port{{"tcp", 32763, 8080}, {"tcp", 10020, 9000}}
+		ports1 := []service.Port{{"tcp", 10450, 8080, ip}, {"tcp", 10020, 9000, ip}}
+		ports2 := []service.Port{{"tcp", 9999, 8090, ip3}}
+		ports3 := []service.Port{{"tcp", 32763, 8080, ip3}, {"tcp", 10020, 9000, ip3}}
 
 		services := []service.Service{
 			{
@@ -110,7 +112,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:    "some-svc",
 				Hostname: "titanic",
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{{"tcp", 666, 6666}},
+				Ports:    []service.Port{{"tcp", 666, 6666, "127.0.0.1"}},
 			}
 
 			// It had 1 before
@@ -133,12 +135,13 @@ func Test_HAproxy(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(output, ShouldMatch, "frontend awesome-svc-8080")
 			So(output, ShouldMatch, "backend awesome-svc-8080")
-			So(output, ShouldMatch, "server.*indefatigable:10020")
-			So(output, ShouldMatch, "server.*indefatigable:32763")
+			So(output, ShouldMatch, "server.*indefatigable-")
+			So(output, ShouldMatch, "server.*127.0.0.1:10020")
+			So(output, ShouldMatch, "server.*127.0.0.3:32763")
 			So(output, ShouldMatch, "bind 192.168.168.168:9000")
 			So(output, ShouldMatch, "frontend some-svc-8090")
 			So(output, ShouldMatch, "backend some-svc-8090")
-			So(output, ShouldMatch, "server indefatigable-deadbeef105 indefatigable:9999 cookie indefatigable-9999")
+			So(output, ShouldMatch, "server indefatigable-deadbeef105 127.0.0.3:9999 cookie indefatigable-9999")
 		})
 
 		Convey("WriteConfig() bubbles up templater errors", func() {
@@ -157,7 +160,7 @@ func Test_HAproxy(t *testing.T) {
 				Hostname: "titanic",
 				Status:   service.UNHEALTHY,
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{{"tcp", 666, 6666}},
+				Ports:    []service.Port{{"tcp", 666, 6666, "127.0.0.1"}},
 			}
 			badSvc2 := service.Service{
 				ID:       "0000bad00001",
@@ -166,7 +169,7 @@ func Test_HAproxy(t *testing.T) {
 				Hostname: "titanic",
 				Status:   service.UNKNOWN,
 				Updated:  baseTime.Add(5 * time.Second),
-				Ports:    []service.Port{{"tcp", 666, 6666}},
+				Ports:    []service.Port{{"tcp", 666, 6666, "127.0.0.1"}},
 			}
 			state.AddServiceEntry(badSvc)
 			state.AddServiceEntry(badSvc2)
@@ -227,7 +230,7 @@ func Test_HAproxy(t *testing.T) {
 				Image:    "some-svc",
 				Hostname: hostname2,
 				Updated:  newTime,
-				Ports:    []service.Port{{"tcp", 1337, 8090}},
+				Ports:    []service.Port{{"tcp", 1337, 8090, "127.0.0.1"}},
 			}
 			go state.AddServiceEntry(svc)
 
