@@ -154,15 +154,14 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	return nil
 }
 
-// Execute a command and log the error, but bubble it up as well
+// Execute a command and bubble up the error
 func (h *HAproxy) run(command string) error {
-	cmd := exec.Command("/bin/bash", "-c", command)
-	err := cmd.Run()
+	out, err := exec.Command("/bin/bash", "-c", command).CombinedOutput()
 	if err != nil {
-		log.Errorf("Error running '%s': %s", command, err.Error())
+		return fmt.Errorf("Error running '%s': %s\n%s", command, err.Error(), out)
 	}
 
-	return err
+	return nil
 }
 
 // Run the HAproxy reload command to load the new config and restart.
