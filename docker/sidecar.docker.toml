@@ -20,6 +20,7 @@ config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"
 user          = "haproxy"
 group         = "haproxy"
+use_hostnames = false
 
 [listeners]
 urls = [ "http://192.168.168.168:7778/update" ]
