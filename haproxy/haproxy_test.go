@@ -105,6 +105,22 @@ func Test_HAproxy(t *testing.T) {
 			So(result["some-svc"], ShouldEqual, "tcp")
 		})
 
+		Convey("findIpForService() returns hostnames when UseHostnames is set", func() {
+			proxy.UseHostnames = true
+			svc := services[0]
+			result := proxy.findIpForService("8080", &svc)
+
+			So(result, ShouldEqual, "indomitable")
+		})
+
+		Convey("findIpForService() returns IP addresses when UseHostnames is false", func() {
+			proxy.UseHostnames = false
+			svc := services[0]
+			result := proxy.findIpForService("8080", &svc)
+
+			So(result, ShouldEqual, "127.0.0.1")
+		})
+
 		Convey("servicesWithPorts() groups services by name and port", func() {
 			badSvc := service.Service{
 				ID:       "0000bad00000",
@@ -192,11 +208,11 @@ func Test_HAproxy(t *testing.T) {
 		Convey("Reload() returns an error when it fails", func() {
 			proxy.ReloadCmd = "sh -c 'exit 1'"
 			err := proxy.Reload()
-			So(err.Error(), ShouldEqual, "exit status 1")
+			So(err.Error(), ShouldContainSubstring, "exit status 1")
 
 			proxy.ReloadCmd = "yomomma"
 			err = proxy.Reload()
-			So(err.Error(), ShouldEqual, "exit status 127")
+			So(err.Error(), ShouldContainSubstring, "exit status 127")
 		})
 
 		Convey("WriteAndReload() bubbles up errors on failure", func() {

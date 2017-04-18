@@ -48,6 +48,12 @@ template_file = "views/haproxy.cfg"
 config_file   = "/etc/haproxy.cfg"
 pid_file      = "/var/run/haproxy.pid"
 
+# This setting will force HAproxy configs to be written
+# using hostnames rather than IP addresses. This can be
+# required when using Docker for Mac, for example, or
+# in a situation where there is some address remapping.
+use_hostnames = false
+
 # URLs can be subscribed to Sidecar state change events.
 # Each URL in the list will be posted to with a copy
 # of the event, which contains the service that changed

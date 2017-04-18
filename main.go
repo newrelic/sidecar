@@ -65,6 +65,8 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 		proxy.Group = config.HAproxy.Group
 	}
 
+	proxy.UseHostnames = config.HAproxy.UseHostnames
+
 	return proxy
 }
 

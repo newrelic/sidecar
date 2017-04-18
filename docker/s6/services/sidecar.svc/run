@@ -22,6 +22,11 @@ if [[ -n "$BIND_IP" ]]; then
 	sed -i.bak 's~^bind_ip *=.*$~bind_ip = "'"$BIND_IP"'"~' sidecar.toml
 fi
 
+# If we're disabling IP addresses in the HAproxy configs
+if [[ -n "$USE_HOSTNAMES" ]]; then
+	sed -i.bak 's~^use_hostnames *=.*$~use_hostnames = "'"$USE_HOSTNAMES"'"~' sidecar.toml
+fi
+
 BIND_IP=`grep bind_ip sidecar.toml | grep -o "[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*"`
 
 # If there's a BIND_IP and we don't already have it, add the
