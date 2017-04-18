@@ -31,6 +31,7 @@ type HAproxy struct {
 	PidFile      string `toml:"pid_file"`
 	User         string `toml:"user"`
 	Group        string `toml:"group"`
+	UseHostnames bool   `toml:"use_hostnames"`
 	eventChannel chan catalog.ChangeEvent
 }
 
@@ -100,7 +101,13 @@ func findPortForService(svcPort string, svc *service.Service) string {
 }
 
 // Find the matching IP address when given a ServicePort
-func findIpForService(svcPort string, svc *service.Service) string {
+func (h *HAproxy) findIpForService(svcPort string, svc *service.Service) string {
+	// We can turn off using IP addresses in the config, which is sometimes
+	// necessary (e.g. w/Docker for Mac).
+	if h.UseHostnames {
+		return svc.Hostname
+	}
+
 	matchPort, err := strconv.ParseInt(svcPort, 10, 64)
 	if err != nil {
 		log.Errorf("Invalid value from template ('%s') can't parse as int64: %s", svcPort, err.Error())
@@ -151,7 +158,7 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 			return ports[k]
 		},
 		"portFor":      findPortForService,
-		"ipFor":        findIpForService,
+		"ipFor":        h.findIpForService,
 		"bindIP":       func() string { return h.BindIP },
 		"sanitizeName": sanitizeName,
 	}

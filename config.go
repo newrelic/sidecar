@@ -20,6 +20,7 @@ type HAproxyConfig struct {
 	Disable      bool   `toml:"disable"`
 	User         string `toml:"user"`
 	Group        string `toml:"group"`
+	UseHostnames bool   `toml:"use_hostnames"`
 }
 
 type ServicesConfig struct {
