@@ -10,9 +10,11 @@ fork](https://github.com/Nitro/sidecar)**
 
 Sidecar is a dynamic service discovery platform requiring no external
 coordination service. It's a peer-to-peer system that uses a gossip protocol
-for all communication between hosts. Sidecar health checks local services
-and announces them to peer systems. It's Docker-native so your containerized
-applications work out of the box.
+for all communication between hosts. Sidecar health checks local services and
+announces them to peer systems. It's Docker-native so your containerized
+applications work out of the box. It's designed to be **A**vailable,
+**P**artition tolerant, and eventually consistent—where "eventually" is a very
+short timewindow on the matter of a few seconds.
 
 Sidecar is part of a small ecosystem of tools. It can stand entirely alone
 or can also leverage:
