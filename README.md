@@ -5,6 +5,9 @@ Sidecar ![Sidecar](views/static/Sidecar.png)
 [![](https://images.microbadger.com/badges/image/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar)
 [![](https://images.microbadger.com/badges/version/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar "Get your own version badge on microbadger.com")
 
+**The main repo for this project is the [Nitro
+fork](https://github.com/Nitro/sidecar)**
+
 Sidecar is a dynamic service discovery platform requiring no external
 coordination service. It's a peer-to-peer system that uses a gossip protocol
 for all communication between hosts. Sidecar health checks local services
