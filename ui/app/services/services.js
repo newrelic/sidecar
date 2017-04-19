@@ -9,10 +9,8 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
   });
 }])
 
-.factory('stateService', function($http) {
-	var state = {};
-
-	state.getServices = function() {
+.factory('stateService', function($http, $q) {
+	function svcGetServices() {
       return $http({
         method: 'GET', 
         url: '/services.json',
@@ -24,13 +22,46 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 		'//' + window.location.hostname +
 		':3212/;csv;norefresh';
 
-	state.getHaproxy = function() {
+	function svcGetHaproxy() {
 		return $http({
 			method: 'GET',
 			url: haproxyUrl,
 			dataType: 'text/plain',
 		});
 	};
+
+	var serviceWaiter = $q.defer();
+	var haproxyWaiter = $q.defer();
+
+	var state = {
+		waitFirstServices: serviceWaiter.promise,
+		waitFirstHaproxy: haproxyWaiter.promise,
+		services: {},
+		haproxy: {},
+
+		getServices: function() {
+			return state.services;
+		},
+
+		getHaproxy: function() {
+			return state.haproxy;
+		}
+	};
+
+	// Called on an interval to keep the data up to date
+	function refreshData() {
+		svcGetServices().then(function(services) {
+			state.services = services.data;
+			serviceWaiter.resolve();
+		});
+
+		svcGetHaproxy().then(function(haproxy) {
+			state.haproxy = haproxy.data;
+			haproxyWaiter.resolve();
+		});
+	};
+
+	setInterval(refreshData, 4000); // every 4 seconds
 
     return state;
 })
@@ -57,59 +88,65 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 
 		return true;
 	};
-	
-	var getData = function() {
 
-    	stateService.getServices().success(function (response) {
-			var services = {};
-			for (var svcName in response.Services) {
-				services[svcName] = response.Services[svcName].groupBy(function(s) {
-					var ports = _.map(s.Ports, function(p) { _.pick(p, 'ServicePort') });
-					return [s.Image, ports, s.Status];
-				});
-				if ($scope.collapsed[svcName] == null) {
-					$scope.collapsed[svcName] = true;
-				}
+	function updateData() {
+		// Services
+		var services = {};
+		var servicesResponse = stateService.getServices();
+
+		for (var svcName in servicesResponse.Services) {
+			services[svcName] = servicesResponse.Services[svcName].groupBy(function(s) {
+				var ports = _.map(s.Ports, function(p) { _.pick(p, 'ServicePort') });
+				return [s.Image, ports, s.Status];
+			});
+			if ($scope.collapsed[svcName] == null) {
+				$scope.collapsed[svcName] = true;
 			}
-			$scope.servicesList = services;
-			$scope.clusterName = response.ClusterName;
-			$scope.serverList = response.ClusterMembers;
-    	});
+		}
+		$scope.servicesList = services;
+		$scope.clusterName = servicesResponse.ClusterName;
+		$scope.serverList = servicesResponse.ClusterMembers;
 
-		stateService.getHaproxy().success(function (response) {
-			var raw = Papa.parse(response, { header: true });
+		// Haproxy
+		var haproxyResponse = stateService.getHaproxy();
+		var raw = Papa.parse(haproxyResponse, { header: true });
 
-			var transform = function(memo, item) {
-				if (item.svname == 'FRONTEND' || item.svname == 'BACKEND' ||
-				   item['# pxname'] == 'stats' || item['# pxname'] == 'stats_proxy' ||
-				   item['# pxname'] == '') {
-					return memo
-				}
-
-				// Transform the resulting HAproxy structure into something we can use
-				var fields = item['# pxname'].split('-');
-				var svcPort = fields[fields.length-1];
-				var svcName = fields.slice(0, fields.length-1).join('-');
-
-				fields = item.svname.split('-');
-				var hostname = fields.slice(0, fields.length-1).join('-');
-				var containerID = fields[fields.length-1];
-
-				// Store by servce -> hostname -> container
-				memo[svcName] = memo[svcName] || {};
-				memo[svcName][hostname] = memo[svcName][hostname] || {}
-				memo[svcName][hostname][containerID] = item;
-
+		var transform = function(memo, item) {
+			if (item.svname == 'FRONTEND' || item.svname == 'BACKEND' ||
+			   item['# pxname'] == 'stats' || item['# pxname'] == 'stats_proxy' ||
+			   item['# pxname'] == '') {
 				return memo
-			};
+			}
 
-			var processed = _.inject(raw.data, transform, {});
-			$scope.haproxyInfo = processed;
-		});
+			// Transform the resulting HAproxy structure into something we can use
+			var fields = item['# pxname'].split('-');
+			var svcPort = fields[fields.length-1];
+			var svcName = fields.slice(0, fields.length-1).join('-');
+
+			fields = item.svname.split('-');
+			var hostname = fields.slice(0, fields.length-1).join('-');
+			var containerID = fields[fields.length-1];
+
+			// Store by servce -> hostname -> container
+			memo[svcName] = memo[svcName] || {};
+			memo[svcName][hostname] = memo[svcName][hostname] || {}
+			memo[svcName][hostname][containerID] = item;
+
+			return memo
+		};
+
+		var processed = _.inject(raw.data, transform, {});
+		$scope.haproxyInfo = processed;
 	};
 
-	getData();
-	$interval(getData, 4000); // every 4 seconds
+	// On the first time through, this will update the data and kick off the
+	// scheduled refresh. Otherwise do nothing.
+	stateService.waitFirstHaproxy.then(function() {
+		stateService.waitFirstServices.then(function() {
+			updateData();
+			$interval(updateData, 2000); // Update UI every 2 seconds
+		}, function(){})
+	}, function(){});
 })
 
 .filter('portsStr', function() {
