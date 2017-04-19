@@ -45,5 +45,6 @@ deploy:
   skip_cleanup: true
 
   on:
+    repo: Nitro/sidecar
     tags: true
     condition: ${TRAVIS_GO_VERSION::3} == ${PRODUCTION_GO_VERSION}
