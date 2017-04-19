@@ -14,9 +14,34 @@ for all communication between hosts. Sidecar health checks local services
 and announces them to peer systems. It's Docker-native so your containerized
 applications work out of the box.
 
+Sidecar is part of a small ecosystem of tools. It can stand entirely alone
+or can also leverage:
+
+ * [haproxy-api](https://github.com/Nitro/haproxy-api) - A separation layer
+   that allows Sidecar and HAproxy to run in seperate containers. It also
+   allows a local HAproxy to be configured against a remote Sidecar instance.
+
+ * [Superside](https://github.com/Nitro/superside) - A multi-environment
+   console for Sidecar. Has a heads up display, event lists, and graphs
+   showing what is happening in one or more Sidecar clusters on a live
+   basis.
+
+ * [sidecar-executor](https://github.com/Nitro/sidecar-executor) - A Mesos
+   executor that integrates with Sidecar, allowing your containers to be
+   health checked by Sidecar for both service health and service discovery.
+   Also supports a number of extra features including Vault integration for
+   secrets management.
+
+ * [sidecar-dns](https://github.com/relistan/sidecar-dns) - a WIP project
+   to serve DNS SRV records from Sidecar services state state.
+
+Overview in Brief
+-----------------
+
 Services communicate to each other through an HAproxy instance on each host
 that is itself managed and configured by Sidecar. It is inspired by Airbnb's
 SmartStack. But, we believe it has a few advantages over SmartStack:
+
  * Native support for Docker (works without Docker, too!)
  * No dependence on Zookeeper or other centralized services
  * Peer-to-peer, so it works on your laptop or on a large cluster
@@ -33,8 +58,8 @@ video shows the current state of the UI which is improved since the first video.
 [![YouTube Video](views/static/youtube.png)](https://www.youtube.com/watch?v=VA43yWVUnMA)
 [![YouTube Video2](views/static/youtube2.png)](https://www.youtube.com/watch?v=5MQujt36hkI)
 
-Overview and Theory
--------------------
+Complete Overview and Theory
+----------------------------
 
 Sidecar is an eventually consistent service discovery platform where hosts learn
 about each others' state via a gossip protocol. Hosts exchange messages about
@@ -119,16 +144,19 @@ the [README](docker/README.md) describes how to configure this container.
 Configuration
 -------------
 
-Sidecar expects to find a TOML config file, by default named `sidecar.toml` in the
-current path, to specify how it should operate. You can tell it to use a
-specific file with the `--config-file` or `-f` option on the command line.
+Configuration supports a number of options via a TOML file by default named
+`sidecar.toml`. You may also configure the Docker container with some
+[environment
+variables](https://github.com/Nitro/sidecar/blob/master/docker/s6/services/sidecar.svc/run).
+Most of the options are described in more detail in the [example TOML
+file](https://github.com/Nitro/sidecar/blob/master/sidecar.example.toml).
 
-It comes supplied with an example config file called `sidecar.example.toml`
-which you should copy and modify as needed.
+If needed, you can specify on the command line that Sidecar should use a
+different filename by using the `--config-file` or `-f` option.
 
 Sidecar supports both Docker-based discovery and a discovery mechanism where
-you publish services into a JSON file locally. These can then be advertised
-as running services just like they would be from a Docker host.
+you publish services into a JSON file locally. These can then be advertised as
+running services just like they would be from a Docker host.
 
 ### Discovery
 
