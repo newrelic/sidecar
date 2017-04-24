@@ -9,6 +9,7 @@ import (
 	"github.com/Nitro/sidecar/service"
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 const (
@@ -120,6 +121,14 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	if len(leftover) > 0 {
 		log.Debugf("Leaving %d messages unsent", len(leftover))
 	}
+
+	// TODO testing only!!
+	go func(broadcast [][]byte) {
+		time.Sleep(5*time.Millisecond)
+		for _, entry := range broadcast {
+			ffjson.Pool(entry)
+		}
+	}(broadcast)
 
 	return broadcast
 }
