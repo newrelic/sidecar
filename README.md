@@ -1,7 +1,7 @@
 Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
-[![](https://travis-ci.org/Nitro/spacesuit.svg?branch=master)](https://travis-ci.org/Nitro/spacesuit)
+[![](https://travis-ci.org/Nitro/sidecar.svg?branch=master)](https://travis-ci.org/Nitro/sidecar)
 [![](https://images.microbadger.com/badges/image/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar)
 [![](https://images.microbadger.com/badges/version/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar "Get your own version badge on microbadger.com")
 
