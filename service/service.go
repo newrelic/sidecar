@@ -1,4 +1,5 @@
 package service
+//go:generate ffjson $GOFILE
 
 import (
 	"fmt"

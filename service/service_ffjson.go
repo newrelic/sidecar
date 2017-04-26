@@ -367,7 +367,6 @@ func (mj *Service) MarshalJSON() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
-
 func (mj *Service) MarshalJSONBuf(buf fflib.EncodingBuffer) error {
 	if mj == nil {
 		buf.WriteString("null")

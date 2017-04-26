@@ -1,4 +1,5 @@
 package catalog
+//go:generate ffjson $GOFILE
 
 import (
 	"encoding/json"
