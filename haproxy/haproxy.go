@@ -222,7 +222,7 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 		}
 	}
 
-	// TODO this should really clean up the listener
+	state.RemoveListener(h.Name())
 }
 
 // Write out the the HAproxy config and reload the service.
@@ -261,7 +261,7 @@ func (h *HAproxy) Chan() chan catalog.ChangeEvent {
 
 func getModes(state *catalog.ServicesState) map[string]string {
 	modeMap := make(map[string]string)
-	state.EachServiceSorted(
+	state.EachService(
 		func(hostname *string, serviceId *string, svc *service.Service) {
 			modeMap[svc.Name] = svc.ProxyMode
 		},
@@ -275,7 +275,7 @@ func getModes(state *catalog.ServicesState) map[string]string {
 func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Service {
 	serviceMap := make(map[string][]*service.Service)
 
-	state.EachServiceSorted(
+	state.EachService(
 		func(hostname *string, serviceId *string, svc *service.Service) {
 			if len(svc.Ports) < 1 {
 				return
@@ -286,13 +286,9 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 				return
 			}
 
+			// If this is the first one, just set it
 			if _, ok := serviceMap[svc.Name]; !ok {
-				serviceMap[svc.Name] = make([]*service.Service, 0, 3)
-			}
-
-			// If this is the first one, just add it to the list
-			if len(serviceMap[svc.Name]) < 1 {
-				serviceMap[svc.Name] = append(serviceMap[svc.Name], svc)
+				serviceMap[svc.Name] = []*service.Service{svc}
 				return
 			}
 
@@ -325,9 +321,10 @@ func servicesWithPorts(state *catalog.ServicesState) map[string][]*service.Servi
 }
 
 func getSortedServicePorts(svc *service.Service) []string {
-	var portList []string
-	for _, port := range svc.Ports {
-		portList = append(portList, strconv.FormatInt(port.ServicePort, 10))
+	// Allocate once, with exact length
+	portList := make([]string, len(svc.Ports))
+	for i, port := range svc.Ports {
+		portList[i] = strconv.FormatInt(port.ServicePort, 10)
 	}
 
 	sort.Strings(portList)
