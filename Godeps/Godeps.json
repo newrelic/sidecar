@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/Nitro/sidecar",
-	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GoVersion": "go1.8",
+	"GodepVersion": "v79",
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
@@ -133,6 +133,18 @@
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/user",
 			"Comment": "v0.1.1-93-gc6a791b",
 			"Rev": "c6a791bef906b0dfdf81e85b840bec475b8ec75e"
+		},
+		{
+			"ImportPath": "github.com/pquerna/ffjson/ffjson",
+			"Rev": "f60b597ded7e7542b36fe20999dfd48166abd5ae"
+		},
+		{
+			"ImportPath": "github.com/pquerna/ffjson/fflib/v1",
+			"Rev": "f60b597ded7e7542b36fe20999dfd48166abd5ae"
+		},
+		{
+			"ImportPath": "github.com/pquerna/ffjson/fflib/v1/internal",
+			"Rev": "f60b597ded7e7542b36fe20999dfd48166abd5ae"
 		},
 		{
 			"ImportPath": "github.com/relistan/go-director",

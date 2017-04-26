@@ -9,6 +9,7 @@ import (
 	"github.com/Nitro/sidecar/service"
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 const (
@@ -75,7 +76,6 @@ func (d *servicesDelegate) NotifyMsg(message []byte) {
 
 	log.Debugf("NotifyMsg(): %s", string(message))
 
-	// TODO don't just send container structs, send message structs
 	d.notifications <- message
 }
 
@@ -95,11 +95,14 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 		}
 	}
 
-	// Prefer newest messages (TODO what about tombstones?)
-	broadcast = append(broadcast, d.pendingBroadcasts...)
-	d.pendingBroadcasts = make([][]byte, 0, 1)
-
+	// Prefer newest messages (TODO what about tombstones?). We use the one new
+	// broadcast and then append all the pending ones to see if we can get
+	// them into the packet.
+	if len(d.pendingBroadcasts) > 0 {
+		broadcast = append(broadcast, d.pendingBroadcasts...)
+	}
 	broadcast, leftover := packPacket(broadcast, limit, overhead)
+
 	if len(leftover) > 0 {
 		// We don't want to store old messages forever, or starve ourselves to death
 		if len(leftover) > MAX_PENDING_LENGTH {
@@ -107,6 +110,10 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 		} else {
 			d.pendingBroadcasts = leftover
 		}
+
+		log.Debugf("Leaving %d messages unsent", len(leftover))
+	} else {
+		d.pendingBroadcasts = [][]byte{}
 	}
 
 	if broadcast == nil || len(broadcast) < 1 {
@@ -117,9 +124,18 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	log.Debugf("Sending broadcast %d msgs %d 1st length",
 		len(broadcast), len(broadcast[0]),
 	)
-	if len(leftover) > 0 {
-		log.Debugf("Leaving %d messages unsent", len(leftover))
-	}
+
+	// Unfortunately Memberlist does not provide a callback after broadcasts were
+	// accepted so we have no direct way to return these to the pool. However, it
+	// immediately copies what we return into a new buffer. So, it's not perfectly,
+	// but is reasonably safe to wait awhile and then re-add our buffer to the
+	// ffjson pool.
+	go func(broadcast [][]byte) {
+		time.Sleep(25 * time.Millisecond) // Lots of safety margin in this number
+		for i := 0; i < len(broadcast); i++ {
+			ffjson.Pool(broadcast[i])
+		}
+	}(broadcast)
 
 	return broadcast
 }
@@ -154,7 +170,6 @@ func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
 func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
 	log.Debugf("NotifyLeave(): %s", node.Name)
 	go func() {
-		// TODO move this to a channel and remove lock
 		d.state.Lock()
 		defer d.state.Unlock()
 		d.state.ExpireServer(node.Name)
@@ -165,17 +180,36 @@ func (d *servicesDelegate) NotifyUpdate(node *memberlist.Node) {
 	log.Debugf("NotifyUpdate(): %s", node.Name)
 }
 
+// Try to pack as many messages into the packet as we can. Note that this
+// assumes that no messages will be longer than the normal UDP packet size.
+// This means that max message length is somewhere around 1398 when taking
+// messaging overhead into account.
 func packPacket(broadcasts [][]byte, limit int, overhead int) (packet [][]byte, leftover [][]byte) {
 	total := 0
-	leftover = make([][]byte, 0) // So we don't return unallocated buffer
-	for _, message := range broadcasts {
-		if total+len(message)+overhead < limit {
-			packet = append(packet, message)
-			total += len(message) + overhead
-		} else {
-			leftover = append(leftover, message)
+	lastItem := -1
+
+	// Find the index of the last item that fits into the packet we're building
+	for i, message := range broadcasts {
+		if total+len(message)+overhead > limit {
+			break
 		}
+
+		lastItem = i
+		total += len(message) + overhead
 	}
 
-	return packet, leftover
+	if lastItem < 0 && len(broadcasts) > 0 {
+		log.Error("All messages were too long to fit! No broadcasts sent!")
+		// There could be a scenario here where one hugely long broadcast could
+		// get stuck forever and prevent anything else from going out. There
+		// may be a better way to handle this. Scanning for the next message that
+		// does fit results in lots of memory copying and doesn't perform at scale.
+		return nil, broadcasts
+	}
+
+	// Save the leftover messages after the last one that fit. If this is too
+	// much, then set it to the lastItem.
+	firstLeftover := lastItem + 1
+
+	return broadcasts[:lastItem+1], broadcasts[firstLeftover:]
 }

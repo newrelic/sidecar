@@ -294,7 +294,6 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			go state.TrackNewServices(containerFn, looper)
 			state.ProcessServiceMsgs(director.NewFreeLooper(2, nil))
 			looper.Wait()
-			fmt.Println(state.Format(nil))
 
 			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
 			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)

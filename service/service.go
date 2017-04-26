@@ -1,7 +1,7 @@
 package service
+//go:generate ffjson $GOFILE
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -39,8 +39,8 @@ type Service struct {
 	Status    int
 }
 
-func (svc Service) Encode() ([]byte, error) {
-	return json.Marshal(svc)
+func (svc *Service) Encode() ([]byte, error) {
+	return svc.MarshalJSON()
 }
 
 func (svc *Service) StatusString() string {
@@ -95,7 +95,7 @@ func (svc *Service) PortForServicePort(findPort int64, pType string) int64 {
 
 func Decode(data []byte) *Service {
 	var svc Service
-	json.Unmarshal(data, &svc)
+	svc.UnmarshalJSON(data)
 
 	return &svc
 }
