@@ -21,6 +21,7 @@ type servicesDelegate struct {
 	pendingBroadcasts [][]byte
 	notifications     chan []byte
 	Started           bool
+	StartedAt         time.Time
 	Metadata          NodeMetadata
 }
 
@@ -54,6 +55,7 @@ func (d *servicesDelegate) Start() {
 	}()
 
 	d.Started = true
+	d.StartedAt = time.Now().UTC()
 }
 
 func (d *servicesDelegate) NodeMeta(limit int) []byte {
@@ -101,7 +103,7 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	if len(d.pendingBroadcasts) > 0 {
 		broadcast = append(broadcast, d.pendingBroadcasts...)
 	}
-	broadcast, leftover := packPacket(broadcast, limit, overhead)
+	broadcast, leftover := d.packPacket(broadcast, limit, overhead)
 
 	if len(leftover) > 0 {
 		// We don't want to store old messages forever, or starve ourselves to death
@@ -184,7 +186,7 @@ func (d *servicesDelegate) NotifyUpdate(node *memberlist.Node) {
 // assumes that no messages will be longer than the normal UDP packet size.
 // This means that max message length is somewhere around 1398 when taking
 // messaging overhead into account.
-func packPacket(broadcasts [][]byte, limit int, overhead int) (packet [][]byte, leftover [][]byte) {
+func (d *servicesDelegate) packPacket(broadcasts [][]byte, limit int, overhead int) (packet [][]byte, leftover [][]byte) {
 	total := 0
 	lastItem := -1
 
@@ -198,8 +200,13 @@ func packPacket(broadcasts [][]byte, limit int, overhead int) (packet [][]byte, 
 		total += len(message) + overhead
 	}
 
-	if lastItem < 0 && len(broadcasts) > 0 {
-		log.Error("All messages were too long to fit! No broadcasts sent!")
+	if lastItem < 0 && len(broadcasts) > 0{
+		// Don't warn on startup... it's fairly normal
+		gracePeriod := time.Now().UTC().Add(0-(5*time.Second))
+		if d.StartedAt.Before(gracePeriod) {
+			log.Warnf("All messages were too long to fit! No broadcasts!")
+		}
+
 		// There could be a scenario here where one hugely long broadcast could
 		// get stuck forever and prevent anything else from going out. There
 		// may be a better way to handle this. Scanning for the next message that
