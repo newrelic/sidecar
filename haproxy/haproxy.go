@@ -21,10 +21,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const (
-	RESTART_TIMEOUT = 5 * time.Second
-)
-
 type portset map[string]string
 type portmap map[string]portset
 
