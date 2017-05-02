@@ -6,10 +6,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"regexp"
 	"sort"
 	"strconv"
+	"sync"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -18,21 +21,28 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const (
+	RESTART_TIMEOUT = 5 * time.Second
+)
+
 type portset map[string]string
 type portmap map[string]portset
 
 // Configuration and state for the HAproxy management module
 type HAproxy struct {
-	ReloadCmd    string `toml:"reload_cmd"`
-	VerifyCmd    string `toml:"verify_cmd"`
-	BindIP       string `toml:"bind_ip"`
-	Template     string `toml:"template"`
-	ConfigFile   string `toml:"config_file"`
-	PidFile      string `toml:"pid_file"`
-	User         string `toml:"user"`
-	Group        string `toml:"group"`
-	UseHostnames bool   `toml:"use_hostnames"`
-	eventChannel chan catalog.ChangeEvent
+	ReloadCmd      string `toml:"reload_cmd"`
+	VerifyCmd      string `toml:"verify_cmd"`
+	BindIP         string `toml:"bind_ip"`
+	Template       string `toml:"template"`
+	ConfigFile     string `toml:"config_file"`
+	PidFile        string `toml:"pid_file"`
+	User           string `toml:"user"`
+	Group          string `toml:"group"`
+	UseHostnames   bool   `toml:"use_hostnames"`
+	eventChannel   chan catalog.ChangeEvent
+	signalsHandled bool
+	sigLock        sync.Mutex
+	sigStopChan    chan struct{}
 }
 
 // Constructs a properly configured HAProxy and returns a pointer to it
@@ -183,14 +193,78 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	return nil
 }
 
-// Execute a command and bubble up the error
-func (h *HAproxy) run(command string) error {
-	out, err := exec.Command("/bin/bash", "-c", command).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Error running '%s': %s\n%s", command, err.Error(), out)
+// notifySignals swallows a bunch of signals that get sent to us when running into
+// an error from HAproxy. If we didn't swallow these, the process would potentially
+// stop when the signals are propagated by the sub-shell.
+func (h *HAproxy) swallowSignals() {
+	// from HAproxy which propagate.
+	sigChan := make(chan os.Signal, 10)
+
+	// Used to stop the goroutine
+	h.sigStopChan = make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-sigChan:
+				// swallow signal
+			case <-h.sigStopChan:
+				break
+			}
+		}
+	}()
+
+	signal.Notify(sigChan, syscall.SIGSTOP, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
+}
+
+// ResetSignals unhooks our signal handler from the signals the sub-commands
+// initiate. This is potentially destructive if other places in the program have
+// hooked to the same signals! Affected signals are SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU.
+func (h *HAproxy) ResetSignals() {
+	h.sigLock.Lock()
+	signal.Reset(syscall.SIGSTOP, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
+	select {
+	case h.sigStopChan <- struct{}{}: // nothing
+	default:
 	}
 
-	return nil
+	h.sigLock.Unlock()
+}
+
+// Execute a command and bubble up the error. Includes locking behavior which means
+// that only one of these can be running at once.
+func (h *HAproxy) run(command string) error {
+
+	cmd := exec.Command("/bin/bash", "-c", command)
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	// The end effect of this signal handling requirement is that we can only run _one_
+	// command at a time. This is totally fine for HAproxy.
+	h.sigLock.Lock()
+	defer h.sigLock.Unlock()
+
+	if !h.signalsHandled {
+		log.Info("Setting up signal handlers")
+		h.swallowSignals()
+		h.signalsHandled = true
+	}
+
+	err := cmd.Start()
+
+	if err != nil {
+		return fmt.Errorf("Unable to start '%s': %s", command, err)
+	}
+
+	err = cmd.Wait()
+
+	if err != nil {
+		err = fmt.Errorf("Error running '%s': %s\n%s\n%s", command, err, stdout, stderr)
+	}
+
+	return err
 }
 
 // Run the HAproxy reload command to load the new config and restart.
@@ -244,9 +318,7 @@ func (h *HAproxy) WriteAndReload(state *catalog.ServicesState) error {
 		return fmt.Errorf("Failed to verify HAproxy config! (%s)", err.Error())
 	}
 
-	h.Reload()
-
-	return nil
+	return h.Reload()
 }
 
 // Name is part of the catalog.Listener interface. Returns the listener name.

@@ -81,6 +81,8 @@ func Test_HAproxy(t *testing.T) {
 		proxy.BindIP = "192.168.168.168"
 		proxy.Template = "../views/haproxy.cfg"
 
+		proxy.ResetSignals()
+
 		Convey("New() returns a properly configured struct", func() {
 			p := New("tmpConfig", "tmpPid")
 			So([]byte(p.ReloadCmd), ShouldMatch, "^haproxy .*")
