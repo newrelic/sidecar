@@ -205,30 +205,31 @@ func Test_ServicesStateWithData(t *testing.T) {
 			})
 
 			Convey("Doesn't retransmit when the state is the same", func() {
-				state.Broadcasts = make(chan [][]byte, 1)
+				state.Broadcasts = make(chan [][]byte, 2)
 				state.AddServiceEntry(svc)
+
+				<-state.Broadcasts
+
 				svc.Updated = svc.Updated.Add(1 * time.Second)
 				state.AddServiceEntry(svc)
 
-				pendingBroadcast := false
-				select {
-				case <-state.Broadcasts:
-					pendingBroadcast = true
-				default:
-				}
-				So(pendingBroadcast, ShouldBeFalse)
+				time.Sleep(5 * time.Millisecond)
+
+				So(len(state.Broadcasts), ShouldEqual, 0)
 			})
 
 			Convey("Doesn't retransmit an add of a new service for this host", func() {
 				state.Hostname = hostname
 				state.Broadcasts = make(chan [][]byte, 1)
+				svc.Hostname = hostname
 				state.AddServiceEntry(svc)
 
 				pendingBroadcast := false
 				select {
 				case <-state.Broadcasts:
 					pendingBroadcast = true
-				default:
+				case <-time.After(5 * time.Millisecond):
+					//do nothing
 				}
 				So(pendingBroadcast, ShouldBeFalse)
 			})
