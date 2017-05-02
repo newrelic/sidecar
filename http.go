@@ -64,6 +64,9 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request,
 	}
 }
 
+// watchHandler takes an optional GET parameter, "by_service"
+// By default, watchHandler returns `json.Marshal(state.ByService())` payloads
+// If the client passes "by_service=false", watchHandler returns `json.Marshal(state)` payloads
 func watchHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
 	defer req.Body.Close()
 
@@ -81,8 +84,18 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	state.AddListener(listener)
 	defer state.RemoveListener(listener.Name())
 
+	byService := true
+	if req.URL.Query().Get("by_service") == "false" {
+		byService = false
+	}
+
 	pushUpdate := func() error {
-		jsonBytes, err = json.Marshal(state.ByService())
+		if byService {
+			jsonBytes, err = json.Marshal(state.ByService())
+		} else {
+			jsonBytes, err = json.Marshal(state)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -128,8 +141,8 @@ func sendError(response http.ResponseWriter, status int, message string) {
 
 // Send back a JSON encoded error and message
 func sendJsonError(response http.ResponseWriter, status int, message string) {
-	output := map[string]string {
-		"status": "error",
+	output := map[string]string{
+		"status":  "error",
 		"message": message,
 	}
 
@@ -197,8 +210,8 @@ func oneServiceHandler(response http.ResponseWriter, req *http.Request, list *me
 	svcInstances := make(map[string][]*service.Service)
 	svcInstances[name] = instances
 	result := ApiServices{
-		Services:       svcInstances,
-		ClusterName:    clusterName,
+		Services:    svcInstances,
+		ClusterName: clusterName,
 	}
 
 	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
@@ -210,7 +223,6 @@ func oneServiceHandler(response http.ResponseWriter, req *http.Request, list *me
 
 	response.Write(jsonBytes)
 }
-
 
 func servicesHandler(response http.ResponseWriter, req *http.Request, list *memberlist.Memberlist, state *catalog.ServicesState, params map[string]string) {
 	defer req.Body.Close()
