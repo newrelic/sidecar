@@ -248,13 +248,7 @@ func (h *HAproxy) run(command string) error {
 		h.signalsHandled = true
 	}
 
-	err := cmd.Start()
-
-	if err != nil {
-		return fmt.Errorf("Unable to start '%s': %s", command, err)
-	}
-
-	err = cmd.Wait()
+	err := cmd.Run()
 
 	if err != nil {
 		err = fmt.Errorf("Error running '%s': %s\n%s\n%s", command, err, stdout, stderr)
