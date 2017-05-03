@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http/httptest"
 	"testing"
@@ -49,7 +50,7 @@ func Test_oneServiceHandler(t *testing.T) {
 		recorder := httptest.NewRecorder()
 
 		params := map[string]string{
-			"name": "bocaccio",
+			"name":      "bocaccio",
 			"extension": "json",
 		}
 
@@ -96,6 +97,69 @@ func Test_oneServiceHandler(t *testing.T) {
 			So(resp.StatusCode, ShouldEqual, 200)
 			So(body, ShouldContainSubstring, `"bocaccio": [`)
 			So(body, ShouldNotContainSubstring, `"shakespeare"`)
+		})
+	})
+}
+
+type respRecorder struct {
+	*httptest.ResponseRecorder
+	closeNotifier chan bool
+}
+
+func (r *respRecorder) CloseNotify() <-chan bool {
+	return r.closeNotifier
+}
+
+func Test_watchHandler(t *testing.T) {
+	Convey("When invoking the watcher handler", t, func() {
+		dummyReq := httptest.NewRequest("GET", "/watch", nil)
+
+		dummyResp := &respRecorder{
+			ResponseRecorder: httptest.NewRecorder(),
+			closeNotifier:    make(chan bool, 1),
+		}
+
+		dummyState := catalog.NewServicesState()
+
+		currentTime := time.Now().UTC()
+		dummyState.AddServiceEntry(
+			service.Service{
+				ID:       "42",
+				Name:     "dummy_service",
+				Image:    "dummy_image",
+				Created:  currentTime,
+				Hostname: "dummy_host",
+				Updated:  currentTime,
+				Status:   service.ALIVE,
+			},
+		)
+
+		Convey("Returns state", func() {
+			expectedPayload, err := json.Marshal(dummyState)
+			if err != nil {
+				So(err, ShouldBeNil)
+			}
+
+			q := dummyReq.URL.Query()
+			q.Add("by_service", "false")
+			dummyReq.URL.RawQuery = q.Encode()
+
+			dummyResp.closeNotifier <- true
+			watchHandler(dummyResp, dummyReq, nil, dummyState, nil)
+
+			So(dummyResp.Body.String(), ShouldEqual, string(expectedPayload))
+		})
+
+		Convey("Returns state by service", func() {
+			expectedPayload, err := json.Marshal(dummyState.ByService())
+			if err != nil {
+				So(err, ShouldBeNil)
+			}
+
+			dummyResp.closeNotifier <- true
+			watchHandler(dummyResp, dummyReq, nil, dummyState, nil)
+
+			So(dummyResp.Body.String(), ShouldEqual, string(expectedPayload))
 		})
 	})
 }

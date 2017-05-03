@@ -1,4 +1,5 @@
 package catalog
+
 //go:generate ffjson $GOFILE
 
 import (
@@ -278,7 +279,6 @@ func (state *ServicesState) AddServiceEntry(entry service.Service) {
 		// by sending them the record. We're saved from an endless
 		// retransmit loop by the Invalidates() call above.
 		state.retransmit(entry)
-		return
 	}
 }
 
