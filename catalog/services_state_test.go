@@ -204,26 +204,14 @@ func Test_ServicesStateWithData(t *testing.T) {
 				So(string(packet[0]), ShouldEqual, string(encoded))
 			})
 
-			Convey("Doesn't retransmit when the state is the same", func() {
-				state.Broadcasts = make(chan [][]byte, 2)
-				state.AddServiceEntry(svc)
-
-				<-state.Broadcasts
-
-				svc.Updated = svc.Updated.Add(1 * time.Second)
-				state.AddServiceEntry(svc)
-
-				time.Sleep(5 * time.Millisecond)
-
-				So(len(state.Broadcasts), ShouldEqual, 0)
-			})
-
 			Convey("Doesn't retransmit an add of a new service for this host", func() {
 				state.Hostname = hostname
 				state.Broadcasts = make(chan [][]byte, 1)
 				svc.Hostname = hostname
 				state.AddServiceEntry(svc)
 
+				// state.AddServiceEntry() triggers state.retransmit(), which spins up
+				// a goroutine to publish broadcasts if svc.Hostname != state.Hostname
 				pendingBroadcast := false
 				select {
 				case <-state.Broadcasts:
