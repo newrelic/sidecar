@@ -37,6 +37,11 @@ or can also leverage:
  * [sidecar-dns](https://github.com/relistan/sidecar-dns) - a WIP project
    to serve DNS SRV records from Sidecar services state state.
 
+ * [Traefik plugin](https://github.com/Nitro/traefik) - A fork of Traefik
+   that can be backed by Sidecar. Useful as a gateway from the outside world
+   into a Sidecar-based services environment. Working to get this plugin
+   pushed upstream.
+
 Overview in Brief
 -----------------
 
