@@ -14,7 +14,7 @@ for all communication between hosts. Sidecar health checks local services and
 announces them to peer systems. It's Docker-native so your containerized
 applications work out of the box. It's designed to be **A**vailable,
 **P**artition tolerant, and eventually consistent—where "eventually" is a very
-short timewindow on the matter of a few seconds.
+short time window on the matter of a few seconds.
 
 Sidecar is part of a small ecosystem of tools. It can stand entirely alone
 or can also leverage:
@@ -35,7 +35,7 @@ or can also leverage:
    secrets management.
 
  * [sidecar-dns](https://github.com/relistan/sidecar-dns) - a WIP project
-   to serve DNS SRV records from Sidecar services state state.
+   to serve DNS SRV records from Sidecar services state.
 
  * [Traefik plugin](https://github.com/Nitro/traefik) - A fork of Traefik
    that can be backed by Sidecar. Useful as a gateway from the outside world
