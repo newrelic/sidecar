@@ -72,9 +72,6 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 
 	response.Header().Set("Content-Type", "application/json")
 
-	var jsonBytes []byte
-	var err error
-
 	listener := NewHttpListener()
 
 	// Find out when the http connection closed so we can stop
@@ -89,16 +86,19 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 		byService = false
 	}
 
+	var jsonBytes []byte
 	pushUpdate := func() error {
 		if byService {
+			var err error
 			jsonBytes, err = json.Marshal(state.ByService())
+
+			if err != nil {
+				return err
+			}
 		} else {
-			jsonBytes, err = json.Marshal(state)
+			jsonBytes = state.Encode()
 		}
 
-		if err != nil {
-			return err
-		}
 		// In order to flush immediately, we have to cast to a Flusher.
 		// The normal HTTP library supports this but not all do, so we
 		// check just in case.
@@ -111,7 +111,7 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	}
 
 	// Push the first update right away
-	err = pushUpdate()
+	err := pushUpdate()
 	if err != nil {
 		log.Errorf("Error marshaling state in watchHandler: %s", err.Error())
 		return
