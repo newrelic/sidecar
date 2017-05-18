@@ -519,6 +519,12 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 			})
 
 			Convey("does not announce services for hosts with none", func() {
+				state.ExpireServer(hostname)
+				So(len(state.Servers[hostname].Services), ShouldEqual, 0)
+				So(len(state.Broadcasts), ShouldEqual, 0)
+			})
+
+			Convey("does not announce services for hosts with no alive services", func() {
 				service1.Status = service.TOMBSTONE
 				state.AddServiceEntry(service1)
 
