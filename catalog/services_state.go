@@ -151,8 +151,21 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 
 // A server has left the cluster, so tombstone all of its records
 func (state *ServicesState) ExpireServer(hostname string) {
-	if !state.HasServer(hostname) {
+	if !state.HasServer(hostname) || len(state.Servers[hostname].Services) == 0 {
 		log.Infof("No records to expire for %s", hostname)
+		return
+	}
+
+	hasLiveServices := false
+	for _, svc := range state.Servers[hostname].Services {
+		if !svc.IsTombstone() {
+			hasLiveServices = true
+			break
+		}
+	}
+
+	if !hasLiveServices {
+		log.Infof("No records to expire for %s (no live services)", hostname)
 		return
 	}
 
@@ -165,6 +178,11 @@ func (state *ServicesState) ExpireServer(hostname string) {
 		state.ServiceChanged(svc, previousStatus, svc.Updated)
 		svc.Tombstone()
 		tombstones = append(tombstones, *svc)
+	}
+
+	if len(tombstones) < 1 {
+		log.Warn("Tried to announce a zero length list of tombstones")
+		return
 	}
 
 	state.SendServices(
