@@ -89,19 +89,19 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 
 	var jsonBytes []byte
 	pushUpdate := func() error {
-		// Enter critical section
-		state.RLock()
-		defer state.RUnlock()
-
 		if byService {
+			state.RLock()
 			var err error
 			jsonBytes, err = json.Marshal(state.ByService())
+			state.RUnlock()
 
 			if err != nil {
 				return err
 			}
 		} else {
+			state.RLock()
 			jsonBytes = state.Encode()
+			state.RUnlock()
 		}
 
 		// In order to flush immediately, we have to cast to a Flusher.
