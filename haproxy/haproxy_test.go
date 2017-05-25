@@ -251,6 +251,16 @@ func Test_HAproxy(t *testing.T) {
 				Updated:  newTime,
 				Ports:    []service.Port{{"tcp", 1337, 8090, "127.0.0.1"}},
 			}
+		OUTER:
+			for {
+				for _, listener := range state.GetListeners() {
+					if listener.Name() == "HAproxy" {
+						break OUTER
+					}
+				}
+				time.Sleep(1 * time.Millisecond)
+			}
+
 			go state.AddServiceEntry(svc)
 
 			// We have to wait until the file has the right data in it to avoid
@@ -271,7 +281,7 @@ func Test_HAproxy(t *testing.T) {
 			}()
 
 			select {
-			case <-time.After(5500 * time.Millisecond):
+			case <-time.After(1 * time.Second):
 				panic("Test timed out waiting for HAProxy config")
 			case <-readyChan:
 				// nothing
