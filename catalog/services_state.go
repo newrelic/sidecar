@@ -270,33 +270,44 @@ func (state *ServicesState) RemoveListener(name string) error {
 // Take a service and merge it into our state. Correctly handle
 // timestamps so we only add things newer than what we already
 // know about. Retransmits updates to cluster peers.
-func (state *ServicesState) AddServiceEntry(entry service.Service) {
+func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 	defer metrics.MeasureSince([]string{"services_state", "AddServiceEntry"}, time.Now())
 
 	state.Lock()
 	defer state.Unlock()
 
-	if !state.HasServer(entry.Hostname) {
-		state.Servers[entry.Hostname] = NewServer(entry.Hostname)
+	if !state.HasServer(newSvc.Hostname) {
+		state.Servers[newSvc.Hostname] = NewServer(newSvc.Hostname)
 	}
 
-	server := state.Servers[entry.Hostname]
+	server := state.Servers[newSvc.Hostname]
 
 	// Only apply changes that are newer or services are missing
-	if !server.HasService(entry.ID) {
-		server.Services[entry.ID] = &entry
-		state.ServiceChanged(&entry, service.UNKNOWN, entry.Updated)
-		state.retransmit(entry)
-	} else if entry.Invalidates(server.Services[entry.ID]) {
-		server.LastUpdated = entry.Updated
-		if server.Services[entry.ID].Status != entry.Status {
-			state.ServiceChanged(&entry, server.Services[entry.ID].Status, entry.Updated)
+	if !server.HasService(newSvc.ID) {
+		server.Services[newSvc.ID] = &newSvc
+		state.ServiceChanged(&newSvc, service.UNKNOWN, newSvc.Updated)
+		state.retransmit(newSvc)
+	} else if newSvc.Invalidates(server.Services[newSvc.ID]) {
+		// We have to set these even if the status did not change
+		server.LastUpdated = newSvc.Updated
+		state.LastUpdated = newSvc.Updated
+
+		// Store the previous newSvc so we can compare it
+		oldEntry := server.Services[newSvc.ID] 
+
+		// Update the new one
+		server.Services[newSvc.ID] = &newSvc
+
+		// When the status changes, the SeviceChanged() method will
+		// update all the accounting fields in the state and Server newSvc.
+		if oldEntry.Status != newSvc.Status {
+			state.ServiceChanged(&newSvc, oldEntry.Status, newSvc.Updated)
 		}
-		server.Services[entry.ID] = &entry
+
 		// We tell our gossip peers about the updated service
 		// by sending them the record. We're saved from an endless
 		// retransmit loop by the Invalidates() call above.
-		state.retransmit(entry)
+		state.retransmit(newSvc)
 	}
 }
 
