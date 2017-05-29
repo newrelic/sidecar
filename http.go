@@ -78,6 +78,7 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	notify := response.(http.CloseNotifier).CloseNotify()
 
 	// Let's subscribe to state change events
+	// AddListener and RemoveListener are thread safe
 	state.AddListener(listener)
 	defer state.RemoveListener(listener.Name())
 
@@ -89,14 +90,18 @@ func watchHandler(response http.ResponseWriter, req *http.Request, list *memberl
 	var jsonBytes []byte
 	pushUpdate := func() error {
 		if byService {
+			state.RLock()
 			var err error
 			jsonBytes, err = json.Marshal(state.ByService())
+			state.RUnlock()
 
 			if err != nil {
 				return err
 			}
 		} else {
+			state.RLock()
 			jsonBytes = state.Encode()
+			state.RUnlock()
 		}
 
 		// In order to flush immediately, we have to cast to a Flusher.
@@ -188,6 +193,9 @@ func oneServiceHandler(response http.ResponseWriter, req *http.Request, list *me
 	}
 
 	var instances []*service.Service
+	// Enter critical section
+	state.RLock()
+	defer state.RUnlock()
 	state.EachService(func(hostname *string, id *string, svc *service.Service) {
 		if svc.Name == name {
 			instances = append(instances, svc)

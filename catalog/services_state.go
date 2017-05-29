@@ -267,6 +267,15 @@ func (state *ServicesState) RemoveListener(name string) error {
 	return fmt.Errorf("No listener found with the name: %s", name)
 }
 
+func (state *ServicesState) GetListeners() []Listener {
+	state.RLock()
+	var listeners []Listener
+	listeners = append(listeners, state.listeners...)
+	state.RUnlock()
+
+	return listeners
+}
+
 // Take a service and merge it into our state. Correctly handle
 // timestamps so we only add things newer than what we already
 // know about. Retransmits updates to cluster peers.
