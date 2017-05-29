@@ -290,10 +290,9 @@ func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 	} else if newSvc.Invalidates(server.Services[newSvc.ID]) {
 		// We have to set these even if the status did not change
 		server.LastUpdated = newSvc.Updated
-		state.LastUpdated = newSvc.Updated
 
 		// Store the previous newSvc so we can compare it
-		oldEntry := server.Services[newSvc.ID] 
+		oldEntry := server.Services[newSvc.ID]
 
 		// Update the new one
 		server.Services[newSvc.ID] = &newSvc
