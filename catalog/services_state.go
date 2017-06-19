@@ -151,8 +151,21 @@ func (state *ServicesState) GetLocalService(id string) *service.Service {
 
 // A server has left the cluster, so tombstone all of its records
 func (state *ServicesState) ExpireServer(hostname string) {
-	if !state.HasServer(hostname) {
+	if !state.HasServer(hostname) || len(state.Servers[hostname].Services) == 0 {
 		log.Infof("No records to expire for %s", hostname)
+		return
+	}
+
+	hasLiveServices := false
+	for _, svc := range state.Servers[hostname].Services {
+		if !svc.IsTombstone() {
+			hasLiveServices = true
+			break
+		}
+	}
+
+	if !hasLiveServices {
+		log.Infof("No records to expire for %s (no live services)", hostname)
 		return
 	}
 
@@ -165,6 +178,11 @@ func (state *ServicesState) ExpireServer(hostname string) {
 		state.ServiceChanged(svc, previousStatus, svc.Updated)
 		svc.Tombstone()
 		tombstones = append(tombstones, *svc)
+	}
+
+	if len(tombstones) < 1 {
+		log.Warn("Tried to announce a zero length list of tombstones")
+		return
 	}
 
 	state.SendServices(
@@ -249,36 +267,55 @@ func (state *ServicesState) RemoveListener(name string) error {
 	return fmt.Errorf("No listener found with the name: %s", name)
 }
 
+func (state *ServicesState) GetListeners() []Listener {
+	state.RLock()
+	var listeners []Listener
+	listeners = append(listeners, state.listeners...)
+	state.RUnlock()
+
+	return listeners
+}
+
 // Take a service and merge it into our state. Correctly handle
 // timestamps so we only add things newer than what we already
 // know about. Retransmits updates to cluster peers.
-func (state *ServicesState) AddServiceEntry(entry service.Service) {
+func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 	defer metrics.MeasureSince([]string{"services_state", "AddServiceEntry"}, time.Now())
 
 	state.Lock()
 	defer state.Unlock()
 
-	if !state.HasServer(entry.Hostname) {
-		state.Servers[entry.Hostname] = NewServer(entry.Hostname)
+	if !state.HasServer(newSvc.Hostname) {
+		state.Servers[newSvc.Hostname] = NewServer(newSvc.Hostname)
 	}
 
-	server := state.Servers[entry.Hostname]
+	server := state.Servers[newSvc.Hostname]
 
 	// Only apply changes that are newer or services are missing
-	if !server.HasService(entry.ID) {
-		server.Services[entry.ID] = &entry
-		state.ServiceChanged(&entry, service.UNKNOWN, entry.Updated)
-		state.retransmit(entry)
-	} else if entry.Invalidates(server.Services[entry.ID]) {
-		server.LastUpdated = entry.Updated
-		if server.Services[entry.ID].Status != entry.Status {
-			state.ServiceChanged(&entry, server.Services[entry.ID].Status, entry.Updated)
+	if !server.HasService(newSvc.ID) {
+		server.Services[newSvc.ID] = &newSvc
+		state.ServiceChanged(&newSvc, service.UNKNOWN, newSvc.Updated)
+		state.retransmit(newSvc)
+	} else if newSvc.Invalidates(server.Services[newSvc.ID]) {
+		// We have to set these even if the status did not change
+		server.LastUpdated = newSvc.Updated
+
+		// Store the previous newSvc so we can compare it
+		oldEntry := server.Services[newSvc.ID]
+
+		// Update the new one
+		server.Services[newSvc.ID] = &newSvc
+
+		// When the status changes, the SeviceChanged() method will
+		// update all the accounting fields in the state and Server newSvc.
+		if oldEntry.Status != newSvc.Status {
+			state.ServiceChanged(&newSvc, oldEntry.Status, newSvc.Updated)
 		}
-		server.Services[entry.ID] = &entry
+
 		// We tell our gossip peers about the updated service
 		// by sending them the record. We're saved from an endless
 		// retransmit loop by the Invalidates() call above.
-		state.retransmit(entry)
+		state.retransmit(newSvc)
 	}
 }
 

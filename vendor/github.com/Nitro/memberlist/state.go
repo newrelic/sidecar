@@ -34,12 +34,29 @@ type Node struct {
 	DCur uint8  // Current version delegate is speaking
 }
 
+// Address returns the host:port form of a node's address, suitable for use
+// with a transport.
+func (n *Node) Address() string {
+	return joinHostPort(n.Addr.String(), n.Port)
+}
+
+// String returns the node name
+func (n *Node) String() string {
+	return n.Name
+}
+
 // NodeState is used to manage our state view of another node
 type nodeState struct {
 	Node
 	Incarnation uint32        // Last known incarnation number
 	State       nodeStateType // Current state
 	StateChange time.Time     // Time last state change happened
+}
+
+// Address returns the host:port form of a node's address, suitable for use
+// with a transport.
+func (n *nodeState) Address() string {
+	return n.Node.Address()
 }
 
 // ackHandler is used to register handlers for incoming acks and nacks.
@@ -238,9 +255,9 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// also tack on a suspect message so that it has a chance to refute as
 	// soon as possible.
 	deadline := time.Now().Add(probeInterval)
-	destAddr := &net.UDPAddr{IP: node.Addr, Port: int(node.Port)}
+	addr := node.Address()
 	if node.State == stateAlive {
-		if err := m.encodeAndSendMsg(destAddr, pingMsg, &ping); err != nil {
+		if err := m.encodeAndSendMsg(addr, pingMsg, &ping); err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to send ping: %s", err)
 			return
 		}
@@ -253,7 +270,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 			msgs = append(msgs, buf.Bytes())
 		}
 		s := suspect{Incarnation: node.Incarnation, Node: node.Name, From: m.config.Name,
-			ClusterName: m.config.ClusterName}
+			ClusterName: m.ClusterName()}
 		if buf, err := encode(suspectMsg, &s); err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to encode suspect message: %s", err)
 			return
@@ -262,8 +279,8 @@ func (m *Memberlist) probeNode(node *nodeState) {
 		}
 
 		compound := makeCompoundMessage(msgs)
-		if err := m.rawSendMsgUDP(destAddr, compound.Bytes()); err != nil {
-			m.logger.Printf("[ERR] memberlist: Failed to send compound ping and suspect message to %s: %s", destAddr, err)
+		if err := m.rawSendMsgPacket(addr, &node.Node, compound.Bytes()); err != nil {
+			m.logger.Printf("[ERR] memberlist: Failed to send compound ping and suspect message to %s: %s", addr, err)
 			return
 		}
 	}
@@ -306,13 +323,16 @@ func (m *Memberlist) probeNode(node *nodeState) {
 		// probe interval it will give the TCP fallback more time, which
 		// is more active in dealing with lost packets, and it gives more
 		// time to wait for indirect acks/nacks.
-		m.logger.Printf("[DEBUG] memberlist: Failed UDP ping: %v (timeout reached)", node.Name)
+		m.logger.Printf("[DEBUG] memberlist: Failed ping: %v (timeout reached)", node.Name)
 	}
 
 	// Get some random live nodes.
 	m.nodeLock.RLock()
-	excludes := []string{m.config.Name, node.Name}
-	kNodes := kRandomNodes(m.config.IndirectChecks, excludes, m.nodes)
+	kNodes := kRandomNodes(m.config.IndirectChecks, m.nodes, func(n *nodeState) bool {
+		return n.Name == m.config.Name ||
+			n.Name == node.Name ||
+			n.State != stateAlive
+	})
 	m.nodeLock.RUnlock()
 
 	// Attempt an indirect ping.
@@ -325,8 +345,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 			expectedNacks++
 		}
 
-		destAddr := &net.UDPAddr{IP: peer.Addr, Port: int(peer.Port)}
-		if err := m.encodeAndSendMsg(destAddr, indirectPingMsg, &ind); err != nil {
+		if err := m.encodeAndSendMsg(peer.Address(), indirectPingMsg, &ind); err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to send indirect ping: %s", err)
 		}
 	}
@@ -343,12 +362,11 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// config option to turn this off if desired.
 	fallbackCh := make(chan bool, 1)
 	if (!m.config.DisableTcpPings) && (node.PMax >= 3) {
-		destAddr := &net.TCPAddr{IP: node.Addr, Port: int(node.Port)}
 		go func() {
 			defer close(fallbackCh)
-			didContact, err := m.sendPingAndWaitForAck(destAddr, ping, deadline)
+			didContact, err := m.sendPingAndWaitForAck(node.Address(), ping, deadline)
 			if err != nil {
-				m.logger.Printf("[ERR] memberlist: Failed TCP fallback ping: %s", err)
+				m.logger.Printf("[ERR] memberlist: Failed fallback ping: %s", err)
 			} else {
 				fallbackCh <- didContact
 			}
@@ -373,7 +391,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// any additional time here.
 	for didContact := range fallbackCh {
 		if didContact {
-			m.logger.Printf("[WARN] memberlist: Was able to reach %s via TCP but not UDP, network may be misconfigured and not allowing bidirectional UDP", node.Name)
+			m.logger.Printf("[WARN] memberlist: Was able to connect to %s but other probes failed, network may be misconfigured", node.Name)
 			return
 		}
 	}
@@ -388,7 +406,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	awarenessDelta = 0
 	if expectedNacks > 0 {
 		if nackCount := len(nackCh); nackCount < expectedNacks {
-			awarenessDelta += 2 * (expectedNacks - nackCount)
+			awarenessDelta += (expectedNacks - nackCount)
 		}
 	} else {
 		awarenessDelta += 1
@@ -397,7 +415,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// No acks received from target, suspect it as failed.
 	m.logger.Printf("[INFO] memberlist: Suspect %s has failed, no acks received", node.Name)
 	s := suspect{Incarnation: node.Incarnation, Node: node.Name, From: m.config.Name,
-		ClusterName: m.config.ClusterName}
+		ClusterName: m.ClusterName()}
 	m.suspectNode(&s)
 }
 
@@ -409,7 +427,7 @@ func (m *Memberlist) Ping(node string, addr net.Addr) (time.Duration, error) {
 	m.setProbeChannels(ping.SeqNo, ackCh, nil, m.config.ProbeInterval)
 
 	// Send a ping to the node.
-	if err := m.encodeAndSendMsg(addr, pingMsg, &ping); err != nil {
+	if err := m.encodeAndSendMsg(addr.String(), pingMsg, &ping); err != nil {
 		return 0, err
 	}
 
@@ -438,8 +456,8 @@ func (m *Memberlist) resetNodes() {
 	m.nodeLock.Lock()
 	defer m.nodeLock.Unlock()
 
-	// Move the dead nodes
-	deadIdx := moveDeadNodes(m.nodes)
+	// Move dead nodes, but respect gossip to the dead interval
+	deadIdx := moveDeadNodes(m.nodes, m.config.GossipToTheDeadTime)
 
 	// Deregister the dead nodes
 	for i := deadIdx; i < len(m.nodes); i++ {
@@ -462,14 +480,28 @@ func (m *Memberlist) resetNodes() {
 func (m *Memberlist) gossip() {
 	defer metrics.MeasureSince([]string{"memberlist", "gossip"}, time.Now())
 
-	// Get some random live nodes
+	// Get some random live, suspect, or recently dead nodes
 	m.nodeLock.RLock()
-	excludes := []string{m.config.Name}
-	kNodes := kRandomNodes(m.config.GossipNodes, excludes, m.nodes)
+	kNodes := kRandomNodes(m.config.GossipNodes, m.nodes, func(n *nodeState) bool {
+		if n.Name == m.config.Name {
+			return true
+		}
+
+		switch n.State {
+		case stateAlive, stateSuspect:
+			return false
+
+		case stateDead:
+			return time.Since(n.StateChange) > m.config.GossipToTheDeadTime
+
+		default:
+			return true
+		}
+	})
 	m.nodeLock.RUnlock()
 
 	// Compute the bytes available
-	bytesAvail := udpSendBuf - compoundHeaderOverhead
+	bytesAvail := m.config.UDPBufferSize - compoundHeaderOverhead
 	if m.config.EncryptionEnabled() {
 		bytesAvail -= encryptOverhead(m.encryptionVersion())
 	}
@@ -487,10 +519,17 @@ func (m *Memberlist) gossip() {
 
 		// We send the same broadcast to each selected Node
 		for _, node := range kNodes {
-			// Send the compound message
-			destAddr := &net.UDPAddr{IP: node.Addr, Port: int(node.Port)}
-			if err := m.rawSendMsgUDP(destAddr, compound.Bytes()); err != nil {
-				m.logger.Printf("[ERR] memberlist: Failed to send gossip to %s: %s", destAddr, err)
+			addr := node.Address()
+			if len(msgs) == 1 {
+				// Send single message as is
+				if err := m.rawSendMsgPacket(addr, &node.Node, msgs[0]); err != nil {
+					m.logger.Printf("[ERR] memberlist: Failed to send gossip to %s: %s", addr, err)
+				}
+			} else {
+				// Otherwise create and send a compound message
+				if err := m.rawSendMsgPacket(addr, &node.Node, compound.Bytes()); err != nil {
+					m.logger.Printf("[ERR] memberlist: Failed to send gossip to %s: %s", addr, err)
+				}
 			}
 		}
 	}
@@ -503,8 +542,10 @@ func (m *Memberlist) gossip() {
 func (m *Memberlist) pushPull() {
 	// Get a random live node
 	m.nodeLock.RLock()
-	excludes := []string{m.config.Name}
-	nodes := kRandomNodes(1, excludes, m.nodes)
+	nodes := kRandomNodes(1, m.nodes, func(n *nodeState) bool {
+		return n.Name == m.config.Name ||
+			n.State != stateAlive
+	})
 	m.nodeLock.RUnlock()
 
 	// If no nodes, bail
@@ -514,17 +555,17 @@ func (m *Memberlist) pushPull() {
 	node := nodes[0]
 
 	// Attempt a push pull
-	if err := m.pushPullNode(node.Addr, node.Port, false); err != nil {
+	if err := m.pushPullNode(node.Address(), false); err != nil {
 		m.logger.Printf("[ERR] memberlist: Push/Pull with %s failed: %s", node.Name, err)
 	}
 }
 
 // pushPullNode does a complete state exchange with a specific node.
-func (m *Memberlist) pushPullNode(addr []byte, port uint16, join bool) error {
+func (m *Memberlist) pushPullNode(addr string, join bool) error {
 	defer metrics.MeasureSince([]string{"memberlist", "pushPullNode"}, time.Now())
 
 	// Attempt to send and receive with the node
-	remote, userState, err := m.sendAndReceiveState(addr, port, join)
+	remote, userState, err := m.sendAndReceiveState(addr, join)
 	if err != nil {
 		return err
 	}
@@ -780,7 +821,7 @@ func (m *Memberlist) refute(me *nodeState, accusedInc uint32) {
 	a := alive{
 		Incarnation: inc,
 		Node:        me.Name,
-		ClusterName: m.config.ClusterName,
+		ClusterName: m.ClusterName(),
 		Addr:        me.Addr,
 		Port:        me.Port,
 		Meta:        me.Meta,
@@ -1045,7 +1086,7 @@ func (m *Memberlist) suspectNode(s *suspect) {
 			m.logger.Printf("[INFO] memberlist: Marking %s as failed, suspect timeout reached (%d peer confirmations)",
 				state.Name, numConfirmations)
 			d := dead{Incarnation: state.Incarnation, Node: state.Name,
-				From: m.config.Name, ClusterName: m.config.ClusterName}
+				From: m.config.Name, ClusterName: m.ClusterName()}
 			m.deadNode(&d)
 		}
 	}
@@ -1115,7 +1156,7 @@ func (m *Memberlist) mergeState(remote []pushNodeState) {
 			a := alive{
 				Incarnation: r.Incarnation,
 				Node:        r.Name,
-				ClusterName: m.config.ClusterName,
+				ClusterName: m.ClusterName(),
 				Addr:        r.Addr,
 				Port:        r.Port,
 				Meta:        r.Meta,
@@ -1129,7 +1170,7 @@ func (m *Memberlist) mergeState(remote []pushNodeState) {
 			fallthrough
 		case stateSuspect:
 			s := suspect{Incarnation: r.Incarnation, Node: r.Name, From: m.config.Name,
-				ClusterName: m.config.ClusterName}
+				ClusterName: m.ClusterName()}
 			m.suspectNode(&s)
 		}
 	}

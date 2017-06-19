@@ -238,6 +238,7 @@ func Test_HAproxy(t *testing.T) {
 			tmpDir, _ := ioutil.TempDir("/tmp", "sidecar-test")
 			config := fmt.Sprintf("%s/haproxy.cfg", tmpDir)
 			proxy.ConfigFile = config
+			proxy.ReloadCmd = "/usr/bin/false"
 
 			go proxy.Watch(state)
 			newTime := time.Now().UTC()
@@ -250,19 +251,40 @@ func Test_HAproxy(t *testing.T) {
 				Updated:  newTime,
 				Ports:    []service.Port{{"tcp", 1337, 8090, "127.0.0.1"}},
 			}
+		OUTER:
+			for {
+				for _, listener := range state.GetListeners() {
+					if listener.Name() == "HAproxy" {
+						break OUTER
+					}
+				}
+				time.Sleep(1 * time.Millisecond)
+			}
+
 			go state.AddServiceEntry(svc)
 
 			// We have to wait until the file has the right data in it to avoid
 			// race conditions during testing. This is a little tedious and a bit
 			// slow, but without substantially refactoring the HAproxy code, this
 			// is seemingly the best solution.
-			for {
-				stat, _ := os.Stat(config)
-				if stat != nil {
-					if stat.Size() > 1000 {
-						break
+			readyChan := make(chan struct{})
+			go func() {
+				for {
+					stat, _ := os.Stat(config)
+					if stat != nil {
+						if stat.Size() > 1000 {
+							close(readyChan)
+							return
+						}
 					}
 				}
+			}()
+
+			select {
+			case <-time.After(1 * time.Second):
+				panic("Test timed out waiting for HAProxy config")
+			case <-readyChan:
+				// nothing
 			}
 
 			result, _ := ioutil.ReadFile(config)

@@ -504,17 +504,35 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 		state.Hostname = hostname
 		state.tombstoneRetransmit = 1 * time.Nanosecond
 
-		Convey("ExpireServer() tombstones all services for a server", func() {
-			state.AddServiceEntry(service1)
-			state.AddServiceEntry(service2)
+		Convey("ExpireServer()", func() {
+			Convey("tombstones all services for a server", func() {
+				state.AddServiceEntry(service1)
+				state.AddServiceEntry(service2)
 
-			go state.ExpireServer(hostname)
-			expired := <-state.Broadcasts
+				go state.ExpireServer(hostname)
+				expired := <-state.Broadcasts
 
-			So(len(expired), ShouldEqual, 2)
-			// Timestamps chagne when tombstoning, so regex match
-			So(expired[0], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
-			So(expired[1], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
+				So(len(expired), ShouldEqual, 2)
+				// Timestamps chagne when tombstoning, so regex match
+				So(expired[0], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
+				So(expired[1], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
+			})
+
+			Convey("does not announce services for hosts with none", func() {
+				state.ExpireServer(hostname)
+				So(len(state.Servers[hostname].Services), ShouldEqual, 0)
+				So(len(state.Broadcasts), ShouldEqual, 0)
+			})
+
+			Convey("does not announce services for hosts with no alive services", func() {
+				service1.Status = service.TOMBSTONE
+				state.AddServiceEntry(service1)
+
+				state.ExpireServer(hostname)
+				So(len(state.Servers[hostname].Services), ShouldEqual, 1)
+				So(len(state.Broadcasts), ShouldEqual, 0)
+			})
+
 		})
 
 		Convey("The state LastChanged is updated", func() {

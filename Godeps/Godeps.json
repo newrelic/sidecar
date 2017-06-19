@@ -10,7 +10,8 @@
 		},
 		{
 			"ImportPath": "github.com/Nitro/memberlist",
-			"Rev": "490eb18c36b5181b667a4cf41d05eabacd855aad"
+			"Comment": "v0.1.0-27-gcfac2b5",
+			"Rev": "cfac2b5cf519ec17fd0704afe1f80b9d7df2d60e"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -187,6 +188,14 @@
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
 			"Comment": "v2.1.11",
 			"Rev": "8cccfa8eb2e3183254457fb1749b2667fbc364c7"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-sockaddr",
+			"Rev": "2d10d7c10258d11196c0ebf2943509e4afd06cd4"
+		},
+		{
+			"ImportPath": "github.com/sean-/seed",
+			"Rev": "e2103e2c35297fb7e17febb81e49b312087a2372"
 		}
 	]
 }

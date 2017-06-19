@@ -71,6 +71,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 	$scope.clusterName = "";
 	$scope.servicesList = {};
 	$scope.collapsed = {};
+	$scope.expandedServiceInfo = {};
 	$scope.haproxyInfo = {};
 
 	$scope.toggleCollapse = function(svcName) {
@@ -79,6 +80,14 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 
 	$scope.isCollapsed = function(svcName) {
 		return $scope.collapsed[svcName] == null || $scope.collapsed[svcName];
+	};
+
+	$scope.toggleServiceInfo = function(svcName) {
+		$scope.expandedServiceInfo[svcName] = !$scope.isExpandedServiceInfo(svcName);
+	};
+
+	$scope.isExpandedServiceInfo = function(svcName) {
+		return $scope.expandedServiceInfo[svcName];
 	};
 
 	$scope.haproxyHas = function(svc) {
@@ -104,6 +113,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 			}
 		}
 		$scope.servicesList = services;
+
 		$scope.clusterName = servicesResponse.ClusterName;
 		$scope.serverList = servicesResponse.ClusterMembers;
 
@@ -144,7 +154,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 	stateService.waitFirstHaproxy.then(function() {
 		stateService.waitFirstServices.then(function() {
 			updateData();
-			$interval(updateData, 2000); // Update UI every 2 seconds
+			// $interval(updateData, 2000); // Update UI every 2 seconds
 		}, function(){})
 	}, function(){});
 })
@@ -237,6 +247,12 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 .filter('extractTag', function() {
 	return function(imageName) {
 		return imageName.split(':')[1]
+	}
+})
+
+.filter('prettyJSON', function() {
+	return function(obj) {
+		return JSON ? JSON.stringify(obj, null, 2) : obj;
 	}
 })
 

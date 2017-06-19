@@ -11,13 +11,18 @@ type Config struct {
 	// The name of this node. This must be unique in the cluster.
 	Name string
 
+	// Transport is a hook for providing custom code to communicate with
+	// other nodes. If this is left nil, then memberlist will by default
+	// make a NetTransport using BindAddr and BindPort from this structure.
+	Transport Transport
+
 	// Name of the cluster
 	ClusterName string
 
 	// Configuration related to what address to bind to and ports to
-	// listen on. The port is used for both UDP and TCP gossip.
-	// It is assumed other nodes are running on this port, but they
-	// do not need to.
+	// listen on. The port is used for both UDP and TCP gossip. It is
+	// assumed other nodes are running on this port, but they do not need
+	// to.
 	BindAddr string
 	BindPort int
 
@@ -31,8 +36,11 @@ type Config struct {
 	// ProtocolVersionMax.
 	ProtocolVersion uint8
 
-	// TCPTimeout is the timeout for establishing a TCP connection with
-	// a remote node for a full state sync.
+	// TCPTimeout is the timeout for establishing a stream connection with
+	// a remote node for a full state sync, and for stream read and write
+	// operations. This is a legacy name for backwards compatibility, but
+	// should really be called StreamTimeout now that we have generalized
+	// the transport.
 	TCPTimeout time.Duration
 
 	// IndirectChecks is the number of nodes that will be asked to perform
@@ -130,12 +138,27 @@ type Config struct {
 	// to propagate across the cluster more quickly at the expense of
 	// increased bandwidth.
 	//
+	// GossipToTheDeadTime is the interval after which a node has died that
+	// we will still try to gossip to it. This gives it a chance to refute.
+	GossipInterval      time.Duration
+	GossipNodes         int
+	GossipToTheDeadTime time.Duration
+
+	//
 	// GossipMessages is the number of times we try to get new messages within
 	// each GossipInterval. Each set of messages is sent to GossipNodes number
 	// of nodes.
-	GossipInterval time.Duration
-	GossipNodes    int
 	GossipMessages int
+
+	// GossipVerifyIncoming controls whether to enforce encryption for incoming
+	// gossip. It is used for upshifting from unencrypted to encrypted gossip on
+	// a running cluster.
+	GossipVerifyIncoming bool
+
+	// GossipVerifyOutgoing controls whether to enforce encryption for outgoing
+	// gossip. It is used for upshifting from unencrypted to encrypted gossip on
+	// a running cluster.
+	GossipVerifyOutgoing bool
 
 	// EnableCompression is used to control message compression. This can
 	// be used to reduce bandwidth usage at the cost of slightly more CPU
@@ -188,6 +211,20 @@ type Config struct {
 	// at the same time.
 	Logger *log.Logger
 
+	// Size of Memberlist's internal channel which handles UDP messages. The
+	// size of this determines the size of the queue which Memberlist will keep
+	// while UDP messages are handled.
+	HandoffQueueDepth int
+
+	// Maximum number of bytes that memberlist will put in a packet (this
+	// will be for UDP packets by default with a NetTransport). A safe value
+	// for this is typically 1400 bytes (which is the default). However,
+	// depending on your network's MTU (Maximum Transmission Unit) you may
+	// be able to increase this to get more content into each gossip packet.
+	// This is a legacy name for backward compatibility but should really be
+	// called PacketBufferSize now that we have generalized the transport.
+	UDPBufferSize int
+
 	// Prefer TCP-based DNS lookup. Do we use a memberlist custom lookup function
 	// first, using deprecated ANY record, or just rely on Go's DNS resolver?
 	PreferTCPDNS bool
@@ -220,9 +257,12 @@ func DefaultLANConfig() *Config {
 		DisableTcpPings:         false,                  // TCP pings are safe, even with mixed versions
 		AwarenessMaxMultiplier:  8,                      // Probe interval backs off to 8 seconds
 
-		GossipNodes:    3,                      // Gossip to 3 nodes
-		GossipInterval: 200 * time.Millisecond, // Gossip more rapidly
-		GossipMessages: 3,                      // Ask for 3 sets of messages on each pass
+		GossipNodes:          3,                      // Gossip to 3 nodes
+		GossipMessages:       3,                      // Ask for 3 sets of messages on each pass
+		GossipInterval:       200 * time.Millisecond, // Gossip more rapidly
+		GossipToTheDeadTime:  30 * time.Second,       // Same as push/pull
+		GossipVerifyIncoming: true,
+		GossipVerifyOutgoing: true,
 
 		EnableCompression: true, // Enable compression by default
 
@@ -231,6 +271,9 @@ func DefaultLANConfig() *Config {
 
 		DNSConfigPath: "/etc/resolv.conf",
 		PreferTCPDNS:  true,
+
+		HandoffQueueDepth: 1024,
+		UDPBufferSize:     1400,
 	}
 }
 
@@ -247,6 +290,7 @@ func DefaultWANConfig() *Config {
 	conf.GossipNodes = 4    // Gossip less frequently, but to an additional node
 	conf.GossipMessages = 4 // Ask for 4 sets of messages on each pass
 	conf.GossipInterval = 500 * time.Millisecond
+	conf.GossipToTheDeadTime = 60 * time.Second
 	return conf
 }
 
@@ -264,6 +308,7 @@ func DefaultLocalConfig() *Config {
 	conf.ProbeInterval = time.Second
 	conf.GossipMessages = 2 // There are usually fewer nodes in this environment
 	conf.GossipInterval = 100 * time.Millisecond
+	conf.GossipToTheDeadTime = 15 * time.Second
 	return conf
 }
 
