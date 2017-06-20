@@ -47,7 +47,7 @@ func UpdateHandler(response http.ResponseWriter, req *http.Request, rcvr *Receiv
 				log.Errorf("No OnUpdate() callback registered!")
 				return
 			}
-			rcvr.OnUpdate(rcvr.CurrentState)
+			rcvr.EnqueueUpdate()
 		}
 	}
 }

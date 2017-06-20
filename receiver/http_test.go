@@ -11,15 +11,17 @@ import (
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
 	"github.com/mohae/deepcopy"
+	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func Test_updateHandler(t *testing.T) {
 	Convey("updateHandler()", t, func() {
-		rcvr := &Receiver{
-			ReloadChan: make(chan time.Time, 10),
-		}
-		rcvr.OnUpdate = func(state *catalog.ServicesState) { rcvr.EnqueueUpdate() }
+		var received bool
+
+		// Make it possible to see if we got an update, and to wait for it to happen
+		rcvr := NewReceiver(10, func(state *catalog.ServicesState) { received = true })
+		rcvr.Looper = director.NewFreeLooper(director.ONCE, nil)
 
 		hostname := "chaucer"
 		state := catalog.NewServicesState()
@@ -96,9 +98,12 @@ func Test_updateHandler(t *testing.T) {
 
 			So(resp.StatusCode, ShouldEqual, 200)
 			So(startTime.Before(rcvr.CurrentState.LastChanged), ShouldBeTrue)
+
+			So(received, ShouldBeFalse)
+			rcvr.ProcessUpdates()
 			So(rcvr.CurrentState.LastChanged, ShouldResemble, evtState.LastChanged)
 			So(rcvr.LastSvcChanged, ShouldResemble, &change.ChangeEvent.Service)
-			So(len(rcvr.ReloadChan), ShouldEqual, 1)
+			So(received, ShouldBeTrue)
 		})
 	})
 }
