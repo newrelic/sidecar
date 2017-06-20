@@ -9,6 +9,7 @@ import (
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
 	log "github.com/Sirupsen/logrus"
+	"github.com/relistan/go-director"
 )
 
 const (
@@ -21,6 +22,15 @@ type Receiver struct {
 	CurrentState   *catalog.ServicesState
 	LastSvcChanged *service.Service
 	OnUpdate       func(state *catalog.ServicesState)
+	Looper         director.Looper
+}
+
+func NewReceiver(capacity int, onUpdate func(state *catalog.ServicesState)) *Receiver {
+	return &Receiver{
+		ReloadChan: make(chan time.Time, capacity),
+		OnUpdate:   onUpdate,
+		Looper:     director.NewImmediateTimedLooper(director.FOREVER, RELOAD_HOLD_DOWN, make(chan error)),
+	}
 }
 
 // Check all the state transitions and only update HAproxy when a change
@@ -75,9 +85,13 @@ func FetchState(url string) (*catalog.ServicesState, error) {
 	return state, nil
 }
 
-// Loop forever, processing updates to the state.
+// ProcessUpdates loops forever, processing updates to the state.
+// By the time we get here, the HTTP UpdateHandler has already set the
+// CurrentState to the newest state we know about. Here we'll try to group
+// updates together to prevent repeatedly updating on a series of events that
+// arrive in a row.
 func (rcvr *Receiver) ProcessUpdates() {
-	for {
+	rcvr.Looper.Loop(func() error {
 		// Batch up to RELOAD_BUFFER number updates into a
 		// single update.
 		first := <-rcvr.ReloadChan
@@ -97,24 +111,26 @@ func (rcvr *Receiver) ProcessUpdates() {
 			reload = <-rcvr.ReloadChan
 		}
 
-		if first.Before(reload) {
+		if pending > 0 {
 			log.Infof("Skipped %d messages between %s and %s", pending, first, reload)
 		}
 
 		// Don't notify more frequently than every RELOAD_HOLD_DOWN period. When a
 		// deployment rolls across the cluster it can trigger a bunch of groupable
-		// updates.
+		// updates. The Looper handles the sleep after the return nil.
 		log.Debug("Holding down...")
-		time.Sleep(RELOAD_HOLD_DOWN)
-	}
+
+		return nil
+	})
 }
 
-// Process and update by queueing a writeAndReload().
+// EnqueueUpdate puts a new timestamp on the update channel, to be processed in a
+// goroutine that runs the ProcessUpdates function.
 func (rcvr *Receiver) EnqueueUpdate() {
 	rcvr.ReloadChan <- time.Now().UTC()
 }
 
-// On startup in standard mode, we need to bootstrap some state.
+// FetchInitialState is used at startup to bootstrap initial state from Sidecar.
 func (rcvr *Receiver) FetchInitialState(stateUrl string) error {
 	rcvr.StateLock.Lock()
 	defer rcvr.StateLock.Unlock()
