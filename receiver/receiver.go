@@ -10,6 +10,7 @@ import (
 	"github.com/Nitro/sidecar/service"
 	log "github.com/Sirupsen/logrus"
 	"github.com/relistan/go-director"
+	"github.com/mohae/deepcopy"
 )
 
 const (
@@ -101,7 +102,15 @@ func (rcvr *Receiver) ProcessUpdates() {
 		if rcvr.OnUpdate == nil {
 			log.Error("OnUpdate() callback not defined!")
 		} else {
-			rcvr.OnUpdate(rcvr.CurrentState)
+			rcvr.StateLock.Lock()
+			// Copy the state while locked so we don't have it change
+			// under us while writing and we don't hold onto the lock the
+			// whole time we're writing to disk (e.g. in haproxy-api).
+			var tmpState *catalog.ServicesState
+			tmpState = deepcopy.Copy(rcvr.CurrentState).(*catalog.ServicesState)
+			rcvr.StateLock.Unlock()
+
+			rcvr.OnUpdate(tmpState)
 		}
 
 		// We just flushed the most recent state, dump all the
