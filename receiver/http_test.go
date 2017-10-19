@@ -18,10 +18,7 @@ import (
 func Test_updateHandler(t *testing.T) {
 	Convey("updateHandler()", t, func() {
 		var received bool
-
-		// Make it possible to see if we got an update, and to wait for it to happen
-		rcvr := NewReceiver(10, func(state *catalog.ServicesState) { received = true })
-		rcvr.Looper = director.NewFreeLooper(director.ONCE, nil)
+		var lastReceivedState *catalog.ServicesState
 
 		hostname := "chaucer"
 		state := catalog.NewServicesState()
@@ -58,6 +55,9 @@ func Test_updateHandler(t *testing.T) {
 		req := httptest.NewRequest("POST", "/update", nil)
 		recorder := httptest.NewRecorder()
 
+		// Make it possible to see if we got an update, and to wait for it to happen
+		rcvr := NewReceiver(10, func(state *catalog.ServicesState) { received = true; lastReceivedState = state })
+		rcvr.Looper = director.NewFreeLooper(director.ONCE, nil)
 		rcvr.CurrentState = state
 
 		Convey("returns an error on an invalid JSON body", func() {
@@ -70,7 +70,7 @@ func Test_updateHandler(t *testing.T) {
 			So(string(bodyBytes), ShouldContainSubstring, "unexpected end of JSON input")
 		})
 
-		Convey("updates the state", func() {
+		Convey("updates the state and enqueues an update", func() {
 			startTime := rcvr.CurrentState.LastChanged
 
 			var evtState *catalog.ServicesState
@@ -104,6 +104,38 @@ func Test_updateHandler(t *testing.T) {
 			So(rcvr.CurrentState.LastChanged, ShouldResemble, evtState.LastChanged)
 			So(rcvr.LastSvcChanged, ShouldResemble, &change.ChangeEvent.Service)
 			So(received, ShouldBeTrue)
+		})
+
+		Convey("a copy of the state is passed to the OnUpdate func", func() {
+			var evtState *catalog.ServicesState
+			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState.LastChanged = time.Now().UTC()
+
+			change := catalog.StateChangedEvent{
+				State: *evtState,
+				ChangeEvent: catalog.ChangeEvent{
+					Service: service.Service{
+						ID:      "10101010101",
+						Updated: time.Now().UTC(),
+						Created: time.Now().UTC(),
+						Status:  service.ALIVE,
+					},
+					PreviousStatus: service.TOMBSTONE,
+				},
+			}
+
+			encoded, _ := json.Marshal(change)
+			req := httptest.NewRequest("POST", "/update", bytes.NewBuffer(encoded))
+
+			UpdateHandler(recorder, req, rcvr)
+
+			rcvr.ProcessUpdates()
+
+			// Make sure ongoing state changes don't affect the state the receiver passes on
+			state.LastChanged = time.Now().UTC()
+			state.Servers["chaucer"].Services = make(map[string]*service.Service)
+			So(lastReceivedState.LastChanged.Before(state.LastChanged), ShouldBeTrue)
+			So(len(lastReceivedState.Servers["chaucer"].Services), ShouldEqual, 2)
 		})
 	})
 }
