@@ -265,7 +265,7 @@ example.
 to ports mapped with `ServicePort` labels. You will need to use the port
 number that you expect HAproxy to use.
 
-####Configuring Static Discovery
+#### Configuring Static Discovery
 
 Static Discovery requires a configuration block in the `sidecar.toml` that
 looks like this:

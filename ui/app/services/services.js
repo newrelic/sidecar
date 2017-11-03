@@ -154,7 +154,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 	stateService.waitFirstHaproxy.then(function() {
 		stateService.waitFirstServices.then(function() {
 			updateData();
-			$interval(updateData, 2000); // Update UI every 2 seconds
+			$interval(updateData, 4000); // Update UI every 2 seconds
 		}, function(){})
 	}, function(){});
 })
