@@ -171,7 +171,7 @@ func (state *ServicesState) ExpireServer(hostname string) {
 
 	log.Infof("Expiring %s", hostname)
 
-	tombstones := make([]service.Service, 0, len(state.Servers[hostname].Services))
+	var tombstones []service.Service
 
 	for _, svc := range state.Servers[hostname].Services {
 		previousStatus := svc.Status
@@ -525,7 +525,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 func (state *ServicesState) TombstoneOthersServices() []service.Service {
 	defer metrics.MeasureSince([]string{"services_state", "TombstoneOthersServices"}, time.Now())
 
-	result := make([]service.Service, 0, 1)
+	var result []service.Service
 
 	// Manage tombstone life so we don't keep them forever. We have to do this
 	// even for hosts that aren't running services now, because they might have
@@ -576,7 +576,7 @@ func (state *ServicesState) TombstoneServices(hostname string, containerList []s
 	// Build a map from the list first
 	mapping := makeServiceMapping(containerList)
 
-	result := make([]service.Service, 0, len(containerList))
+	var result []service.Service
 
 	// Copy this so we can change the real list in the loop
 	services := state.Servers[hostname].Services
@@ -625,9 +625,6 @@ func (state *ServicesState) ByService() map[string][]*service.Service {
 
 	state.EachServiceSorted(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			if _, ok := serviceMap[svc.Name]; !ok {
-				serviceMap[svc.Name] = make([]*service.Service, 0, 3)
-			}
 			serviceMap[svc.Name] = append(serviceMap[svc.Name], svc)
 		},
 	)
