@@ -13,27 +13,25 @@ all: test
 
 lint:
 	@ go get -v github.com/golang/lint/golint
-	@ export output="$$(golint . | grep -v 'type name will be used as docker.DockerInfo')"; \
-		[ -n "$${output}" ] && echo "$${output}" && export status=1; \
-		exit $${status:-0}
+	[ -z "$$(golint . | grep -v 'type name will be used as docker.DockerInfo' | grep -v 'context.Context should be the first' | tee /dev/stderr)" ]
 
 vet:
-	go vet ./...
+	go vet $$(go list ./... | grep -v vendor)
 
 fmt:
-	gofmt -s -w .
+	gofmt -s -w $$(go list ./... | grep -v vendor)
 
 fmtcheck:
-	@ export output="$$(gofmt -s -d .)"; \
-		[ -n "$${output}" ] && echo "$${output}" && export status=1; \
-		exit $${status:-0}
+	[ -z "$$(gofmt -s -d $$(go list ./... | grep -v vendor) | tee /dev/stderr)" ]
+
 testdeps:
-	go get -d -t ./...
+	go get -u github.com/golang/dep/cmd/dep
+	dep ensure -v
 
 pretest: testdeps lint vet fmtcheck
 
 gotest:
-	go test $(GO_TEST_FLAGS) ./...
+	go test -race $$(go list ./... | grep -v vendor)
 
 test: pretest gotest
 

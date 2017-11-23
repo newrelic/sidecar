@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Nitro/sidecar/output"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
 )
 

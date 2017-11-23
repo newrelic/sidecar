@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Nitro/sidecar/catalog"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type ApiErrors struct {

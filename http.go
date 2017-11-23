@@ -14,7 +14,7 @@ import (
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/output"
 	"github.com/Nitro/sidecar/service"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
 

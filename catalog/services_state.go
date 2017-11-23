@@ -13,7 +13,7 @@ import (
 	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/output"
 	"github.com/Nitro/sidecar/service"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
 )

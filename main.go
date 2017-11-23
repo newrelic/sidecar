@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime/pprof"
-	"strings"
 	"time"
 
 	"github.com/Nitro/memberlist"
@@ -13,7 +12,7 @@ import (
 	"github.com/Nitro/sidecar/haproxy"
 	"github.com/Nitro/sidecar/healthy"
 	"github.com/Nitro/sidecar/service"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
 	"gopkg.in/relistan/rubberneck.v1"

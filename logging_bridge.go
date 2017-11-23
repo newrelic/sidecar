@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // This is a bridge to take the output of Memberlist, which uses a standard
