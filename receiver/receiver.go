@@ -92,6 +92,11 @@ func FetchState(url string) (*catalog.ServicesState, error) {
 // updates together to prevent repeatedly updating on a series of events that
 // arrive in a row.
 func (rcvr *Receiver) ProcessUpdates() {
+	if rcvr.Looper == nil {
+		log.Error("Unable to ProcessUpdates(), Looper is nil in receiver!")
+		return
+	}
+
 	rcvr.Looper.Loop(func() error {
 		// Batch up to RELOAD_BUFFER number updates into a
 		// single update.
