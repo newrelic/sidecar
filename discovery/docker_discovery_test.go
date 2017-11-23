@@ -25,10 +25,13 @@ func (s *stubDockerClient) InspectContainer(id string) (*docker.Container, error
 	// If we match this ID, return a real setup
 	if id == "deadbeef1231" { // svcId1
 		return &docker.Container{
+			ID: "deadbeef1231",
 			Config: &docker.Config{
 				Labels: map[string]string{
 					"HealthCheck":     "HttpGet",
 					"HealthCheckArgs": "service1 check arguments",
+					"ServicePort_80":  "10000",
+					"SidecarListener": "10000",
 				},
 			},
 		}, nil
@@ -64,7 +67,11 @@ func Test_DockerDiscovery(t *testing.T) {
 		svcId2 := "deadbeef1011"
 		ip := "127.0.0.1"
 		baseTime := time.Now().UTC().Round(time.Second)
-		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
+		service1 := service.Service{
+			Name: "beowulf",
+			ID: svcId1, Hostname: hostname, Updated: baseTime,
+			Ports: []service.Port{{Port: 80, ServicePort: 10000, Type: "tcp"}},
+		}
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 		services := []*service.Service{&service1, &service2}
 
@@ -94,6 +101,14 @@ func Test_DockerDiscovery(t *testing.T) {
 			processed := disco.Services()
 			So(processed[0].Format(), ShouldEqual, service1.Format())
 			So(processed[1].Format(), ShouldEqual, service2.Format())
+		})
+
+		Convey("Listeners() returns the right list of services", func() {
+			disco.services = services
+
+			processed := disco.Listeners()
+			So(len(processed), ShouldEqual, 1)
+			So(processed[0], ShouldResemble, ChangeListener{Name:"beowulf-deadbeef1231", Port:80})
 		})
 
 		Convey("handleEvents() prunes dead containers", func() {

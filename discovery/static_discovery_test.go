@@ -77,6 +77,33 @@ func Test_Services(t *testing.T) {
 	})
 }
 
+func Test_Listeners(t *testing.T) {
+	Convey("Listeners()", t, func() {
+		ip := "127.0.0.1"
+		disco := NewStaticDiscovery(STATIC_JSON, ip)
+		tgt1 := &Target{
+			Service: service.Service{Name: "beowulf", ID: "asdf"},
+			ListenPort: 10000,
+		}
+		tgt2 := &Target{
+			Service: service.Service{Name: "hrothgar", ID: "abba"},
+			ListenPort: 11000,
+		}
+		disco.Targets = []*Target{tgt1, tgt2}
+
+		Convey("Returns all listeners extracted from Targets", func() {
+			listeners := disco.Listeners()
+
+			expected0 := ChangeListener{Name:"beowulf=asdf", Port:10000}
+			expected1 := ChangeListener{Name:"hrothgar=abba", Port:11000}
+
+			So(len(listeners), ShouldEqual, 2)
+			So(listeners[0], ShouldResemble, expected0)
+			So(listeners[1], ShouldResemble, expected1)
+		})
+	})
+}
+
 func Test_Run(t *testing.T) {
 	Convey("Run()", t, func() {
 		ip := "127.0.0.1"

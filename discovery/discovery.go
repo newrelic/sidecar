@@ -11,15 +11,26 @@ const (
 	SLEEP_INTERVAL = 1 * time.Second
 )
 
+// A ChangeListener is a service that will receive service change events
+// over the HTTP interface.
+type ChangeListener struct {
+	Name string    // Name to be represented in the Listeners list
+	Port int64     // Port of the service to send events to
+}
+
 // A Discoverer is responsible for finding services that we care
 // about. It must have a method to return the list of services, and
 // a Run() method that will be invoked when the discovery mechanism(s)
-// is/are started.
+// is/are started. It will also return the correct health check for
+// a service and can allow services to subscribe to Sidecar events.
 type Discoverer interface {
 	// Returns a slice of services that we discovered
 	Services() []service.Service
 	// Get the health check and health check args for a service
 	HealthCheck(svc *service.Service) (string, string)
+	// Services which run on the same host and want to receive
+	// Sidecar service change events
+	Listeners() []ChangeListener
 	// A non-blocking method that runs a discovery loop.
 	// The controlling process kicks it off to start discovery.
 	Run(director.Looper)
@@ -50,6 +61,20 @@ func (d *MultiDiscovery) Services() []service.Service {
 		services := disco.Services()
 		if len(services) > 0 {
 			aggregate = append(aggregate, services...)
+		}
+	}
+
+	return aggregate
+}
+
+// Aggreates all the Listeners() output from the discoverers
+func (d *MultiDiscovery) Listeners() []ChangeListener {
+	var aggregate []ChangeListener
+
+	for _, disco := range d.Discoverers {
+		subscribers := disco.Listeners()
+		if len(subscribers) > 0 {
+			aggregate = append(aggregate, subscribers...)
 		}
 	}
 

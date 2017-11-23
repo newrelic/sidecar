@@ -9,16 +9,23 @@ import (
 )
 
 type mockDiscoverer struct {
-	ServicesList    []service.Service
-	RunInvoked      bool
-	ServicesInvoked bool
-	Done            chan error
-	CheckName       string
+	ServicesList     []service.Service
+	RunInvoked       bool
+	ServicesInvoked  bool
+	Done             chan error
+	CheckName        string
+	ListenersInvoked bool
+	ListenersList    []ChangeListener
 }
 
 func (m *mockDiscoverer) Services() []service.Service {
 	m.ServicesInvoked = true
 	return m.ServicesList
+}
+
+func (m *mockDiscoverer) Listeners() []ChangeListener {
+	m.ListenersInvoked = true
+	return m.ListenersList
 }
 
 func (m *mockDiscoverer) Run(looper director.Looper) {
@@ -42,11 +49,17 @@ func Test_MultiDiscovery(t *testing.T) {
 		done1 := make(chan error, 1)
 		done2 := make(chan error, 1)
 
-		svc1 := service.Service{Name: "svc1"}
-		svc2 := service.Service{Name: "svc2"}
+		svc1 := service.Service{Name: "svc1", ID: "1"}
+		svc2 := service.Service{Name: "svc2", ID: "2"}
 
-		disco1 := &mockDiscoverer{[]service.Service{svc1}, false, false, done1, "one"}
-		disco2 := &mockDiscoverer{[]service.Service{svc2}, false, false, done2, "two"}
+		disco1 := &mockDiscoverer{
+			[]service.Service{svc1}, false, false, done1, "one",
+			false, []ChangeListener{{Name: "svc1-1", Port: 10000}},
+		}
+		disco2 := &mockDiscoverer{
+			[]service.Service{svc2}, false, false, done2, "two",
+			false, []ChangeListener{{Name: "svc2-2", Port: 10000}},
+		}
 
 		multi := &MultiDiscovery{[]Discoverer{disco1, disco2}}
 
@@ -70,6 +83,21 @@ func Test_MultiDiscovery(t *testing.T) {
 			So(len(services), ShouldEqual, 2)
 			So(services[0].Name, ShouldEqual, "svc1")
 			So(services[1].Name, ShouldEqual, "svc2")
+		})
+
+		Convey("Listeners() invokes the Listeners() method for all the discoverers", func() {
+			multi.Listeners()
+
+			So(disco1.ListenersInvoked, ShouldBeTrue)
+			So(disco2.ListenersInvoked, ShouldBeTrue)
+		})
+
+		Convey("Listeners() aggregates all the listener lists", func() {
+			listeners := multi.Listeners()
+
+			So(len(listeners), ShouldEqual, 2)
+			So(listeners[0].Name, ShouldEqual, "svc1-1")
+			So(listeners[1].Name, ShouldEqual, "svc2-2")
 		})
 
 		Convey("HealthCheck() aggregates all the health checks", func() {

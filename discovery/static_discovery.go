@@ -15,8 +15,9 @@ import (
 )
 
 type Target struct {
-	Service service.Service
-	Check   StaticCheck
+	Service    service.Service
+	Check      StaticCheck
+	ListenPort int64
 }
 
 type StaticDiscovery struct {
@@ -61,6 +62,21 @@ func (d *StaticDiscovery) Services() []service.Service {
 		services = append(services, target.Service)
 	}
 	return services
+}
+
+// Listeners returns the list of services configured to be ChangeEvent listeners
+func (d *StaticDiscovery) Listeners() []ChangeListener {
+	var listeners []ChangeListener
+	for _, target := range d.Targets {
+		if target.ListenPort > 0 {
+			listener := ChangeListener{
+				Name: target.Service.Name + "=" + target.Service.ID,
+				Port: target.ListenPort,
+			}
+			listeners = append(listeners, listener)
+		}
+	}
+	return listeners
 }
 
 // Causes the configuration to be parsed and loaded. There is no background

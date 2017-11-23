@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"strconv"
 	"sync"
 	"time"
 
@@ -104,13 +105,11 @@ func (d *DockerDiscovery) inspectContainer(svc *service.Service) (*docker.Contai
 
 // The main loop, poll for containers continuously.
 func (d *DockerDiscovery) Run(looper director.Looper) {
-	watchEventsQuit := make(chan bool)
-	processEventsQuit := make(chan bool)
-	drainCacheQuit := make(chan bool)
+	quitChan := make(chan bool)
 
-	go d.watchEvents(watchEventsQuit)
-	go d.processEvents(processEventsQuit)
-	go d.drainCache(drainCacheQuit)
+	go d.watchEvents(quitChan)
+	go d.processEvents(quitChan)
+	go d.drainCache(quitChan)
 
 	go func() {
 		// Loop around fetching the whole container list
@@ -120,12 +119,11 @@ func (d *DockerDiscovery) Run(looper director.Looper) {
 		})
 
 		// Propagate quit channel message
-		go func() { watchEventsQuit <- true }()
-		go func() { processEventsQuit <- true }()
-		go func() { drainCacheQuit <- true }()
+		close(quitChan)
 	}()
 }
 
+// Services returns the slice of services we found running
 func (d *DockerDiscovery) Services() []service.Service {
 	d.RLock()
 	defer d.RUnlock()
@@ -137,6 +135,85 @@ func (d *DockerDiscovery) Services() []service.Service {
 	}
 
 	return svcList
+}
+
+// Listeners returns any containers we found that had the
+// SidecarListener label set to a valid ServicePort.
+func (d *DockerDiscovery) Listeners() []ChangeListener {
+	var listeners []ChangeListener
+
+	for _, cntnr := range d.services {
+		container, err := d.inspectContainer(cntnr)
+		if err != nil {
+			continue
+		}
+
+		listener := d.listenerForContainer(container)
+		if listener != nil {
+			listeners = append(listeners, *listener)
+		}
+	}
+
+	return listeners
+}
+
+func (d *DockerDiscovery) findServiceByID(id string) *service.Service {
+	for _, svc := range d.services {
+		if svc.ID == id {
+			return svc
+		}
+	}
+
+	return nil
+}
+
+// listenerForContainer returns a ChangeListener for a container if one
+// is configured.
+func (d *DockerDiscovery) listenerForContainer(cntnr *docker.Container) *ChangeListener {
+	// See if the container has the SidecarListener label, which
+	// will tell us the ServicePort of the port that should be
+	// subscribed to Sidecar events.
+	svcPortStr, ok := cntnr.Config.Labels["SidecarListener"]
+	if !ok {
+		return nil
+	}
+
+	// Be careful about ID matching
+	id := cntnr.ID
+	if len(id) > 12 {
+		id = id[:12]
+	}
+
+	svc := d.findServiceByID(id)
+	if svc == nil {
+		return nil
+	}
+
+	// Look up the ServicePort and translate to Docker port
+	svcPort, err := strconv.ParseInt(svcPortStr, 10, 64)
+	if err != nil {
+		log.Warnf(
+			"SidecarListener label configured on %s, can't decode port '%s'",
+			svc.ID, svcPortStr,
+		)
+		return nil
+	}
+
+	listenPort := svc.PortForServicePort(svcPort, "tcp") // We only do HTTP to TCP is right
+	// -1 is returned when there is no match
+	if listenPort < 0 {
+		log.Warnf(
+			"SidecarListener label configured on %s, but no matching ServicePort for %d",
+			svc.ID, svcPort,
+		)
+		return nil
+
+	}
+
+	return &ChangeListener{
+		Name: svc.Name + "-" + svc.ID,
+		Port: listenPort,
+	}
 }
 
 func (d *DockerDiscovery) getContainers() {
