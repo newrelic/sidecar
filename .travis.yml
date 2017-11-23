@@ -9,11 +9,14 @@ sudo: required
 services:
   - docker
 
+install:
+  # Skip this, we vendor everything
+
 before_install:
   - sudo apt-get install -y nodejs
 
 script:
-  - go test -v --timeout 30s ./... && (CGO_ENABLED=0 GOOS=linux go build -ldflags '-d')
+  - go test -v --timeout 30s `go list ./... | grep -v /vendor/` && (CGO_ENABLED=0 GOOS=linux go build -ldflags '-d')
   - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ]; then
       echo "Building container gonitro/sidecar:${TRAVIS_COMMIT::7}" &&
       cd ui && npm install && cd .. &&
