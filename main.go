@@ -16,6 +16,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
+	"gopkg.in/relistan/rubberneck.v1"
 )
 
 var (
@@ -244,18 +245,8 @@ func main() {
 	exitWithError(err, "Failed to find private IP address")
 	mlConfig.AdvertiseAddr = publishedIP
 
-	log.Println("Sidecar starting -------------------")
-	log.Printf("Cluster Name: %s", *opts.ClusterName)
-	log.Printf("Config File: %s", *opts.ConfigFile)
-	log.Printf("Cluster Seeds: %s", strings.Join(*opts.ClusterIPs, ", "))
-	log.Printf("Advertised address: %s", publishedIP)
-	log.Printf("Service Name Match: %s", config.Services.NameMatch)
-	log.Printf("Excluded IPs: %v", config.Sidecar.ExcludeIPs)
-	log.Printf("Push/Pull Interval: %s", config.Sidecar.PushPullInterval.Duration.String())
-	log.Printf("Gossip Messages: %d", config.Sidecar.GossipMessages)
-	log.Printf("Logging level: %s", config.Sidecar.LoggingLevel)
-	log.Printf("Running HAproxy: %t", !config.HAproxy.Disable && !*opts.HAproxyDisable)
-	log.Println("----------------------------------")
+	printer := rubberneck.NewPrinter(log.Infof, rubberneck.NoAddLineFeed)
+	printer.PrintWithLabel("Sidecar starting", *opts, config)
 
 	list, err := memberlist.Create(mlConfig)
 	exitWithError(err, "Failed to create memberlist")
