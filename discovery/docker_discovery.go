@@ -211,7 +211,7 @@ func (d *DockerDiscovery) listenerForContainer(cntnr *docker.Container) *ChangeL
 	}
 
 	return &ChangeListener{
-		Name: svc.Name + "-" + svc.ID,
+		Name: svc.ListenerName(),
 		Port: listenPort,
 	}
 }

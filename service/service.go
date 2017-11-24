@@ -93,6 +93,12 @@ func (svc *Service) PortForServicePort(findPort int64, pType string) int64 {
 	return -1
 }
 
+// ListenerName returns the string name this service should be identified
+// by as a listener to Sidecar state
+func (svc *Service) ListenerName() string {
+	return svc.Name + "-" + svc.ID
+}
+
 func Decode(data []byte) *Service {
 	var svc Service
 	svc.UnmarshalJSON(data)

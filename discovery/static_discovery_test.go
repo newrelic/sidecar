@@ -94,8 +94,8 @@ func Test_Listeners(t *testing.T) {
 		Convey("Returns all listeners extracted from Targets", func() {
 			listeners := disco.Listeners()
 
-			expected0 := ChangeListener{Name:"beowulf=asdf", Port:10000}
-			expected1 := ChangeListener{Name:"hrothgar=abba", Port:11000}
+			expected0 := ChangeListener{Name:"beowulf-asdf", Port:10000}
+			expected1 := ChangeListener{Name:"hrothgar-abba", Port:11000}
 
 			So(len(listeners), ShouldEqual, 2)
 			So(listeners[0], ShouldResemble, expected0)

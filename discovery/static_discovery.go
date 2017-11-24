@@ -70,7 +70,7 @@ func (d *StaticDiscovery) Listeners() []ChangeListener {
 	for _, target := range d.Targets {
 		if target.ListenPort > 0 {
 			listener := ChangeListener{
-				Name: target.Service.Name + "=" + target.Service.ID,
+				Name: target.Service.ListenerName(),
 				Port: target.ListenPort,
 			}
 			listeners = append(listeners, listener)
