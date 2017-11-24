@@ -25,6 +25,7 @@ type UrlListener struct {
 	Client       *http.Client
 	looper       director.Looper
 	eventChannel chan ChangeEvent
+	managed      bool // Is this to be auto-managed by ServicesState?
 }
 
 type StateChangedEvent struct {
@@ -54,7 +55,7 @@ func prepareCookieJar(listenurl string) *cookiejar.Jar {
 	return cookieJar
 }
 
-func NewUrlListener(listenurl string) *UrlListener {
+func NewUrlListener(listenurl string, managed bool) *UrlListener {
 	errorChan := make(chan error, 1)
 
 	// Primarily for the purpose of load balancers that look
@@ -67,6 +68,7 @@ func NewUrlListener(listenurl string) *UrlListener {
 		Client:       &http.Client{Timeout: CLIENT_TIMEOUT, Jar: cookieJar},
 		eventChannel: make(chan ChangeEvent, 20),
 		Retries:      DEFAULT_RETRIES,
+		managed:      managed,
 	}
 }
 
@@ -91,6 +93,10 @@ func (u *UrlListener) Name() string {
 
 func (u *UrlListener) Chan() chan ChangeEvent {
 	return u.eventChannel
+}
+
+func (u *UrlListener) Managed() bool {
+	return u.managed
 }
 
 func (u *UrlListener) Watch(state *ServicesState) {

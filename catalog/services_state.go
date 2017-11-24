@@ -13,9 +13,9 @@ import (
 	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/output"
 	"github.com/Nitro/sidecar/service"
-	log "github.com/sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
 )
 
 // catalog handles all of the eventual-consistency mechanisms for
@@ -52,14 +52,15 @@ type Server struct {
 
 // Returns a pointer to a properly configured Server
 func NewServer(name string) *Server {
-	var server Server
-	server.Name = name
-	// Pre-create for 5 services per host
-	server.Services = make(map[string]*service.Service, 5)
-	server.LastUpdated = time.Unix(0, 0)
-	server.LastChanged = time.Unix(0, 0)
+	server := &Server{
+		Name: name,
+		// Pre-create for 5 services per host
+		Services:    make(map[string]*service.Service, 5),
+		LastUpdated: time.Unix(0, 0),
+		LastChanged: time.Unix(0, 0),
+	}
 
-	return &server
+	return server
 }
 
 // Holds the state about all the servers in the cluster
@@ -70,31 +71,35 @@ type ServicesState struct {
 	Hostname            string
 	Broadcasts          chan [][]byte        `json:"-"`
 	ServiceMsgs         chan service.Service `json:"-"`
-	listeners           []Listener
+	listeners           map[string]Listener
 	tombstoneRetransmit time.Duration
 	sync.RWMutex
 }
 
+// A Listener receives update events from state changes.
 type Listener interface {
-	Chan() chan ChangeEvent
-	Name() string
+	Chan() chan ChangeEvent // The event channel
+	Name() string           // The name of this listener
+	Managed() bool          // Is this managed by us? (e.g. auto-added/removed)
 }
 
 // Returns a pointer to a properly configured ServicesState
 func NewServicesState() *ServicesState {
-	var state ServicesState
 	var err error
-	state.Servers = make(map[string]*Server, 5)
-	state.Broadcasts = make(chan [][]byte)
-	state.LastChanged = time.Unix(0, 0)
+	state := &ServicesState{
+		Servers:             make(map[string]*Server, 5),
+		Broadcasts:          make(chan [][]byte),
+		LastChanged:         time.Unix(0, 0),
+		tombstoneRetransmit: TOMBSTONE_RETRANSMIT,
+		ServiceMsgs:         make(chan service.Service, 25),
+		listeners:           make(map[string]Listener),
+	}
 	state.Hostname, err = os.Hostname()
 	if err != nil {
 		log.Errorf("Error getting hostname! %s", err.Error())
 	}
-	state.tombstoneRetransmit = TOMBSTONE_RETRANSMIT
-	state.ServiceMsgs = make(chan service.Service, 25)
 
-	return &state
+	return state
 }
 
 // Shortcut for checking if the server has this service or not.
@@ -227,10 +232,19 @@ func (state *ServicesState) NotifyListeners(svc *service.Service, previousStatus
 // major state change events. Channels must be buffered by at least 1
 // or they will block. Channels must be ready to receive input.
 func (state *ServicesState) AddListener(listener Listener) {
+	if listener.Chan() == nil {
+		log.Errorf("Refusing to add listener %s with nil channel!", listener.Name())
+		return
+	}
+
+	if cap(listener.Chan()) < 1 {
+		log.Errorf("Refusing to add blocking channel as listener: %s", listener.Name())
+		return
+	}
 	state.Lock()
 	defer state.Unlock()
 
-	state.listeners = append(state.listeners, listener)
+	state.listeners[listener.Name()] = listener
 	log.Debugf("AddListener(): added %s, new count %d", listener.Name(), len(state.listeners))
 }
 
@@ -240,21 +254,22 @@ func (state *ServicesState) RemoveListener(name string) error {
 	state.Lock()
 	defer state.Unlock()
 
-	for i := 0; i < len(state.listeners); i++ {
-		if state.listeners[i].Name() == name {
-			state.listeners = append(state.listeners[:i], state.listeners[i+1:]...)
-			log.Debugf("RemoveListener(): removed %s, new count %d", name, len(state.listeners))
-			return nil
-		}
+	if _, ok := state.listeners[name]; ok {
+		delete(state.listeners, name)
+		log.Debugf("RemoveListener(): removed %s, new count %d", name, len(state.listeners))
+		return nil
 	}
 
 	return fmt.Errorf("No listener found with the name: %s", name)
 }
 
+// GetListeners returns a slice containing all the current listeners
 func (state *ServicesState) GetListeners() []Listener {
 	state.RLock()
 	var listeners []Listener
-	listeners = append(listeners, state.listeners...)
+	for _, listener := range state.listeners {
+		listeners = append(listeners, listener)
+	}
 	state.RUnlock()
 
 	return listeners
@@ -374,6 +389,30 @@ func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper
 	looper.Loop(func() error {
 		for _, container := range fn() {
 			state.ServiceMsgs <- container
+		}
+		return nil
+	})
+}
+
+// TrackLocalListeners runs in the background and repeatedly calls
+// a discovery function to return a list of event listeners. These will
+// then be added to to the listener list.
+func (state *ServicesState) TrackLocalListeners(fn func() []Listener, looper director.Looper) {
+	looper.Loop(func() error {
+		for _, listener := range fn() {
+			state.RLock()
+			if _, ok := state.listeners[listener.Name()]; !ok {
+				// We fire off a goroutine to add it, which will block until we
+				// (and anyone else) release the read lock.  The only use case
+				// where this is likely to be a problem is where we're adding
+				// and removing listeners quickly, which is explicitly not a
+				// good idea, anyway. Since listener name is built around
+				// service ID, even in that scenario this should not cause
+				// issues.
+				go state.AddListener(listener)
+			}
+			state.RUnlock()
+
 		}
 		return nil
 	})

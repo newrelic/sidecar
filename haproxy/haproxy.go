@@ -316,6 +316,12 @@ func (h *HAproxy) Name() string {
 	return "HAproxy"
 }
 
+// Managed is part of the catalog.Listener interface. It tells the ServicesState if
+// this listener should be auto-added or removed. We never want that for haproxy.
+func (h *HAproxy) Managed() bool {
+	return false
+}
+
 // Chan is part of the catalog.Listener interface. Returns the channel we listen on.
 func (h *HAproxy) Chan() chan catalog.ChangeEvent {
 	return h.eventChannel

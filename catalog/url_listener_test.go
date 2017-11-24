@@ -14,7 +14,7 @@ import (
 func Test_NewUrlListener(t *testing.T) {
 	Convey("NewUrlListener() configures all the right things", t, func() {
 		url := "http://beowulf.example.com"
-		listener := NewUrlListener(url)
+		listener := NewUrlListener(url, false)
 
 		So(listener.Client, ShouldNotBeNil)
 		So(listener.Url, ShouldEqual, url)
@@ -58,7 +58,7 @@ func Test_Listen(t *testing.T) {
 		})
 
 		url := "http://beowulf.example.com"
-		listener := NewUrlListener(url)
+		listener := NewUrlListener(url, false)
 		listener.Client = client
 		errors := make(chan error)
 		listener.looper = director.NewFreeLooper(1, errors)

@@ -20,6 +20,7 @@ var anotherHostname = "chaucer"
 type mockListener struct {
 	name   string
 	events chan ChangeEvent
+	managed bool
 }
 
 func (l *mockListener) Name() string {
@@ -28,6 +29,10 @@ func (l *mockListener) Name() string {
 
 func (l *mockListener) Chan() chan ChangeEvent {
 	return l.events
+}
+
+func (l *mockListener) Managed() bool {
+	return l.managed
 }
 
 func Test_NewServer(t *testing.T) {
@@ -430,8 +435,8 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 func Test_Listeners(t *testing.T) {
 	Convey("Working with state Listeners", t, func() {
 		state := NewServicesState()
-		listener := &mockListener{"listener1", make(chan ChangeEvent, 1)}
-		listener2 := &mockListener{"listener2", make(chan ChangeEvent, 1)}
+		listener := &mockListener{"listener1", make(chan ChangeEvent, 1), false}
+		listener2 := &mockListener{"listener2", make(chan ChangeEvent, 1), false}
 		svcId1 := "deadbeef123"
 		baseTime := time.Now().UTC().Round(time.Second)
 		svc1 := service.Service{ID: svcId1, Hostname: hostname, Updated: baseTime}
@@ -440,6 +445,12 @@ func Test_Listeners(t *testing.T) {
 			So(len(state.listeners), ShouldEqual, 0)
 			state.AddListener(listener)
 			So(len(state.listeners), ShouldEqual, 1)
+		})
+
+		Convey("AddListener() refuses non-buffered channels", func() {
+			badListener := &mockListener{"badListener", make(chan ChangeEvent), false}
+			state.AddListener(badListener)
+			So(len(state.listeners), ShouldEqual, 0)
 		})
 
 		Convey("Removing listeners results in them being removed from the list", func() {

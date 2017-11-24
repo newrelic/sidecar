@@ -55,6 +55,10 @@ func (h *HttpListener) Name() string {
 	return h.name
 }
 
+func (h *HttpListener) Managed() bool {
+	return false
+}
+
 func makeHandler(fn func(http.ResponseWriter, *http.Request,
 	*memberlist.Memberlist, *catalog.ServicesState, map[string]string),
 	list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
