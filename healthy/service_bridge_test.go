@@ -7,6 +7,7 @@ import (
 	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/Nitro/sidecar/discovery"
 )
 
 var hostname string = "indefatigable"
@@ -17,6 +18,10 @@ type mockDiscoverer struct {
 
 func (m *mockDiscoverer) Services() []service.Service {
 	return m.listFn()
+}
+
+func (m *mockDiscoverer) Listeners() []discovery.ChangeListener {
+	return nil
 }
 
 func (m *mockDiscoverer) HealthCheck(svc *service.Service) (string, string) {
