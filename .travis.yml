@@ -10,7 +10,8 @@ services:
   - docker
 
 install:
-  - echo "Skipping install..."
+  # For some reason Travis seems to need this installed explicitly
+  - go get github.com/sirupsen/logrus
 
 before_install:
   - sudo apt-get install -y nodejs
