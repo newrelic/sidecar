@@ -115,13 +115,6 @@ func Test_ServicesStateWithData(t *testing.T) {
 			So(state.HasServer("junk"), ShouldBeFalse)
 		})
 
-		Convey("GetLocalService() returns a service when we have it", func() {
-			state.Hostname = anotherHostname
-			state.AddServiceEntry(svc)
-
-			So(state.GetLocalService(svcId), ShouldResemble, &svc)
-		})
-
 		Convey("AddServiceEntry()", func() {
 			Convey("Merges in a new service", func() {
 				So(state.HasServer(anotherHostname), ShouldBeFalse)

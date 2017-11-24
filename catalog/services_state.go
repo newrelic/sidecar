@@ -133,22 +133,6 @@ func (state *ServicesState) HasServer(hostname string) bool {
 	return ok
 }
 
-// Looks up a service from *only this host* by ID
-func (state *ServicesState) GetLocalService(id string) *service.Service {
-	if !state.HasServer(state.Hostname) {
-		// This can happen a lot on startup, so we're not logging it
-		return nil
-	}
-
-	if state.Servers != nil &&
-		state.Servers[state.Hostname] != nil &&
-		state.Servers[state.Hostname].Services != nil {
-		return state.Servers[state.Hostname].Services[id]
-	}
-
-	return nil
-}
-
 // A server has left the cluster, so tombstone all of its records
 func (state *ServicesState) ExpireServer(hostname string) {
 	if !state.HasServer(hostname) || len(state.Servers[hostname].Services) == 0 {
