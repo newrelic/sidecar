@@ -15,10 +15,12 @@ import (
 )
 
 const (
-	CLIENT_TIMEOUT  = 3 * time.Second
-	DEFAULT_RETRIES = 5
+	ClientTimeout  = 3 * time.Second
+	DefaultRetries = 5
 )
 
+// An UrlListener is an event listener that receives updates over an
+// HTTP POST to an endpoint.
 type UrlListener struct {
 	Url          string
 	Retries      int
@@ -28,6 +30,8 @@ type UrlListener struct {
 	managed      bool // Is this to be auto-managed by ServicesState?
 }
 
+// A StateChangedEvent is sent to UrlListeners when a significant
+// event has changed the ServicesState.
 type StateChangedEvent struct {
 	State       ServicesState
 	ChangeEvent ChangeEvent
@@ -65,9 +69,9 @@ func NewUrlListener(listenurl string, managed bool) *UrlListener {
 	return &UrlListener{
 		Url:          listenurl,
 		looper:       director.NewFreeLooper(director.FOREVER, errorChan),
-		Client:       &http.Client{Timeout: CLIENT_TIMEOUT, Jar: cookieJar},
+		Client:       &http.Client{Timeout: ClientTimeout, Jar: cookieJar},
 		eventChannel: make(chan ChangeEvent, 20),
-		Retries:      DEFAULT_RETRIES,
+		Retries:      DefaultRetries,
 		managed:      managed,
 	}
 }
