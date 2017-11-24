@@ -54,11 +54,11 @@ func Test_MultiDiscovery(t *testing.T) {
 
 		disco1 := &mockDiscoverer{
 			[]service.Service{svc1}, false, false, done1, "one",
-			false, []ChangeListener{{Name: "svc1-1", Port: 10000}},
+			false, []ChangeListener{{Name: "svc1-1", Url: "http://localhost:10000"}},
 		}
 		disco2 := &mockDiscoverer{
 			[]service.Service{svc2}, false, false, done2, "two",
-			false, []ChangeListener{{Name: "svc2-2", Port: 10000}},
+			false, []ChangeListener{{Name: "svc2-2", Url: "http://localhost:10000"}},
 		}
 
 		multi := &MultiDiscovery{[]Discoverer{disco1, disco2}}

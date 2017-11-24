@@ -396,10 +396,13 @@ func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper
 
 // TrackLocalListeners runs in the background and repeatedly calls
 // a discovery function to return a list of event listeners. These will
-// then be added to to the listener list.
+// then be added to to the listener list. Managed listeners no longer
+// reported from discovery will be removed.
 func (state *ServicesState) TrackLocalListeners(fn func() []Listener, looper director.Looper) {
 	looper.Loop(func() error {
-		for _, listener := range fn() {
+		discovered := fn()
+		// Add new listeners
+		for _, listener := range discovered {
 			state.RLock()
 			if _, ok := state.listeners[listener.Name()]; !ok {
 				// We fire off a goroutine to add it, which will block until we
@@ -409,13 +412,31 @@ func (state *ServicesState) TrackLocalListeners(fn func() []Listener, looper dir
 				// good idea, anyway. Since listener name is built around
 				// service ID, even in that scenario this should not cause
 				// issues.
+				log.Infof("Adding listener %s because it was just discovered", listener.Name())
 				go state.AddListener(listener)
 			}
 			state.RUnlock()
-
 		}
+
+		// Remove old ones
+		for _, listener := range state.listeners {
+			if listener.Managed() && !containsListener(discovered, listener.Name()) {
+				log.Infof("Removing listener %s because the service appears to be gone", listener.Name())
+				state.RemoveListener(listener.Name())
+			}
+		}
+
 		return nil
 	})
+}
+
+func containsListener(listeners []Listener, name string) bool {
+	for _, listener := range listeners {
+		if name == listener.Name() {
+			return true
+		}
+	}
+	return false
 }
 
 // Do we know about this service already? If we do, is it a tombstone?

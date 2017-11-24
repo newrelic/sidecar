@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -189,31 +190,42 @@ func (d *DockerDiscovery) listenerForContainer(cntnr *docker.Container) *ChangeL
 		return nil
 	}
 
-	// Look up the ServicePort and translate to Docker port
-	svcPort, err := strconv.ParseInt(svcPortStr, 10, 64)
-	if err != nil {
+	listenPort := portForServicePort(svc, svcPortStr, "tcp") // We only do HTTP (TCP)
+	// -1 is returned when there is no match
+	if listenPort == nil {
 		log.Warnf(
-			"SidecarListener label configured on %s, can't decode port '%s'",
+			"SidecarListener label found on %s, but no matching ServicePort! '%s'",
 			svc.ID, svcPortStr,
 		)
 		return nil
 	}
 
-	listenPort := svc.PortForServicePort(svcPort, "tcp") // We only do HTTP to TCP is right
-	// -1 is returned when there is no match
-	if listenPort < 0 {
-		log.Warnf(
-			"SidecarListener label configured on %s, but no matching ServicePort for %d",
-			svc.ID, svcPort,
-		)
-		return nil
-
-	}
-
 	return &ChangeListener{
 		Name: svc.ListenerName(),
-		Port: listenPort,
+		Url:  fmt.Sprintf("http://%s:%d", listenPort.IP, listenPort.Port),
 	}
+}
+
+// portForServicePort is similar to service.PortForServicePort, but takes a string
+// and returns a full service.Port, not just the integer.
+func portForServicePort(svc *service.Service, portStr string, pType string) *service.Port {
+	// Look up the ServicePort and translate to Docker port
+	svcPort, err := strconv.ParseInt(portStr, 10, 64)
+	if err != nil {
+		log.Warnf(
+			"SidecarListener label found on %s, can't decode port '%s'",
+			svc.ID, portStr,
+		)
+		return nil
+	}
+
+	for _, port := range svc.Ports {
+		if port.ServicePort == svcPort && port.Type == pType {
+			return &port
+		}
+	}
+
+	return nil
 }
 
 func (d *DockerDiscovery) getContainers() {

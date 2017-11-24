@@ -15,7 +15,7 @@ const (
 // over the HTTP interface.
 type ChangeListener struct {
 	Name string    // Name to be represented in the Listeners list
-	Port int64     // Port of the service to send events to
+	Url  string    // Url of the service to send events to
 }
 
 // A Discoverer is responsible for finding services that we care

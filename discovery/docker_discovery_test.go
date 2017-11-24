@@ -69,8 +69,8 @@ func Test_DockerDiscovery(t *testing.T) {
 		baseTime := time.Now().UTC().Round(time.Second)
 		service1 := service.Service{
 			Name: "beowulf",
-			ID: svcId1, Hostname: hostname, Updated: baseTime,
-			Ports: []service.Port{{Port: 80, ServicePort: 10000, Type: "tcp"}},
+			ID:   svcId1, Hostname: hostname, Updated: baseTime,
+			Ports: []service.Port{{Port: 80, IP: "127.0.0.1", ServicePort: 10000, Type: "tcp"}},
 		}
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 		services := []*service.Service{&service1, &service2}
@@ -108,7 +108,12 @@ func Test_DockerDiscovery(t *testing.T) {
 
 			processed := disco.Listeners()
 			So(len(processed), ShouldEqual, 1)
-			So(processed[0], ShouldResemble, ChangeListener{Name:"beowulf-deadbeef1231", Port:80})
+			So(processed[0], ShouldResemble,
+				ChangeListener{
+					Name: "Service(beowulf-deadbeef1231)",
+					Url:  "http://127.0.0.1:80",
+				},
+			)
 		})
 
 		Convey("handleEvents() prunes dead containers", func() {

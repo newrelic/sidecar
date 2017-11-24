@@ -28,6 +28,7 @@ type UrlListener struct {
 	looper       director.Looper
 	eventChannel chan ChangeEvent
 	managed      bool // Is this to be auto-managed by ServicesState?
+	name         string
 }
 
 // A StateChangedEvent is sent to UrlListeners when a significant
@@ -73,6 +74,7 @@ func NewUrlListener(listenurl string, managed bool) *UrlListener {
 		eventChannel: make(chan ChangeEvent, 20),
 		Retries:      DefaultRetries,
 		managed:      managed,
+		name:         "UrlListener(" + listenurl + ")",
 	}
 }
 
@@ -92,7 +94,11 @@ func withRetries(count int, fn func() error) error {
 }
 
 func (u *UrlListener) Name() string {
-	return "UrlListener(" + u.Url + ")"
+	return u.name
+}
+
+func (u *UrlListener) SetName(name string) {
+	u.name = name
 }
 
 func (u *UrlListener) Chan() chan ChangeEvent {

@@ -266,6 +266,9 @@ func main() {
 	discoLooper := director.NewTimedLooper(
 		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
 	)
+	listenLooper := director.NewTimedLooper(
+		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
+	)
 	healthWatchLooper := director.NewTimedLooper(
 		director.FOREVER, healthy.WATCH_INTERVAL, make(chan error),
 	)
@@ -288,6 +291,17 @@ func main() {
 	// Wrap the monitor Services function as a simple func without the receiver
 	serviceFunc := func() []service.Service { return monitor.Services() }
 
+	listenFunc := func() []catalog.Listener {
+		listeners := disco.Listeners()
+		var result []catalog.Listener
+		for _, discovered := range listeners {
+			newLstnr := catalog.NewUrlListener(discovered.Url, true)
+			newLstnr.SetName(discovered.Name)
+			result = append(result, newLstnr)
+		}
+		return result
+	}
+
 	// Need to call HAproxy first, otherwise won't see first events from
 	// discovered services, and then won't write them out.
 	var proxy *haproxy.HAproxy
@@ -308,6 +322,7 @@ func main() {
 	go state.BroadcastServices(serviceFunc, servicesLooper)
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
 	go state.TrackNewServices(serviceFunc, trackingLooper)
+	go state.TrackLocalListeners(listenFunc, listenLooper)
 	go monitor.Watch(disco, healthWatchLooper)
 	go monitor.Run(healthLooper)
 

@@ -4,12 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/Nitro/sidecar/service"
 )
@@ -71,7 +72,7 @@ func (d *StaticDiscovery) Listeners() []ChangeListener {
 		if target.ListenPort > 0 {
 			listener := ChangeListener{
 				Name: target.Service.ListenerName(),
-				Port: target.ListenPort,
+				Url:  fmt.Sprintf("http://%s:%d/update", d.Hostname, target.ListenPort),
 			}
 			listeners = append(listeners, listener)
 		}
