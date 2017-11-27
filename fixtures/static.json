@@ -12,6 +12,7 @@
             ],
             "ProxyMode": "http"
         },
+		"ListenPort": 9999,
         "Check": {
             "Type": "HttpGet",
             "Args": "http://:10234/"

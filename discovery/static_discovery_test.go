@@ -32,17 +32,21 @@ func Test_ParseConfig(t *testing.T) {
 		})
 
 		Convey("Applies hostnames to services", func() {
-			parsed, _ := disco.ParseConfig(STATIC_JSON)
+			parsed, err := disco.ParseConfig(STATIC_JSON)
+			So(err, ShouldBeNil)
+			So(len(parsed), ShouldEqual, 1)
 			So(parsed[0].Service.Hostname, ShouldEqual, hostname)
 		})
 
 		Convey("Uses the given hostname when specified", func() {
 			parsed, _ := disco.ParseConfig(STATIC_HOSTNAMED_JSON)
+			So(len(parsed), ShouldEqual, 1)
 			So(parsed[0].Service.Hostname, ShouldEqual, "chaucer")
 		})
 
 		Convey("Assigns the default IP address when a port doesn't have one", func() {
 			parsed, _ := disco.ParseConfig(STATIC_JSON)
+			So(len(parsed), ShouldEqual, 1)
 			So(parsed[0].Service.Ports[0].IP, ShouldEqual, ip)
 		})
 	})
@@ -81,17 +85,23 @@ func Test_Listeners(t *testing.T) {
 	Convey("Listeners()", t, func() {
 		ip := "127.0.0.1"
 		disco := NewStaticDiscovery(STATIC_JSON, ip)
-		tgt1 := &Target{
-			Service: service.Service{Name: "beowulf", ID: "asdf"},
-			ListenPort: 10000,
-		}
-		tgt2 := &Target{
-			Service: service.Service{Name: "hrothgar", ID: "abba"},
-			ListenPort: 11000,
-		}
-		disco.Targets = []*Target{tgt1, tgt2}
+
+		Convey("Loads targets from the config", func() {
+			disco.Run(director.NewFreeLooper(director.ONCE, nil))
+			So(len(disco.Targets), ShouldEqual, 1)
+		})
 
 		Convey("Returns all listeners extracted from Targets", func() {
+			tgt1 := &Target{
+				Service: service.Service{Name: "beowulf", ID: "asdf"},
+				ListenPort: 10000,
+			}
+			tgt2 := &Target{
+				Service: service.Service{Name: "hrothgar", ID: "abba"},
+				ListenPort: 11000,
+			}
+			disco.Targets = []*Target{tgt1, tgt2}
+
 			listeners := disco.Listeners()
 
 			expected0 := ChangeListener{

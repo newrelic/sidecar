@@ -104,7 +104,10 @@ func (d *StaticDiscovery) ParseConfig(filename string) ([]*Target, error) {
 	}
 
 	var targets []*Target
-	json.Unmarshal(file, &targets)
+	err = json.Unmarshal(file, &targets)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to unmarshal Target: %s", err)
+	}
 
 	// Have to loop with traditional 'for' loop so we can modify entries
 	for _, target := range targets {
