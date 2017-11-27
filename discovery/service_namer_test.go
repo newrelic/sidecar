@@ -17,14 +17,16 @@ func Test_RegexpNamer(t *testing.T) {
 		}
 
 		var namer ServiceNamer
+		var err error
 
 		Convey("Extracts a ServiceName", func() {
-			namer = &RegexpNamer{ServiceNameMatch: "^/(.+)(-[0-9a-z]{7,14})$"}
+			namer, err = NewRegexpNamer("^/(.+)(-[0-9a-z]{7,14})$")
+			So(err, ShouldBeNil)
 			So(namer.ServiceName(container), ShouldEqual, "awesome-svc")
 		})
 
 		Convey("Returns the image when the expression doesn't match", func() {
-			namer = &RegexpNamer{ServiceNameMatch: "ASDF"}
+			namer, err = NewRegexpNamer("ASDF")
 			So(namer.ServiceName(container), ShouldEqual, "gonitro/awesome-svc:0.1.34")
 		})
 

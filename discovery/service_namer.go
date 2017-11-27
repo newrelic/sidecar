@@ -1,10 +1,11 @@
 package discovery
 
 import (
+	"fmt"
 	"regexp"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
+	log "github.com/sirupsen/logrus"
 )
 
 type ServiceNamer interface {
@@ -18,6 +19,17 @@ type RegexpNamer struct {
 	expression       *regexp.Regexp
 }
 
+func NewRegexpNamer(exprStr string) (*RegexpNamer, error) {
+	var err error
+	namer := &RegexpNamer{ServiceNameMatch: exprStr}
+	namer.expression, err = regexp.Compile(exprStr)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid regex, can't compile: %s", exprStr)
+	}
+
+	return namer, nil
+}
+
 // Return a properly regex-matched name for the service, or failing that,
 // the Image ID which we use to stand in for the name of the service.
 func (r *RegexpNamer) ServiceName(container *docker.APIContainers) string {
@@ -27,13 +39,8 @@ func (r *RegexpNamer) ServiceName(container *docker.APIContainers) string {
 	}
 
 	if r.expression == nil {
-		var err error
-
-		r.expression, err = regexp.Compile(r.ServiceNameMatch)
-		if err != nil {
-			log.Errorf("Invalid regex, can't compile: %s", r.ServiceNameMatch)
-			return container.Image
-		}
+		log.Errorf("Invalid regex can't match using: %s", r.ServiceNameMatch)
+		return container.Image
 	}
 
 	var svcName string
