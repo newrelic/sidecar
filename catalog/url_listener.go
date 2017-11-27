@@ -148,7 +148,7 @@ func (u *UrlListener) Watch(state *ServicesState) {
 			})
 
 			if err != nil {
-				log.Warnf("Failed posting state to '%s': %s", u.Url, err.Error())
+				log.Warnf("Failed posting state to '%s' %s: %s", u.Url, u.Name(), err.Error())
 			}
 
 			return nil
