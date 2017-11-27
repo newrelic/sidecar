@@ -329,7 +329,7 @@ a service can subscribe to Sidecar events:
     then receive all updates on the `/update` endpoint. The subscription will be
     dynamically added and removed when the service starts or stops.
 
- 3. Add the listener export to the `services.json` file exposed by static
+ 3. Add the listener export to the `static.json` file exposed by static
     services. The `ListenPort` is a top-level setting for the `Target` and is
 	of the form `ListenPort: 10005` inside the `Target` definition.
 
