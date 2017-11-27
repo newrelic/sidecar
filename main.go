@@ -229,10 +229,10 @@ func main() {
 	mlConfig.PreferTCPDNS = false
 
 	// Set up the push pull interval for Memberlist
-	if config.Sidecar.PushPullInterval.Duration == 0 {
+	if config.Sidecar.PushPullInterval == 0 {
 		mlConfig.PushPullInterval = catalog.ALIVE_LIFESPAN - 1*time.Second
 	} else {
-		mlConfig.PushPullInterval = config.Sidecar.PushPullInterval.Duration
+		mlConfig.PushPullInterval = config.Sidecar.PushPullInterval
 	}
 	if config.Sidecar.GossipMessages != 0 {
 		mlConfig.GossipMessages = config.Sidecar.GossipMessages
