@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Normal services
 for i in `seq 1 5`; do
 	docker run -l 'HealthCheck=HttpGet' -l 'HealthCheckArgs=http://{{ host }}:{{ tcp 9500 }}/' -l 'ServiceName=nginx' -l 'ServicePort_80=9500' -P -d -t nginx
 done
+
+# Sidecar event subscriber
+docker run -l 'HealthCheck=HttpGet' -l 'HealthCheckArgs=http://{{ host }}:{{ tcp 9500 }}/' -l 'ServiceName=nginx' -l 'ServicePort_80=9500' -l "SidecarListener=9500" -P -d -t nginx
