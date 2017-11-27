@@ -409,7 +409,12 @@ func (state *ServicesState) TrackLocalListeners(fn func() []Listener, looper dir
 
 			if !ok {
 				log.Infof("Adding listener %s because it was just discovered", listener.Name())
-				state.AddListener(listener)
+				urlListener, ok := listener.(*UrlListener)
+				if ok {
+					urlListener.Watch(state)
+				} else {
+					state.AddListener(listener)
+				}
 			}
 		}
 		// Remove old ones
