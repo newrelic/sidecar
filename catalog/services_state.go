@@ -422,6 +422,11 @@ func (state *ServicesState) TrackLocalListeners(fn func() []Listener, looper dir
 		for _, listener := range listeners {
 			if listener.Managed() && !containsListener(discovered, listener.Name()) {
 				log.Infof("Removing listener %s because the service appears to be gone", listener.Name())
+				urlListener, ok := listener.(*UrlListener)
+				if ok {
+					log.Infof("Stopping UrlListener %s", listener.Name())
+					urlListener.Stop()
+				}
 				state.RemoveListener(listener.Name())
 			}
 		}

@@ -109,6 +109,10 @@ func (u *UrlListener) Managed() bool {
 	return u.managed
 }
 
+func (u *UrlListener) Stop() {
+	u.looper.Quit()
+}
+
 func (u *UrlListener) Watch(state *ServicesState) {
 	state.AddListener(u)
 
