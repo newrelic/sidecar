@@ -303,11 +303,35 @@ That in turn points to a static discovery file that looks like this:
 ]
 ```
 
-Here we've defined both the service itself and the health check to use
-to validate its status. It supports a single health check per service.
-You should supply something in place of the value for `Image` that is
-meaningful to you. Usually this is a version or git commit string. It
-will show up in the Sidecar web UI.
+Here we've defined both the service itself and the health check to use to
+validate its status. It supports a single health check per service.  You should
+supply something in place of the value for `Image` that is meaningful to you.
+Usually this is a version or git commit string. It will show up in the Sidecar
+web UI.
+
+Sidecar Events
+--------------
+
+Services which need to know about service discovery change events can subscribe
+to Sidecar events. Any time a significant change happens, the listener will
+receive an update over HTTP from Sidecar. There are three mechanisms by which
+a service can subscribe to Sidecar events:
+
+ 1. Add the endpoint in the `sidecar.toml` e.g.:
+    ```
+	[listeners]
+	urls = [ "http://localhost:7778/api/update" ]
+	```
+
+ 2. Add a Docker label to the subscribing service in the form
+    `SidecarListener=10005` where 10005 is a port that is mapped to a
+    `ServicePort` with a Docker label like `ServicePort_80=10005`. This port will
+    then receive all updates on the `/update` endpoint. The subscription will be
+    dynamically added and removed when the service starts or stops.
+
+ 3. Add the listener export to the `services.json` file exposed by static
+    services. The `ListenPort` is a top-level setting for the `Target` and is
+	of the form `ListenPort: 10005` inside the `Target` definition.
 
 Monitoring It
 -------------
