@@ -404,22 +404,17 @@ func (state *ServicesState) TrackLocalListeners(fn func() []Listener, looper dir
 		// Add new listeners
 		for _, listener := range discovered {
 			state.RLock()
-			if _, ok := state.listeners[listener.Name()]; !ok {
-				// We fire off a goroutine to add it, which will block until we
-				// (and anyone else) release the read lock.  The only use case
-				// where this is likely to be a problem is where we're adding
-				// and removing listeners quickly, which is explicitly not a
-				// good idea, anyway. Since listener name is built around
-				// service ID, even in that scenario this should not cause
-				// issues.
-				log.Infof("Adding listener %s because it was just discovered", listener.Name())
-				go state.AddListener(listener)
-			}
+			_, ok := state.listeners[listener.Name()]
 			state.RUnlock()
-		}
 
+			if !ok {
+				log.Infof("Adding listener %s because it was just discovered", listener.Name())
+				state.AddListener(listener)
+			}
+		}
 		// Remove old ones
-		for _, listener := range state.listeners {
+		listeners := state.listeners
+		for _, listener := range listeners {
 			if listener.Managed() && !containsListener(discovered, listener.Name()) {
 				log.Infof("Removing listener %s because the service appears to be gone", listener.Name())
 				state.RemoveListener(listener.Name())

@@ -487,8 +487,49 @@ func Test_Listeners(t *testing.T) {
 			So(result2.Service.Hostname, ShouldEqual, hostname)
 		})
 
-		Reset(func() {
-			state = NewServicesState()
+		Convey("GetListeners() returns all the listeners", func() {
+			state.AddListener(listener)
+			state.AddListener(listener2)
+
+			So(len(state.GetListeners()), ShouldEqual, 2)
+		})
+
+		Convey("containsListener() finds a listener if present", func() {
+			listeners := []Listener{listener, listener2}
+			So(containsListener(listeners, "listener1"), ShouldBeTrue)
+		})
+
+		Convey("Tracking dynamic listeners", func() {
+			Convey("Adds new listeners that are discovered", func() {
+				looper := director.NewFreeLooper(director.ONCE, nil)
+				listeners := []Listener{listener, listener2}
+				state.TrackLocalListeners(func() []Listener { return listeners }, looper)
+
+				So(len(state.listeners), ShouldEqual, 2)
+			})
+
+			Convey("Removes listeners that have gone away", func() {
+				// Add some and track them
+				looper := director.NewFreeLooper(director.ONCE, nil)
+				listeners := []Listener{listener, listener2}
+				listenFunc := func() []Listener { return listeners }
+				listener.managed = true
+				listener2.managed = true
+
+				state.TrackLocalListeners(listenFunc, looper)
+				So(len(state.listeners), ShouldEqual, 2)
+
+				// Discovery now returns only the first one
+				listeners = []Listener{listener}
+				looper = director.NewFreeLooper(director.ONCE, nil)
+
+				state.TrackLocalListeners(listenFunc, looper)
+				So(len(state.listeners), ShouldEqual, 1)
+
+				found, ok := state.listeners[listener.Name()]
+				So(ok, ShouldBeTrue)
+				So(found, ShouldResemble, listener)
+			})
 		})
 	})
 }
