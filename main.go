@@ -76,6 +76,7 @@ func configureDiscovery(config *Config, opts *CliOpts, publishedIP string) disco
 	var svcNamer discovery.ServiceNamer
 	var usingDocker bool
 	var discoverers []string
+	var err error
 
 	if opts.Discover != nil && len(*opts.Discover) > 0 {
 		discoverers = *opts.Discover
@@ -95,8 +96,9 @@ func configureDiscovery(config *Config, opts *CliOpts, publishedIP string) disco
 			Label: config.Services.NameLabel,
 		}
 	case "regex":
-		svcNamer = &discovery.RegexpNamer{
-			ServiceNameMatch: config.Services.NameMatch,
+		svcNamer, err = discovery.NewRegexpNamer(config.Services.NameMatch)
+		if err != nil {
+			log.Fatalf("Unable to use RegexpNamer: %s", err)
 		}
 	default:
 		if usingDocker {
