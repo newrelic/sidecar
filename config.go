@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"gopkg.in/relistan/rubberneck.v1"
 )
 
 type ListenerUrlsConfig struct {
@@ -20,7 +21,7 @@ type HAproxyConfig struct {
 	Disable      bool   `envconfig:"DISABLE"`
 	User         string `envconfig:"USER" default:"haproxy"`
 	Group        string `envconfig:"GROUP" default:"haproxy"`
-	UseHostnames bool   `envconfig:"USE_HOSTNAMES" default:"false"`
+	UseHostnames bool   `envconfig:"USE_HOSTNAMES"`
 }
 
 type ServicesConfig struct {
@@ -60,34 +61,20 @@ type Config struct {
 func parseConfig(path string) Config {
 	var config Config
 
-	err := envconfig.Process("sidecar", &config.Sidecar)
-	if err != nil {
-		exitWithError(err, "Failed to parse environment config")
+	errs := []error{
+		envconfig.Process("sidecar", &config.Sidecar),
+		envconfig.Process("docker", &config.DockerDiscovery),
+		envconfig.Process("static", &config.StaticDiscovery),
+		envconfig.Process("services", &config.Services),
+		envconfig.Process("haproxy", &config.HAproxy),
+		envconfig.Process("listeners", &config.Listeners),
 	}
 
-	err = envconfig.Process("docker", &config.DockerDiscovery)
-	if err != nil {
-		exitWithError(err, "Failed to parse environment config")
-	}
-
-	err = envconfig.Process("static", &config.StaticDiscovery)
-	if err != nil {
-		exitWithError(err, "Failed to parse environment config")
-	}
-
-	err = envconfig.Process("services", &config.Services)
-	if err != nil {
-		exitWithError(err, "Failed to parse environment config")
-	}
-
-	err = envconfig.Process("haproxy", &config.HAproxy)
-	if err != nil {
-		exitWithError(err, "Failed to parse environment config")
-	}
-
-	err = envconfig.Process("listeners", &config.Listeners)
-	if err != nil {
-		exitWithError(err, "Failed to parse environment config")
+	for _, err := range errs {
+		if err != nil {
+			rubberneck.Print(config)
+			exitWithError(err, "Can't parse environment config!")
+		}
 	}
 
 	return config
