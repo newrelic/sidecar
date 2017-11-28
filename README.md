@@ -151,57 +151,105 @@ the [README](docker/README.md) describes how to configure this container.
 Configuration
 -------------
 
-Configuration supports a number of options via a TOML file by default named
-`sidecar.toml`. You may also configure the Docker container with some
-[environment
-variables](https://github.com/Nitro/sidecar/blob/master/docker/s6/services/sidecar.svc/run).
-Most of the options are described in more detail in the [example TOML
-file](https://github.com/Nitro/sidecar/blob/master/sidecar.example.toml).
+Sidecar configuration is done through environment variables, with a few options
+also supported on the command line. Once the configuration has been parsed,
+Sidecar will use [Rubberneck](https://github.com/relistan/rubberneck) to print
+out the values that were used. The environment variable are as follows.
+Defaults are in bold at the end of the line:
 
-If needed, you can specify on the command line that Sidecar should use a
-different filename by using the `--config-file` or `-f` option.
+ * `SIDECAR_LOGGING_LEVEL`: The logging level to use (debug, info, warn, error)
+   *info**
+ * `SIDECAR_LOGGING_FORMAT`: Logging format to use (text, json) **text**
+ * `SIDECAR_DISCOVERY`: Which discovery backends to use as a csv array 
+   (static, docker) *`[ docker ]`**
+ * `SIDECAR_EXCLUDE_IPS`: csv array of IPs to exclude from interface selection
+   *`[ 192.168.168.168 ]`**
+ * `SIDECAR_STATS_ADDR`: An address to send performance stats to. **none**
+ * `SIDECAR_PUSH_PULL_INTERVAL`: How long to wait between anti-entropy syncs.
+   *20s**
+ * `SIDECAR_GOSSIP_MESSAGES`: How many times to gather messages per round. **15**
+ * `SIDECAR_DEFAULT_CHECK_ENDPOINT`: Default endpoint to health check services
+   on *`/version`**
+
+ * `SERVICES_NAMER`: Which method to use to extract service names. In both
+   cases it will fall back to image name. (docker_label, regex) *`docker_label`**.
+ * `SERVICES_NAME_MATCH`: The regexp to use to extract the service name
+   from the container name.
+ * `SERVICES_NAME_LABEL`: The Docker label to use to identify service names
+   `ServiceName`
+
+ * `DOCKER_URL`: How to connect to Docker if Docker discovery is enabled.
+   *`unix:///var/run/docker.sock`**
+
+ * `STATIC_CONFIG_FILE`: The config file to use if static discovery is enabled
+   *`static.json`**
+
+ * `LISTENER_URLS`: If we want to statically configure any even listeners, the
+   URLs should go in a csv array here. See ***Listeners**** section below for more
+   on dynamic listeners.
+ 
+ * `HAPROXY_DISABLE`: Disable management of HAproxy entirely. This is useful if
+   you need to run without a proxy or are using something like
+   [haproxy-api](https://github.com/Nitro/haproxy-api) to manage HAproxy based
+   on Sidecar events.
+ * `HAPROXY_RELOAD_COMMAND`: The reload command to use for HAproxy **sane defaults**
+ * `HAPROXY_VERIFY_COMMAND`: The verify command to use for HAproxy **sane defaults**
+ * `HAPROXY_BIND_IP`: The IP that HAproxy should bind to on the host **192.168.168.168**
+ * `HAPROXY_TEMPLATE_FILE`: The source template file to use when writing HAproxy
+   configs. This is a Go text template. *`views/haproxy.cfg`**
+ * `HAPROXY_CONFIG_FILE`: The path where the `haproxy.cfg` file will be written. Note
+   that if you change this you will need to update the verify and reload commands.
+   *`/etc/haproxy.cfg`**
+ * `HAPROXY_PID_FILE`: The path where HAproxy's PID file will be written. Note
+   that if you change this you will need to update the verify and reload commands.
+   *`/var/run/haproxy.pid`**
+ * `HAPROXY_USER`: The Unix user under which HAproxy should run **haproxy**
+ * `HAPROXY_GROUP`: The Unix group under which HAproxy shoudl run **haproxy**
+ * `HAPROXY_USE_HOSTNAMES`: Should we write hostnames in the HAproxy config instead
+   of IP addresses? *false**
+
+## Discovery
 
 Sidecar supports both Docker-based discovery and a discovery mechanism where
-you publish services into a JSON file locally. These can then be advertised as
-running services just like they would be from a Docker host.
+you publish services into a JSON file locally, called "static". These can then be advertised as running services just like they would be from a Docker host. These are configured with the `SIDECAR_DISCOVERY` environment variable. Using both would 
+look like:
 
-### Discovery
-
-Sidecar currently supports two methods of discovery and these can be set in
-the `sidecar.toml` file in the `sidecar` section.
-
-A configuration for both Docker and static discovery looks like this:
-
-```toml
-[sidecar]
-discovery = [ "docker", "static" ]
+```bash
+export SIDECAR_DISCOVERY=static,docker
 ```
 
 Zero or more options may be supplied. Note that if nothing is in this section,
 Sidecar will only participate in a cluster but will not announce anything.
 
-#### Configuring Docker Discovery
+### Configuring Docker Discovery
 
 Sidecar currently accepts a single option for Docker-based discovery, the URL
-to use to connect to Docker. You really want this to be the local machine.
-It uses the same URLs that are supported by the Docker command line tools.
-The configuration block for Sidecar looks like this:
+to use to connect to Docker. Ideally this will be the same machine that Sidecar
+runs on because it makes assumptions about addresses. By default it will use
+the standard Docker Unix domain socket. You can change this with the
+`DOCKER_URL` env var. This needs to be a url that works with teh Docker client.
 
-```toml
-[docker_discovery]
-docker_url = "tcp://localhost:2375"
-```
+Note that Sidecar only supports a *single* URL, unlike the Docker CLI tool.
 
-Note that it only supports a *single* URL, unlike the Docker CLI tool.
-
+**NOTE**
 Sidecar can now use the normal Docker environment variables for configuring
-Docker discovery. If you remove the `docker_url` setting from the config
-entirely, it will fall back to trying to use environment variables to configure
-Docker. It uses the standard variables like `DOCKER_HOST`, `TLS_VERIFY`, etc.
+Docker discovery. If you unset `DOCKER_URL` entirely, it will fall back to
+trying to use environment variables to configure Docker. It uses the standard
+variables like `DOCKER_HOST`, `TLS_VERIFY`, etc.
 
-##### Labels
+#### Docker Labels
 
-A few Docker labels can be used to control the discovery behavior of Sidecar.
+When running Docker discovery, Sidecar relies on Docker labels to understand
+how to handle a service it has discovered. It uses these to:
+
+ 1. Understand how to map container ports to HAproxy ports. `ServicePort_XXX`
+ 2. How to name the service. `ServiceName=`
+ 3. How to health check the service. `HealthCheck` and `HealthCheckArgs`
+ 4. Whether or not the service is a receiver of Sidecar change events. `SidecarListener`
+ 5. Wether or not Sidecar should entirely ignore this service. `SidecarDiscovery`
+ 6. HAproxy proxy behavior. `ProxyMode`
+
+**Service Ports**
 Services may be started with one or more `ServicePort_xxx` labels that help
 Sidecar to understand ports that are mapped dynamically. This controls the port
 on which HAproxy will listen for the service as well. If I have a service where
@@ -215,9 +263,11 @@ the container is built with `EXPOSE 80` and I want HAproxy to listen on port
 With dynamic port bindings, Docker may then bind that to 32767 but Sidecar will
 know which service and port that belongs.
 
-**All containers need to be started with two labels** defining how they are to
-be health checked. To health check a service on port 9090 on the local system
-with an `HttpGet` check, for example, you would use the following labels:
+**Health Checks**
+If you services are not checkable with the default settings, they need to have
+two Docker labels defining how they are to be health checked. To health check a
+service on port 9090 on the local system with an `HttpGet` check, for example,
+you would use the following labels:
 
 ```
 	HealthCheck=HttpGet
@@ -230,6 +280,7 @@ context of a bash shell). An exit status of 0 is considered healthy and
 anything else is unhealthy. Nagios checks work very well with this mode of
 health checking.
 
+**Excluding From Discovery**
 Additionally, it can sometimes be nice to exclude certain containers from
 discovery. This is particularly useful if you are running Sidecar in a
 container itself. This is accomplished with another Docker label like so:
@@ -238,13 +289,16 @@ container itself. This is accomplished with another Docker label like so:
 	SidecarDiscover=false
 ```
 
-By default, HAProxy will run in HTTP mode. The mode can be changed to TCP by setting the following Docker label:
+**HAproxy Behavior**
+By default, HAProxy will run in HTTP mode. The mode can be changed to TCP by
+setting the following Docker label:
 
 ```
 ProxyMode=tcp
 ```
 
-Finally, you sometimes need to pass information in the Docker labels which
+**Templating In Labels**
+You sometimes need to pass information in the Docker labels which
 is not available to you at the time of container creation. One example of this
 is the need to identify the actual Docker-bound port when running the health
 check. For this reason, Sidecar allows simple templating in the labels. Here's
@@ -265,17 +319,14 @@ example.
 to ports mapped with `ServicePort` labels. You will need to use the port
 number that you expect HAproxy to use.
 
-#### Configuring Static Discovery
+### Configuring Static Discovery
 
-Static Discovery requires a configuration block in the `sidecar.toml` that
-looks like this:
+Static Discovery requires an entry in the `SIDECAR_DISCOVERY` variable of
+`static`. It will then look for a file configured with `STATIC_CONFIG_FILE` to
+export services. This file is usually `static.json` in the current working
+directory of the process.
 
-```toml
-[static_discovery]
-config_file = "/my_path/static.json"
-```
-
-That in turn points to a static discovery file that looks like this:
+A static discovery file might look like this:
 
 ```json
 [
@@ -309,8 +360,10 @@ supply something in place of the value for `Image` that is meaningful to you.
 Usually this is a version or git commit string. It will show up in the Sidecar
 web UI.
 
-Sidecar Events
---------------
+A further example is available in the `fixtures/` directory used by the tests.
+
+Sidecar Events and Listeners
+----------------------------
 
 Services which need to know about service discovery change events can subscribe
 to Sidecar events. Any time a significant change happens, the listener will
@@ -346,8 +399,8 @@ The `/services` endpoint is a very textual web interface for humans. The
 `/services.json` endpoint is JSON-encoded. The JSON is still pretty-printed so
 it's readable by humans.
 
-Sidecar's API
--------------
+Sidecar API
+-----------
 
 Other than the UI that lives on the base URL, there is a minimalist API
 available for querying Sidecar. It supports the following endpoints:
@@ -391,4 +444,6 @@ correctness for any purpose
 
 Logo
 ----
-The logo is used with kind permission from [Picture Esk](https://www.flickr.com/photos/22081583@N06/4226337024/).
+
+The logo is used with kind permission from [Picture
+Esk](https://www.flickr.com/photos/22081583@N06/4226337024/).
