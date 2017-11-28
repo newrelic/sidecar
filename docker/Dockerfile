@@ -1,4 +1,4 @@
-FROM gliderlabs/alpine:3.4
+FROM library/alpine:3.6
 
 # Necessary depedencies
 RUN apk --update add haproxy bash curl tar
@@ -8,7 +8,6 @@ RUN cd / && curl -L https://github.com/just-containers/skaware/releases/download
 
 # Set up Sidecar
 ADD sidecar /sidecar/sidecar
-ADD docker/sidecar.toml /sidecar/sidecar.toml
 ADD views /sidecar/views
 ADD docker/s6 /etc
 ADD ui /sidecar/ui
