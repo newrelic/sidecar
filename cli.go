@@ -38,7 +38,6 @@ func parseCommandLine() *CliOpts {
 	opts.HAproxyDisable = app.Flag("haproxy-disable", "Disable managing HAproxy").Short('x').Bool()
 	opts.LoggingLevel = app.Flag("logging-level", "Set the logging level").Short('l').String()
 
-	app.DefaultEnvars()
 	app.Parse(os.Args[1:])
 
 	return &opts
