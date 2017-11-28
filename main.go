@@ -18,10 +18,6 @@ import (
 	"gopkg.in/relistan/rubberneck.v1"
 )
 
-var (
-	profilerFile os.File
-)
-
 func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	for {
 		// Ask for members of the cluster
@@ -35,6 +31,29 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 		state.RUnlock()
 
 		time.Sleep(2 * time.Second)
+	}
+}
+
+// configureOverrides takes CLI opts and applies them over the top of settings
+// taken from the environment variables and stored in config.
+func configureOverrides(config *Config, opts *CliOpts) {
+	if len(*opts.AdvertiseIP) > 0 {
+		config.Sidecar.AdvertiseIP = *opts.AdvertiseIP
+	}
+	if len(*opts.ClusterIPs) > 0 {
+		config.Sidecar.Seeds = *opts.ClusterIPs
+	}
+	if len(*opts.ClusterName) > 0 {
+		config.Sidecar.ClusterName = *opts.ClusterName
+	}
+	if len(*opts.Discover) > 0 {
+		config.Sidecar.Discovery = *opts.Discover
+	}
+	if opts.HAproxyDisable != nil {
+		config.HAproxy.Disable = *opts.HAproxyDisable
+	}
+	if len(*opts.LoggingLevel) > 0 {
+		config.Sidecar.LoggingLevel = *opts.LoggingLevel
 	}
 }
 
@@ -70,21 +89,14 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 	return proxy
 }
 
-func configureDiscovery(config *Config, opts *CliOpts, publishedIP string) discovery.Discoverer {
+func configureDiscovery(config *Config, publishedIP string) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
 	var svcNamer discovery.ServiceNamer
 	var usingDocker bool
-	var discoverers []string
 	var err error
 
-	if opts.Discover != nil && len(*opts.Discover) > 0 {
-		discoverers = *opts.Discover
-	} else {
-		discoverers = config.Sidecar.Discovery
-	}
-
-	for _, method := range discoverers {
+	for _, method := range config.Sidecar.Discovery {
 		if method == "docker" {
 			usingDocker = true
 		}
@@ -106,7 +118,7 @@ func configureDiscovery(config *Config, opts *CliOpts, publishedIP string) disco
 		}
 	}
 
-	for _, method := range discoverers {
+	for _, method := range config.Sidecar.Discovery {
 		switch method {
 		case "docker":
 			disco.Discoverers = append(
@@ -125,6 +137,7 @@ func configureDiscovery(config *Config, opts *CliOpts, publishedIP string) disco
 	return disco
 }
 
+// configureMetrics sets up remote performance metrics if we're asked to send them (statsd)
 func configureMetrics(config *Config) {
 	if config.Sidecar.StatsAddr != "" {
 		sink, err := metrics.NewStatsdSink(config.Sidecar.StatsAddr)
@@ -136,10 +149,11 @@ func configureMetrics(config *Config) {
 	}
 }
 
-func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDelegate {
+// configureDelegate sets up the Memberlist delegate we'll use
+func configureDelegate(state *catalog.ServicesState, config *Config) *servicesDelegate {
 	delegate := NewServicesDelegate(state)
 	delegate.Metadata = NodeMetadata{
-		ClusterName: *opts.ClusterName,
+		ClusterName: config.Sidecar.ClusterName,
 		State:       "Running",
 	}
 
@@ -148,10 +162,14 @@ func configureDelegate(state *catalog.ServicesState, opts *CliOpts) *servicesDel
 	return delegate
 }
 
-func configureSignalHandler(opts *CliOpts) {
+// configureCpuProfiler sets of the CPU profiler and a signal handler to
+// stop it if we have been told to run the CPU profiler.
+func configureCpuProfiler(opts *CliOpts) {
 	if !*opts.CpuProfile {
 		return
 	}
+
+	var profilerFile os.File
 
 	// Capture CTRL-C and stop the CPU profiler
 	sigChannel := make(chan os.Signal, 1)
@@ -161,12 +179,22 @@ func configureSignalHandler(opts *CliOpts) {
 			log.Printf("Captured %v, stopping profiler and exiting..", sig)
 			pprof.StopCPUProfile()
 			profilerFile.Close()
-			os.Exit(1)
+			os.Exit(0)
 		}
 	}()
+
+	// Enable CPU profiling support if requested
+	if *opts.CpuProfile {
+		profilerFile, err := os.Create("sidecar.cpu.prof")
+		exitWithError(err, "Can't write profiling file")
+		pprof.StartCPUProfile(profilerFile)
+		log.Debug("Profiling!")
+	}
 }
 
-func configureLoggingLevel(level string) {
+func configureLoggingLevel(config *Config) {
+	level := config.Sidecar.LoggingLevel
+
 	switch {
 	case len(level) == 0:
 		log.SetLevel(log.InfoLevel)
@@ -181,43 +209,18 @@ func configureLoggingLevel(level string) {
 	}
 }
 
-func main() {
-	opts := parseCommandLine()
-	configureSignalHandler(opts)
-
-	// Enable CPU profiling support if requested
-	if *opts.CpuProfile {
-		profilerFile, err := os.Create("sidecar.cpu.prof")
-		exitWithError(err, "Can't write profiling file")
-		pprof.StartCPUProfile(profilerFile)
-		log.Debug("Profiling!")
-	}
-
-	// Create a new state instance and fire up the processor
-	state := catalog.NewServicesState()
-	svcMsgLooper := director.NewFreeLooper(
-		director.FOREVER, make(chan error),
-	)
-	go state.ProcessServiceMsgs(svcMsgLooper)
-
-	delegate := configureDelegate(state, opts)
-
-	config := parseConfig(*opts.ConfigFile)
-
-	// We can switch to JSON formatted logs from here on
+// configureLoggingFormat switches between text and JSON log format
+func configureLoggingFormat(config *Config) {
 	if config.Sidecar.LoggingFormat == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	} else {
 		// Default to verbose timestamping
 		log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	}
+}
 
-	// Prefer loglevel from the CLI, then the Env, then the config
-	if opts.LoggingLevel != nil {
-		configureLoggingLevel(*opts.LoggingLevel)
-	} else {
-		configureLoggingLevel(config.Sidecar.LoggingLevel)
-	}
+func configureMemberlist(config *Config, state *catalog.ServicesState) *memberlist.Config {
+	delegate := configureDelegate(state, config)
 
 	// Use a LAN config but add our delegate
 	mlConfig := memberlist.DefaultLANConfig()
@@ -225,7 +228,7 @@ func main() {
 	mlConfig.Events = delegate
 
 	// Set some memberlist settings
-	mlConfig.LogOutput = &LoggingBridge{}
+	mlConfig.LogOutput = &LoggingBridge{} // Use logrus as backend for Memberlist
 	mlConfig.PreferTCPDNS = false
 
 	// Set up the push pull interval for Memberlist
@@ -239,23 +242,57 @@ func main() {
 	}
 
 	// Make sure we pass on the cluster name to Memberlist
-	mlConfig.ClusterName = *opts.ClusterName
+	mlConfig.ClusterName = config.Sidecar.ClusterName
 
 	// Figure out our IP address from the CLI or by inspecting
-	publishedIP, err := getPublishedIP(config.Sidecar.ExcludeIPs, opts.AdvertiseIP)
+	publishedIP, err := getPublishedIP(config.Sidecar.ExcludeIPs, config.Sidecar.AdvertiseIP)
 	exitWithError(err, "Failed to find private IP address")
 	mlConfig.AdvertiseAddr = publishedIP
 
+	return mlConfig
+}
+
+// configureListeners sets up any statically configured state change event listeners.
+func configureListeners(config *Config, state *catalog.ServicesState) {
+	for _, url := range config.Listeners.Urls {
+		listener := catalog.NewUrlListener(url, false)
+		listener.Watch(state)
+	}
+}
+
+func main() {
+	config := parseConfig()
+	opts := parseCommandLine()
+	configureOverrides(&config, opts)
+	configureCpuProfiler(opts)
+	configureLoggingLevel(&config)
+	configureLoggingFormat(&config)
+	configureMetrics(&config)
+
+	// Create a new state instance and fire up the processor. We need
+	// this to happen early in the startup.
+	state := catalog.NewServicesState()
+	svcMsgLooper := director.NewFreeLooper(
+		director.FOREVER, make(chan error),
+	)
+	go state.ProcessServiceMsgs(svcMsgLooper)
+
+	configureListeners(&config, state)
+
+	mlConfig := configureMemberlist(&config, state)
+
 	printer := rubberneck.NewPrinter(log.Infof, rubberneck.NoAddLineFeed)
-	printer.PrintWithLabel("Sidecar starting", *opts, config)
+	printer.PrintWithLabel("Sidecar", config)
 
 	list, err := memberlist.Create(mlConfig)
 	exitWithError(err, "Failed to create memberlist")
 
 	// Join an existing cluster by specifying at least one known member.
-	_, err = list.Join(*opts.ClusterIPs)
+	_, err = list.Join(config.Sidecar.Seeds)
 	exitWithError(err, "Failed to join cluster")
 
+	// Set up a bunch of go-director Loopers to run our
+	// background goroutines
 	servicesLooper := director.NewTimedLooper(
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
@@ -278,21 +315,20 @@ func main() {
 		director.FOREVER, healthy.HEALTH_INTERVAL, make(chan error),
 	)
 
-	configureMetrics(&config)
-
 	// Register the cluster name with the state object
-	state.ClusterName = *opts.ClusterName
+	state.ClusterName = config.Sidecar.ClusterName
 
-	disco := configureDiscovery(&config, opts, publishedIP)
+	disco := configureDiscovery(&config, mlConfig.AdvertiseAddr)
 	go disco.Run(discoLooper)
 
 	// Configure the monitor and use the public address as the default
 	// check address.
-	monitor := healthy.NewMonitor(publishedIP, config.Sidecar.DefaultCheckEndpoint)
+	monitor := healthy.NewMonitor(mlConfig.AdvertiseAddr, config.Sidecar.DefaultCheckEndpoint)
 
 	// Wrap the monitor Services function as a simple func without the receiver
 	serviceFunc := func() []service.Service { return monitor.Services() }
 
+	// Wrap the discovery Listeners output in something the state can handle
 	listenFunc := func() []catalog.Listener {
 		listeners := disco.Listeners()
 		var result []catalog.Listener
@@ -308,16 +344,9 @@ func main() {
 	// discovered services, and then won't write them out.
 	var proxy *haproxy.HAproxy
 
-	if !*opts.HAproxyDisable && !config.HAproxy.Disable {
+	if !config.HAproxy.Disable {
 		proxy = configureHAproxy(config)
 		go proxy.Watch(state)
-	}
-
-	// If we have any callback Urls for state change notifications, let's
-	// put them here.
-	for _, url := range config.Listeners.Urls {
-		listener := catalog.NewUrlListener(url, false)
-		listener.Watch(state)
 	}
 
 	go announceMembers(list, state)
@@ -330,7 +359,7 @@ func main() {
 
 	go serveHttp(list, state)
 
-	if !*opts.HAproxyDisable && !config.HAproxy.Disable {
+	if !config.HAproxy.Disable {
 		proxy.WriteAndReload(state)
 	}
 

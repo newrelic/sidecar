@@ -39,6 +39,9 @@ type SidecarConfig struct {
 	LoggingFormat        string        `envconfig:"LOGGING_FORMAT"`
 	LoggingLevel         string        `envconfig:"LOGGING_LEVEL" default:"info"`
 	DefaultCheckEndpoint string        `envconfig:"DEFAULT_CHECK_ENDPOINT" default:"/version"`
+	Seeds                []string      `envconfig:"SEEDS"`
+	ClusterName          string        `envconfig:"CLUSTER_NAME" default:"default"`
+	AdvertiseIP          string        `envconfig:"ADVERTISE_IP"`
 }
 
 type DockerConfig struct {
@@ -58,7 +61,7 @@ type Config struct {
 	Listeners       ListenerUrlsConfig // LISTENERS_
 }
 
-func parseConfig(path string) Config {
+func parseConfig() Config {
 	var config Config
 
 	errs := []error{

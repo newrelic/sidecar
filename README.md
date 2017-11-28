@@ -158,34 +158,39 @@ out the values that were used. The environment variable are as follows.
 Defaults are in bold at the end of the line:
 
  * `SIDECAR_LOGGING_LEVEL`: The logging level to use (debug, info, warn, error)
-   *info**
+   **info**
  * `SIDECAR_LOGGING_FORMAT`: Logging format to use (text, json) **text**
  * `SIDECAR_DISCOVERY`: Which discovery backends to use as a csv array 
-   (static, docker) *`[ docker ]`**
+   (static, docker) **`[ docker ]`**
+ * `SIDECAR_SEEDS`: csv array of IP addresses used to seed the cluster.
+ * `SIDECAR_CLUSTER_NAME`: The name of the Sidecar cluster. Restricts membership
+   to hosts with the same cluster name.
+ * `SIDECAR_ADVERTISE_IP`: Manually override the IP address Sidecar uers for
+   cluster membership.
  * `SIDECAR_EXCLUDE_IPS`: csv array of IPs to exclude from interface selection
-   *`[ 192.168.168.168 ]`**
+   **`[ 192.168.168.168 ]`**
  * `SIDECAR_STATS_ADDR`: An address to send performance stats to. **none**
  * `SIDECAR_PUSH_PULL_INTERVAL`: How long to wait between anti-entropy syncs.
-   *20s**
+   **20s**
  * `SIDECAR_GOSSIP_MESSAGES`: How many times to gather messages per round. **15**
  * `SIDECAR_DEFAULT_CHECK_ENDPOINT`: Default endpoint to health check services
-   on *`/version`**
+   on **`/version`**
 
  * `SERVICES_NAMER`: Which method to use to extract service names. In both
-   cases it will fall back to image name. (docker_label, regex) *`docker_label`**.
+   cases it will fall back to image name. (`docker_label`, `regex`) **`docker_label`**.
  * `SERVICES_NAME_MATCH`: The regexp to use to extract the service name
    from the container name.
  * `SERVICES_NAME_LABEL`: The Docker label to use to identify service names
    `ServiceName`
 
  * `DOCKER_URL`: How to connect to Docker if Docker discovery is enabled.
-   *`unix:///var/run/docker.sock`**
+   **`unix:///var/run/docker.sock`**
 
  * `STATIC_CONFIG_FILE`: The config file to use if static discovery is enabled
-   *`static.json`**
+   **`static.json`**
 
- * `LISTENER_URLS`: If we want to statically configure any even listeners, the
-   URLs should go in a csv array here. See ***Listeners**** section below for more
+ * `LISTENER_URLS`: If we want to statically configure any event listeners, the
+   URLs should go in a csv array here. See **Listeners** section below for more
    on dynamic listeners.
  
  * `HAPROXY_DISABLE`: Disable management of HAproxy entirely. This is useful if
@@ -196,23 +201,25 @@ Defaults are in bold at the end of the line:
  * `HAPROXY_VERIFY_COMMAND`: The verify command to use for HAproxy **sane defaults**
  * `HAPROXY_BIND_IP`: The IP that HAproxy should bind to on the host **192.168.168.168**
  * `HAPROXY_TEMPLATE_FILE`: The source template file to use when writing HAproxy
-   configs. This is a Go text template. *`views/haproxy.cfg`**
+   configs. This is a Go text template. **`views/haproxy.cfg`**
  * `HAPROXY_CONFIG_FILE`: The path where the `haproxy.cfg` file will be written. Note
    that if you change this you will need to update the verify and reload commands.
-   *`/etc/haproxy.cfg`**
+   **`/etc/haproxy.cfg`**
  * `HAPROXY_PID_FILE`: The path where HAproxy's PID file will be written. Note
    that if you change this you will need to update the verify and reload commands.
-   *`/var/run/haproxy.pid`**
+   **`/var/run/haproxy.pid`**
  * `HAPROXY_USER`: The Unix user under which HAproxy should run **haproxy**
- * `HAPROXY_GROUP`: The Unix group under which HAproxy shoudl run **haproxy**
+ * `HAPROXY_GROUP`: The Unix group under which HAproxy should run **haproxy**
  * `HAPROXY_USE_HOSTNAMES`: Should we write hostnames in the HAproxy config instead
-   of IP addresses? *false**
+   of IP addresses? **`false`**
 
 ## Discovery
 
 Sidecar supports both Docker-based discovery and a discovery mechanism where
-you publish services into a JSON file locally, called "static". These can then be advertised as running services just like they would be from a Docker host. These are configured with the `SIDECAR_DISCOVERY` environment variable. Using both would 
-look like:
+you publish services into a JSON file locally, called "static". These can then
+be advertised as running services just like they would be from a Docker host.
+These are configured with the `SIDECAR_DISCOVERY` environment variable. Using
+both would look like:
 
 ```bash
 export SIDECAR_DISCOVERY=static,docker
@@ -227,7 +234,7 @@ Sidecar currently accepts a single option for Docker-based discovery, the URL
 to use to connect to Docker. Ideally this will be the same machine that Sidecar
 runs on because it makes assumptions about addresses. By default it will use
 the standard Docker Unix domain socket. You can change this with the
-`DOCKER_URL` env var. This needs to be a url that works with teh Docker client.
+`DOCKER_URL` env var. This needs to be a url that works with the Docker client.
 
 Note that Sidecar only supports a *single* URL, unlike the Docker CLI tool.
 

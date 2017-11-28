@@ -38,16 +38,6 @@ binding.
 the seed. You'll want to set this to one or more IP addresses or hostnames
 of the cluster seed hosts.
 
-```
-SIDECAR_SEEDS="seed1 host2 seed3" # Required
-ADVERTISE_IP="192.168.168.5"      # Optional
-SIDECAR_LOGGING_LEVEL="debug"     # Optional
-SIDECAR_CLUSTER_NAME="some-name"  # Optional
-```
-
-The seed hosts passed via `SIDECAR_SEEDS` are formatted as
-`--cluster-ip` arguments to Sidecar.
-
 As mentioned above, the default configuration is all set up with the
 expectation that you will map `/var/run/docker.sock` into the container.  This
 is where Docker usually writes its Unix socket. If you want to use TCP to

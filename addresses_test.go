@@ -36,7 +36,7 @@ func Test_Addresses(t *testing.T) {
 		ip := "10.10.10.10"
 
 		Convey("Returns the advertised IP if supplied", func() {
-			result, err := getPublishedIP([]string{}, &ip)
+			result, err := getPublishedIP([]string{}, ip)
 			So(err, ShouldBeNil)
 			So(result, ShouldEqual, ip)
 		})
@@ -44,7 +44,7 @@ func Test_Addresses(t *testing.T) {
 		// See caveat for findPrivateAddresses() above
 		Convey("Returns an address", func() {
 			addresses, _ := findPrivateAddresses()
-			result, err := getPublishedIP([]string{}, nil)
+			result, err := getPublishedIP([]string{}, "")
 
 			So(err, ShouldBeNil)
 			So(result, ShouldResemble, addresses[0].String())
