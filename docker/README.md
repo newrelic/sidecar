@@ -18,8 +18,8 @@ docker run -i -t -v /var/run/docker.sock:/var/run/docker.sock \
 
 **Volume Mount:** Requires volume mounting the Docker socket. If you choose
 not to do this, then you'll need to pass in `DOCKER_*` environment variables to
-configure access to the Docker daemon. You'll also want to remove the whole
-configuration line `docker_url` from the `sidecar.toml` file.
+configure access to the Docker daemon. If you do that, you can use those
+settings instead of the Sidecar `DOCKER_URL` env var.
 
 **Label:** This prevents Sidecar from discovering itself, which, when it
 happens, is a pretty useless discovery.
@@ -37,16 +37,6 @@ binding.
 **Environment Variables:** This tells the container to look to itself as
 the seed. You'll want to set this to one or more IP addresses or hostnames
 of the cluster seed hosts.
-
-```
-SIDECAR_SEEDS="seed1 host2 seed3" # Required
-ADVERTISE_IP="192.168.168.5"      # Optional
-SIDECAR_LOGGING_LEVEL="debug"     # Optional
-SIDECAR_CLUSTER_NAME="some-name"  # Optional
-```
-
-The seed hosts passed via `SIDECAR_SEEDS` are formatted as
-`--cluster-ip` arguments to Sidecar.
 
 As mentioned above, the default configuration is all set up with the
 expectation that you will map `/var/run/docker.sock` into the container.  This

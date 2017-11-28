@@ -78,9 +78,9 @@ func findPrivateAddresses() ([]*net.IP, error) {
 	return result, err
 }
 
-func getPublishedIP(excluded []string, advertise *string) (string, error) {
-	if advertise != nil && *advertise != "" {
-		return *advertise, nil
+func getPublishedIP(excluded []string, advertise string) (string, error) {
+	if advertise != "" {
+		return advertise, nil
 	}
 
 	addresses, _ := findPrivateAddresses()

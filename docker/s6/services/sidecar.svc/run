@@ -5,33 +5,6 @@ for entry in $SIDECAR_SEEDS; do
 	CLI="$CLI --cluster-ip $entry"
 done
 
-if [[ -n "$SIDECAR_DISCOVERY" ]]; then
-	for entry in $SIDECAR_DISCOVERY; do
-		CLI="$CLI --discover $entry"
-	done
-fi
-
-# Only do some substitutions on the first run (sed creates .bak file)
-if [[ ! -f /sidecar/sidecar.toml.bak ]]; then
-	# Allow adding a subscriber URL to the listeners
-	if [[ -n "$SIDECAR_LISTENER" ]]; then
-		# Use ~ rather than / since this is usually an URL
-		sed -i.bak 's~^urls *= *\[~urls = \[ "'"$SIDECAR_LISTENER"'", ~' sidecar.toml
-	fi
-
-	# Update the bind_ip if set as an env var to override the original
-	if [[ -n "$BIND_IP" ]]; then
-		sed -i.bak 's~^bind_ip *=.*$~bind_ip = "'"$BIND_IP"'"~' sidecar.toml
-	fi
-
-	# If we're disabling IP addresses in the HAproxy configs
-	if [[ -n "$USE_HOSTNAMES" ]]; then
-		sed -i.bak 's~^use_hostnames *=.*$~use_hostnames = '$USE_HOSTNAMES'~' sidecar.toml
-	fi
-fi
-
-BIND_IP=`grep bind_ip sidecar.toml | grep -o "[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*"`
-
 # If there's a BIND_IP and we don't already have it, add the
 # address to the loopback interface.
 if [[ -n "$BIND_IP" ]] && [[ $BIND_IP != "0.0.0.0" ]]; then

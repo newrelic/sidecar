@@ -21,7 +21,6 @@ script:
   - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ]; then
       echo "Building container gonitro/sidecar:${TRAVIS_COMMIT::7}" &&
       cd ui && npm install && cd .. &&
-      cp docker/sidecar.docker.toml docker/sidecar.toml &&
       docker build -f docker/Dockerfile -t sidecar .  &&
       docker tag sidecar gonitro/sidecar:${TRAVIS_COMMIT::7} &&
       docker tag sidecar gonitro/sidecar:latest;
