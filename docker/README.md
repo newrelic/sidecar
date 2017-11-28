@@ -18,8 +18,8 @@ docker run -i -t -v /var/run/docker.sock:/var/run/docker.sock \
 
 **Volume Mount:** Requires volume mounting the Docker socket. If you choose
 not to do this, then you'll need to pass in `DOCKER_*` environment variables to
-configure access to the Docker daemon. You'll also want to remove the whole
-configuration line `docker_url` from the `sidecar.toml` file.
+configure access to the Docker daemon. If you do that, you can use those
+settings instead of the Sidecar `DOCKER_URL` env var.
 
 **Label:** This prevents Sidecar from discovering itself, which, when it
 happens, is a pretty useless discovery.
