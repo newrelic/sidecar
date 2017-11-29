@@ -129,14 +129,14 @@ func (s *SidecarApi) watchHandler(response http.ResponseWriter, req *http.Reques
 func (s *SidecarApi) oneServiceHandler(response http.ResponseWriter, req *http.Request, params map[string]string) {
 	defer req.Body.Close()
 
+	response.Header().Set("Access-Control-Allow-Origin", "*")
+	response.Header().Set("Access-Control-Allow-Methods", "GET")
+	response.Header().Set("Content-Type", "application/json")
+
 	if params["extension"] != "json" {
 		sendJsonError(response, 404, "Not Found - Invalid content type extension")
 		return
 	}
-
-	response.Header().Set("Access-Control-Allow-Origin", "*")
-	response.Header().Set("Access-Control-Allow-Methods", "GET")
-	response.Header().Set("Content-Type", "application/json")
 
 	name, ok := params["name"]
 	if !ok {
@@ -257,13 +257,16 @@ func (s *SidecarApi) stateHandler(response http.ResponseWriter, req *http.Reques
 	s.state.RLock()
 	defer s.state.RUnlock()
 
-	if params["extension"] == "json" {
-		response.Header().Set("Content-Type", "application/json")
-		response.Header().Set("Access-Control-Allow-Origin", "*")
-		response.Header().Set("Access-Control-Allow-Methods", "GET")
-		response.Write(s.state.Encode())
+	if params["extension"] != "json" {
+		sendJsonError(response, 404, "Not Found - Invalid content type extension")
 		return
 	}
+
+	response.Header().Set("Content-Type", "application/json")
+	response.Header().Set("Access-Control-Allow-Origin", "*")
+	response.Header().Set("Access-Control-Allow-Methods", "GET")
+	response.Write(s.state.Encode())
+	return
 }
 
 // Send back a JSON encoded error and message
@@ -282,7 +285,9 @@ func sendJsonError(response http.ResponseWriter, status int, message string) {
 		return
 	}
 
-	http.Error(response, string(jsonBytes), status)
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(status)
+	response.Write(jsonBytes)
 }
 
 func wrap(fn func(http.ResponseWriter, *http.Request, map[string]string)) http.HandlerFunc {
