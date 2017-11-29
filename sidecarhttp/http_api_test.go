@@ -189,6 +189,77 @@ func Test_stateHandler(t *testing.T) {
 	})
 }
 
+func Test_servicesHandler(t *testing.T) {
+	Convey("servicesHandler", t, func() {
+		hostname := "chaucer"
+		state := catalog.NewServicesState()
+		state.Servers[hostname] = catalog.NewServer(hostname)
+
+		baseTime := time.Now().UTC()
+
+		svcId := "deadbeef123"
+		svcId2 := "deadbeef456"
+
+		svc := service.Service{
+			ID:       svcId,
+			Name:     "bocaccio",
+			Image:    "101deadbeef",
+			Created:  baseTime,
+			Hostname: hostname,
+			Updated:  baseTime,
+			Status:   service.ALIVE,
+		}
+
+		svc2 := service.Service{
+			ID:       svcId2,
+			Name:     "shakespeare",
+			Image:    "202deadbeef",
+			Created:  baseTime,
+			Hostname: hostname,
+			Updated:  baseTime,
+			Status:   service.ALIVE,
+		}
+
+		state.AddServiceEntry(svc)
+		state.AddServiceEntry(svc2)
+
+		req := httptest.NewRequest("GET", "/state.json", nil)
+		recorder := httptest.NewRecorder()
+
+		api := &SidecarApi{state: state}
+
+		params := map[string]string{
+			"extension": "json",
+		}
+
+		Convey("returns an error for unknown content types", func() {
+			params["extension"] = ""
+			api.servicesHandler(recorder, req, params)
+			resp := recorder.Result()
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			body := string(bodyBytes)
+
+			So(resp.StatusCode, ShouldEqual, 404)
+			So(body, ShouldContainSubstring, `Invalid content type`)
+			So(body, ShouldNotContainSubstring, `"shakespeare"`)
+			So(body, ShouldNotContainSubstring, `"bocaccio"`)
+		})
+
+		Convey("returns the encoded state", func() {
+			api.servicesHandler(recorder, req, params)
+			resp := recorder.Result()
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+
+			So(resp.StatusCode, ShouldEqual, 200)
+
+			var result ApiServices
+			err := json.Unmarshal(bodyBytes, &result)
+			So(err, ShouldBeNil)
+			So(len(result.Services), ShouldEqual, 2)
+		})
+	})
+}
+
 type respRecorder struct {
 	*httptest.ResponseRecorder
 	closeNotifier chan bool

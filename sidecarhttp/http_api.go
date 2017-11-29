@@ -204,8 +204,14 @@ func (s *SidecarApi) servicesHandler(response http.ResponseWriter, req *http.Req
 
 	response.Header().Set("Content-Type", "application/json")
 
-	listMembers := s.list.Members()
-	sort.Sort(listByName(listMembers))
+	var listMembers []*memberlist.Node
+	var clusterName string
+	if s.list != nil {
+		listMembers = s.list.Members()
+		sort.Sort(listByName(listMembers))
+		clusterName = s.list.ClusterName()
+	}
+
 	members := make(map[string]*ApiServer, len(listMembers))
 
 	var jsonBytes []byte
@@ -234,7 +240,7 @@ func (s *SidecarApi) servicesHandler(response http.ResponseWriter, req *http.Req
 		result := ApiServices{
 			Services:       s.state.ByService(),
 			ClusterMembers: members,
-			ClusterName:    s.list.ClusterName(),
+			ClusterName:    clusterName,
 		}
 
 		jsonBytes, err = json.MarshalIndent(&result, "", "  ")
