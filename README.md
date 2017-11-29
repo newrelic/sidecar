@@ -423,8 +423,7 @@ available for querying Sidecar. It supports the following endpoints:
    anything that needs to know what the ongoing service status is.
 
 Sidecar can also be configured to post the internal state to HTTP endpoints on
-any change event. This is configured with listeners in the TOML file and is
-described in the `sidecar.example.toml`.
+any change event. See the "Sidecar Events and Listeners" section.
 
 Contributing
 ------------
