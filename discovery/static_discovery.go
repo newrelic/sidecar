@@ -21,6 +21,9 @@ type Target struct {
 	ListenPort int64
 }
 
+// A StaticDiscovery is an instance of a configuration file based discovery
+// mechanism. It is read on startup and never again, currently, so there
+// is no need for any locking or synchronization mechanism.
 type StaticDiscovery struct {
 	Targets    []*Target
 	ConfigFile string
@@ -88,6 +91,7 @@ func (d *StaticDiscovery) Run(looper director.Looper) {
 	d.Targets, err = d.ParseConfig(d.ConfigFile)
 	if err != nil {
 		log.Errorf("StaticDiscovery cannot parse: %s", err.Error())
+		looper.Done(nil)
 	}
 }
 
