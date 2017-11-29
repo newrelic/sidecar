@@ -377,11 +377,11 @@ to Sidecar events. Any time a significant change happens, the listener will
 receive an update over HTTP from Sidecar. There are three mechanisms by which
 a service can subscribe to Sidecar events:
 
- 1. Add the endpoint in the `sidecar.toml` e.g.:
-    ```
-	[listeners]
-	urls = [ "http://localhost:7778/api/update" ]
+ 1. Add the endpoint in the `LISTENERS_URLS` env var, e.g.:
+    ```bash
+	export LISTENERS_URLS="http://localhost:7778/api/update"
 	```
+	This is an array and can be separated with spaces or commas.
 
  2. Add a Docker label to the subscribing service in the form
     `SidecarListener=10005` where 10005 is a port that is mapped to a
