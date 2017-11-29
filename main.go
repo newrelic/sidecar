@@ -49,9 +49,6 @@ func configureOverrides(config *Config, opts *CliOpts) {
 	if len(*opts.Discover) > 0 {
 		config.Sidecar.Discovery = *opts.Discover
 	}
-	if opts.HAproxyDisable != nil {
-		config.HAproxy.Disable = *opts.HAproxyDisable
-	}
 	if len(*opts.LoggingLevel) > 0 {
 		config.Sidecar.LoggingLevel = *opts.LoggingLevel
 	}

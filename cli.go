@@ -13,7 +13,6 @@ type CliOpts struct {
 	ClusterName    *string
 	CpuProfile     *bool
 	Discover       *[]string
-	HAproxyDisable *bool
 	LoggingLevel   *string
 }
 
@@ -33,7 +32,6 @@ func parseCommandLine() *CliOpts {
 	opts.ClusterName = app.Flag("cluster-name", "The cluster we're part of").Short('n').String()
 	opts.CpuProfile = app.Flag("cpuprofile", "Enable CPU profiling").Short('p').Bool()
 	opts.Discover = app.Flag("discover", "Method of discovery").Short('d').NoEnvar().Strings()
-	opts.HAproxyDisable = app.Flag("haproxy-disable", "Disable managing HAproxy").Short('x').Bool()
 	opts.LoggingLevel = app.Flag("logging-level", "Set the logging level").Short('l').String()
 
 	app.Parse(os.Args[1:])
