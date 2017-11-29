@@ -189,7 +189,7 @@ Defaults are in bold at the end of the line:
  * `STATIC_CONFIG_FILE`: The config file to use if static discovery is enabled
    **`static.json`**
 
- * `LISTENER_URLS`: If we want to statically configure any event listeners, the
+ * `LISTENERS_URLS`: If we want to statically configure any event listeners, the
    URLs should go in a csv array here. See **Listeners** section below for more
    on dynamic listeners.
  
