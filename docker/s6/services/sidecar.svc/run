@@ -1,9 +1,22 @@
 #!/bin/sh
 
 cd /sidecar
-for entry in $SIDECAR_SEEDS; do
-	CLI="$CLI --cluster-ip $entry"
-done
+
+# As a transition from the old config, if there are spaces in
+# the env var, add them as CLI options. Commas will be
+# handled internally by envconfig.
+echo $SIDECAR_SEEDS | grep ' ' >/dev/null
+if [[ $? -eq 0 ]]; then
+	cat <<EOF
+	-------------------------------------------------------------------
+		WARNING! Manually processing Sidecar seeds with spaces.
+		THIS IS DEPRECATED AND WILL BE REMOVED. Use commas.
+	-------------------------------------------------------------------
+EOF
+	for entry in $SIDECAR_SEEDS; do
+		CLI="$CLI --cluster-ip $entry"
+	done
+fi
 
 # If there's a BIND_IP and we don't already have it, add the
 # address to the loopback interface.

@@ -93,6 +93,10 @@ func configureDiscovery(config *Config, publishedIP string) discovery.Discoverer
 	var usingDocker bool
 	var err error
 
+	if len(config.Sidecar.Discovery) < 1 {
+		log.Warn("No discovery method configured! Sidecar running in passive mode")
+	}
+
 	for _, method := range config.Sidecar.Discovery {
 		if method == "docker" {
 			usingDocker = true
