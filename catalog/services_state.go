@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"sync"
 	"time"
 
@@ -354,11 +355,25 @@ func (state *ServicesState) Format(list *memberlist.Memberlist) string {
 
 	refTime := time.Now().UTC()
 
+	var servers []*Server
+	for _, svr := range state.Servers {
+		servers = append(servers, svr)
+	}
+
+	sort.Sort(ServerByName(servers))
+
 	outStr += "Services ------------------------------\n"
-	for hostname, server := range state.Servers {
-		outStr += fmt.Sprintf("  %s: (%s)\n", hostname, output.TimeAgo(server.LastUpdated, refTime))
-		for _, service := range server.Services {
-			outStr += service.Format()
+	for _, server := range servers {
+		outStr += fmt.Sprintf("  %s: (%s)\n", server.Name, output.TimeAgo(server.LastUpdated, refTime))
+		var services []*service.Service
+		for _, svc := range server.Services {
+			services = append(services, svc)
+		}
+
+		sort.Sort(ServicesByName(services))
+
+		for _, svc := range ServicesByName(services) {
+			outStr += svc.Format()
 		}
 		outStr += "\n"
 	}
