@@ -58,6 +58,11 @@ func ServeHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	router.PathPrefix("/ui").Handler(http.StripPrefix("/ui", uiFs))
 	router.PathPrefix("/api").Handler(http.StripPrefix("/api", api.HttpMux()))
 
+	// DEPRECATED - to be removed once common clients are updated
+	router.HandleFunc("/state.{extension}", wrap(api.stateHandler)).Methods("GET")
+	router.HandleFunc("/watch", wrap(api.watchHandler)).Methods("GET")
+	// ------------------------------------------------------------
+
 	http.Handle("/", router)
 
 	err := http.ListenAndServe("0.0.0.0:7777", nil)
