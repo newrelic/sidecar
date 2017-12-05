@@ -305,7 +305,7 @@ func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *E
 					StatPrefix: "ingress_http",
 					Filters: []*EnvoyFilter{
 						{
-							Name: "router",
+							Name:   "router",
 							Config: &EnvoyHttpFilterConfig{},
 						},
 					},
