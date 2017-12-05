@@ -99,6 +99,17 @@ func (svc *Service) ListenerName() string {
 	return "Service(" + svc.Name + "-" + svc.ID + ")"
 }
 
+// Version attempts to extract a version from the image. Otherwise it returns
+// the full image name.
+func (svc *Service) Version() string {
+	parts := strings.Split(svc.Image, ":")
+	if len(parts) > 1 {
+		return parts[1]
+	}
+
+	return parts[0]
+}
+
 func Decode(data []byte) *Service {
 	var svc Service
 	svc.UnmarshalJSON(data)
