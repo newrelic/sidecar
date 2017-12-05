@@ -19,14 +19,16 @@ short time window on the matter of a few seconds.
 Sidecar is part of a small ecosystem of tools. It can stand entirely alone
 or can also leverage:
 
- * [haproxy-api](https://github.com/Nitro/haproxy-api) - A separation layer
-   that allows Sidecar and HAproxy to run in seperate containers. It also
-   allows a local HAproxy to be configured against a remote Sidecar instance.
+ * [Lyft's Envoy Proxy](https://github.com/envoyproxy/envoy) - In less than
+   a year it is fast becoming a core microservices architecture component.
+   Sidecar implements the Envoy proxy SDS, CDS, and LDS APIs (v1). These
+   allow a standalone Envoy to be entirely configured by Sidecar. This is
+   best used with Nitro's
+   [Envoy proxy container](https://hub.docker.com/r/gonitro/envoyproxy/tags/).
 
- * [Superside](https://github.com/Nitro/superside) - A multi-environment
-   console for Sidecar. Has a heads up display, event lists, and graphs
-   showing what is happening in one or more Sidecar clusters on a live
-   basis.
+ * [haproxy-api](https://github.com/Nitro/haproxy-api) - A separation layer
+   that allows Sidecar to drive HAproxy in a separate container. It also
+   allows a local HAproxy to be configured against a remote Sidecar instance.
 
  * [sidecar-executor](https://github.com/Nitro/sidecar-executor) - A Mesos
    executor that integrates with Sidecar, allowing your containers to be
@@ -34,8 +36,13 @@ or can also leverage:
    Also supports a number of extra features including Vault integration for
    secrets management.
 
- * [sidecar-dns](https://github.com/relistan/sidecar-dns) - a WIP project
-   to serve DNS SRV records from Sidecar services state.
+ * [Superside](https://github.com/Nitro/superside) - A multi-environment
+   console for Sidecar. Has a heads up display, event lists, and graphs
+   showing what is happening in one or more Sidecar clusters on a live
+   basis.
+
+ * [sidecar-dns](https://github.com/relistan/sidecar-dns) - a working, but
+   WIP, project to serve DNS SRV records from Sidecar services state.
 
  * [Traefik plugin](https://github.com/Nitro/traefik) - A fork of Traefik
    that can be backed by Sidecar. Useful as a gateway from the outside world
@@ -45,10 +52,12 @@ or can also leverage:
 Overview in Brief
 -----------------
 
-Services communicate to each other through an HAproxy instance on each host
-that is itself managed and configured by Sidecar. It is inspired by Airbnb's
-SmartStack. But, we believe it has a few advantages over SmartStack:
+Services communicate to each other through a proxy (Envoy or HAproxy) instance
+on each host that is itself managed and configured by Sidecar. It is inspired
+by Airbnb's SmartStack. But, we believe it has a few advantages over
+SmartStack:
 
+ * Eventually consistent model - a better fit for real world microservices
  * Native support for Docker (works without Docker, too!)
  * No dependence on Zookeeper or other centralized services
  * Peer-to-peer, so it works on your laptop or on a large cluster
@@ -56,7 +65,7 @@ SmartStack. But, we believe it has a few advantages over SmartStack:
  * Tiny memory usage (under 20MB) and few execution threads means its very
    light weight
 
-**See it in Action:** We've presented Sidecar at Velocity 2015 and recorded a [YouTube
+**See it in Action:** We presented Sidecar at Velocity 2015 and recorded a [YouTube
 video](https://www.youtube.com/watch?v=VA43yWVUnMA) demonstrating Sidecar with
 [Centurion](https://github.com/newrelic/centurion), deploying services in
 Docker containers, and seeing Sidecar discover and health check them. The second
@@ -196,7 +205,8 @@ Defaults are in bold at the end of the line:
  * `HAPROXY_DISABLE`: Disable management of HAproxy entirely. This is useful if
    you need to run without a proxy or are using something like
    [haproxy-api](https://github.com/Nitro/haproxy-api) to manage HAproxy based
-   on Sidecar events.
+   on Sidecar events. You should also use this setting if you are using
+   Envoy as your proxy.
  * `HAPROXY_RELOAD_COMMAND`: The reload command to use for HAproxy **sane defaults**
  * `HAPROXY_VERIFY_COMMAND`: The verify command to use for HAproxy **sane defaults**
  * `HAPROXY_BIND_IP`: The IP that HAproxy should bind to on the host **192.168.168.168**
@@ -249,18 +259,18 @@ variables like `DOCKER_HOST`, `TLS_VERIFY`, etc.
 When running Docker discovery, Sidecar relies on Docker labels to understand
 how to handle a service it has discovered. It uses these to:
 
- 1. Understand how to map container ports to HAproxy ports. `ServicePort_XXX`
+ 1. Understand how to map container ports to proxy ports. `ServicePort_XXX`
  2. How to name the service. `ServiceName=`
  3. How to health check the service. `HealthCheck` and `HealthCheckArgs`
  4. Whether or not the service is a receiver of Sidecar change events. `SidecarListener`
  5. Wether or not Sidecar should entirely ignore this service. `SidecarDiscovery`
- 6. HAproxy proxy behavior. `ProxyMode`
+ 6. HAproxy proxy behavior. `ProxyMode` . Not supported by Envoy currently.
 
 **Service Ports**
 Services may be started with one or more `ServicePort_xxx` labels that help
 Sidecar to understand ports that are mapped dynamically. This controls the port
-on which HAproxy will listen for the service as well. If I have a service where
-the container is built with `EXPOSE 80` and I want HAproxy to listen on port
+on which the proxy will listen for the service as well. If I have a service where
+the container is built with `EXPOSE 80` and I want my proxy to listen on port
 8080 then I will add a Docker label to the service in the form:
 
 ```
@@ -304,6 +314,8 @@ setting the following Docker label:
 ProxyMode=tcp
 ```
 
+This setting is currently not supported for Lyft's Envoy proxy.
+
 **Templating In Labels**
 You sometimes need to pass information in the Docker labels which
 is not available to you at the time of container creation. One example of this
@@ -324,7 +336,7 @@ example.
 
 **Note** that the `tcp` and `udp` method calls in the templates refer only
 to ports mapped with `ServicePort` labels. You will need to use the port
-number that you expect HAproxy to use.
+number that you expect the proxy to use.
 
 ### Configuring Static Discovery
 
@@ -424,6 +436,34 @@ available for querying Sidecar. It supports the following endpoints:
 
 Sidecar can also be configured to post the internal state to HTTP endpoints on
 any change event. See the "Sidecar Events and Listeners" section.
+
+Envoy Proxy Support
+-------------------
+
+Envoy uses a very different model than HAproxy and thus Sidecar's support for
+it is quite different from its support for HAproxy. Envoy makes requests to a
+variety of discovery service APIs on a timed basis. Sidecar currently
+implements three of these: the Cluster Discovery Service (CDS), the Service
+Discovery Service (SDS), and the Listeners Discovery Service (LDS). Nitro
+builds and supports [an Envoy
+container](https://hub.docker.com/r/gonitro/envoyproxy/tags/) that is tested
+and works against Sidecar. This is the easiest way to run Envoy with Sidecar.
+You can find an example container configuration
+[here](https://gist.github.com/relistan/55a6f54bfc2b79d03eb0c8327c2aeb1c) if
+you need to configure it differently from Nitro's recommended setup.
+
+The critical component is that the Envoy proxy needs to be able to talk to
+the Sidecar API. By default the Nitro container assumes that Sidecar will
+be running on `192.168.168.168:7777`. If your sidecar is addressable on that
+address, you can start the envoy container with your platform's equivalent
+of the following Docker command:
+
+```bash
+docker run -i -t --net host --cap-add NET_ADMIN gonitro/envoyproxy:latest
+```
+
+**Note:** This assumes host networking mode so that Envoy can freely open
+and close listeners.
 
 Contributing
 ------------
