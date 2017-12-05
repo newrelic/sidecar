@@ -208,7 +208,7 @@ func (s *SidecarApi) servicesHandler(response http.ResponseWriter, req *http.Req
 	var clusterName string
 	if s.list != nil {
 		listMembers = s.list.Members()
-		sort.Sort(listByName(listMembers))
+		sort.Sort(catalog.ListByName(listMembers))
 		clusterName = s.list.ClusterName()
 	}
 
@@ -301,10 +301,3 @@ func wrap(fn func(http.ResponseWriter, *http.Request, map[string]string)) http.H
 		fn(response, req, mux.Vars(req))
 	}
 }
-
-// Used by the servicesHandler to sort Memberlist cluster nodes
-type listByName []*memberlist.Node
-
-func (a listByName) Len() int           { return len(a) }
-func (a listByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a listByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
