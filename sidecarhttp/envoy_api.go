@@ -123,8 +123,11 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 		s.state.RLock()
 		defer s.state.RUnlock()
 		s.state.EachService(func(hostname *string, id *string, svc *service.Service) {
-			if svc.Name == svcName {
-				instances = append(instances, s.EnvoyServiceFromService(svc, svcPort))
+			if svc.Name == svcName && svc.IsAlive() {
+				newInstance := s.EnvoyServiceFromService(svc, svcPort)
+				if newInstance != nil {
+					instances = append(instances, newInstance)
+				}
 			}
 		})
 	}()
@@ -209,7 +212,6 @@ func (s *EnvoyApi) listenersHandler(response http.ResponseWriter, req *http.Requ
 	}
 
 	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
-
 	if err != nil {
 		log.Errorf("Error marshaling state in servicesHandler: %s", err.Error())
 		sendJsonError(response, 500, "Internal server error")

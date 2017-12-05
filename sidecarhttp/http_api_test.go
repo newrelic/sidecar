@@ -40,7 +40,7 @@ func Test_oneServiceHandler(t *testing.T) {
 			Created:  baseTime,
 			Hostname: hostname,
 			Updated:  baseTime,
-			Status:   service.ALIVE,
+			Status:   service.UNHEALTHY,
 		}
 
 		state.AddServiceEntry(svc)
@@ -61,43 +61,40 @@ func Test_oneServiceHandler(t *testing.T) {
 			req := httptest.NewRequest("GET", "/services/bocaccio.asdf", nil)
 			api.oneServiceHandler(recorder, req, params)
 
-			resp := recorder.Result()
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			body := string(bodyBytes)
+			status, headers, body := getResult(recorder)
 
 			So(body, ShouldContainSubstring, "Invalid content")
-			So(resp.StatusCode, ShouldEqual, 404)
-			So(resp.Header.Get("Content-Type"), ShouldEqual, "application/json")
+			So(status, ShouldEqual, 404)
+			So(headers.Get("Content-Type"), ShouldEqual, "application/json")
 		})
 
 		Convey("has CORS headers", func() {
 			delete(params, "name")
 			api.oneServiceHandler(recorder, req, params)
-			resp := recorder.Result()
 
-			So(resp.StatusCode, ShouldEqual, 404)
-			So(resp.Header.Get("Access-Control-Allow-Origin"), ShouldEqual, "*")
-			So(resp.Header.Get("Access-Control-Allow-Methods"), ShouldEqual, "GET")
+			status, headers, _ := getResult(recorder)
+
+			So(status, ShouldEqual, 404)
+			So(headers.Get("Access-Control-Allow-Origin"), ShouldEqual, "*")
+			So(headers.Get("Access-Control-Allow-Methods"), ShouldEqual, "GET")
 		})
 
 		Convey("protects against a nil state", func() {
 			api.state = nil
 			api.oneServiceHandler(recorder, req, params)
-			resp := recorder.Result()
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			body := string(bodyBytes)
 
-			So(resp.StatusCode, ShouldEqual, 500)
+			status, _, body := getResult(recorder)
+
+			So(status, ShouldEqual, 500)
 			So(body, ShouldContainSubstring, "terribly wrong")
 		})
 
 		Convey("returns the contents for the service queried", func() {
 			api.oneServiceHandler(recorder, req, params)
-			resp := recorder.Result()
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			body := string(bodyBytes)
 
-			So(resp.StatusCode, ShouldEqual, 200)
+			status, _, body := getResult(recorder)
+
+			So(status, ShouldEqual, 200)
 			So(body, ShouldContainSubstring, `"bocaccio": [`)
 			So(body, ShouldNotContainSubstring, `"shakespeare"`)
 		})
@@ -105,11 +102,10 @@ func Test_oneServiceHandler(t *testing.T) {
 		Convey("sends a 404 for unknown services", func() {
 			params["name"] = "garbage"
 			api.oneServiceHandler(recorder, req, params)
-			resp := recorder.Result()
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			body := string(bodyBytes)
 
-			So(resp.StatusCode, ShouldEqual, 404)
+			status, _, body := getResult(recorder)
+
+			So(status, ShouldEqual, 404)
 			So(body, ShouldContainSubstring, `no instances of garbage`)
 			So(body, ShouldNotContainSubstring, `"shakespeare"`)
 			So(body, ShouldNotContainSubstring, `"bocaccio"`)
@@ -163,11 +159,10 @@ func Test_stateHandler(t *testing.T) {
 		Convey("returns an error for unknown content types", func() {
 			params["extension"] = ""
 			api.stateHandler(recorder, req, params)
-			resp := recorder.Result()
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			body := string(bodyBytes)
 
-			So(resp.StatusCode, ShouldEqual, 404)
+			status, _, body := getResult(recorder)
+
+			So(status, ShouldEqual, 404)
 			So(body, ShouldContainSubstring, `Invalid content type`)
 			So(body, ShouldNotContainSubstring, `"shakespeare"`)
 			So(body, ShouldNotContainSubstring, `"bocaccio"`)
@@ -235,11 +230,10 @@ func Test_servicesHandler(t *testing.T) {
 		Convey("returns an error for unknown content types", func() {
 			params["extension"] = ""
 			api.servicesHandler(recorder, req, params)
-			resp := recorder.Result()
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
-			body := string(bodyBytes)
 
-			So(resp.StatusCode, ShouldEqual, 404)
+			status, _, body := getResult(recorder)
+
+			So(status, ShouldEqual, 404)
 			So(body, ShouldContainSubstring, `Invalid content type`)
 			So(body, ShouldNotContainSubstring, `"shakespeare"`)
 			So(body, ShouldNotContainSubstring, `"bocaccio"`)
