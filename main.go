@@ -13,9 +13,9 @@ import (
 	"github.com/Nitro/sidecar/healthy"
 	"github.com/Nitro/sidecar/service"
 	"github.com/Nitro/sidecar/sidecarhttp"
-	log "github.com/sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/relistan/rubberneck.v1"
 )
 
@@ -359,7 +359,10 @@ func main() {
 	go monitor.Watch(disco, healthWatchLooper)
 	go monitor.Run(healthLooper)
 
-	go sidecarhttp.ServeHttp(list, state)
+	go sidecarhttp.ServeHttp(list, state, &sidecarhttp.HttpConfig{
+		BindIP:       config.HAproxy.BindIP,
+		UseHostnames: config.HAproxy.UseHostnames,
+	})
 
 	if !config.HAproxy.Disable {
 		proxy.WriteAndReload(state)

@@ -11,6 +11,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type HttpConfig struct {
+	BindIP       string
+	UseHostnames bool
+}
+
 func makeHandler(fn func(http.ResponseWriter, *http.Request,
 	*memberlist.Memberlist, *catalog.ServicesState, map[string]string),
 	list *memberlist.Memberlist, state *catalog.ServicesState) http.HandlerFunc {
@@ -44,12 +49,13 @@ func uiRedirectHandler(response http.ResponseWriter, req *http.Request) {
 	http.Redirect(response, req, "/ui/", 301)
 }
 
-func ServeHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
+func ServeHttp(list *memberlist.Memberlist, state *catalog.ServicesState, config *HttpConfig) {
 	srvrsHandle := makeHandler(serversHandler, list, state)
 	staticFs := http.FileServer(http.Dir("views/static"))
 	uiFs := http.FileServer(http.Dir("ui/app"))
 
 	api := &SidecarApi{state: state, list: list}
+	envoyApi := &EnvoyApi{state: state, list: list, config: config}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", uiRedirectHandler).Methods("GET")
@@ -57,6 +63,7 @@ func ServeHttp(list *memberlist.Memberlist, state *catalog.ServicesState) {
 	router.PathPrefix("/static").Handler(http.StripPrefix("/static", staticFs))
 	router.PathPrefix("/ui").Handler(http.StripPrefix("/ui", uiFs))
 	router.PathPrefix("/api").Handler(http.StripPrefix("/api", api.HttpMux()))
+	router.PathPrefix("/v1").Handler(http.StripPrefix("/v1", envoyApi.HttpMux()))
 
 	// DEPRECATED - to be removed once common clients are updated
 	router.HandleFunc("/state.{extension}", wrap(api.stateHandler)).Methods("GET")
