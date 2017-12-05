@@ -3,6 +3,7 @@ package sidecarhttp
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"strconv"
@@ -224,6 +225,18 @@ func (s *EnvoyApi) listenersHandler(response http.ResponseWriter, req *http.Requ
 	response.Write(jsonBytes)
 }
 
+// lookupHost does a vv slow lookup of the DNS host for a service. Totally
+// not optimized for high throughput. You should only do this in development
+// scenarios.
+func lookupHost(hostname string) (string, error) {
+	addrs, err := net.LookupHost(hostname)
+
+	if err != nil {
+		return "", err
+	}
+	return addrs[0], nil
+}
+
 // EnvoyServiceFromService converts a Sidecar service to an Envoy
 // API service for reporting to the proxy
 func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) *EnvoyService {
@@ -234,8 +247,21 @@ func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) 
 	for _, port := range svc.Ports {
 		// No sense worrying about unexposed ports
 		if port.ServicePort == svcPort {
+			address := port.IP
+
+			// NOT recommended... this is very slow. Useful in dev modes where you
+			// need to resolve to a different IP address only.
+			if s.config.UseHostnames {
+				var err error
+				address, err = lookupHost(svc.Hostname)
+				if err != nil {
+					log.Warnf("Unable to resolve %s, using IP address", svc.Hostname)
+				}
+				address = port.IP
+			}
+
 			return &EnvoyService{
-				IPAddress:       port.IP,
+				IPAddress:       address,
 				LastCheckIn:     svc.Updated.String(),
 				Port:            port.Port,
 				Revision:        svc.Version(),
@@ -300,7 +326,6 @@ func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *E
 	// Holy indentation, Bat Man!
 	return &EnvoyListener{
 		Name: apiName,
-		// TODO need to do something similar to HAPROXY_USE_HOSTNAMES here
 		Address: fmt.Sprintf("tcp://%s:%d", s.config.BindIP, port),
 		Filters: []*EnvoyFilter{
 			{
