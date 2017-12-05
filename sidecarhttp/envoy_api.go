@@ -23,6 +23,8 @@ const (
 // This file implements the Envoy proxy V1 API on top of a Sidecar
 // service discovery cluster.
 
+// Envoy API definitions --------------------------------------------------
+
 // See https://www.envoyproxy.io/docs/envoy/latest/api-v1/cluster_manager/sds.html
 type EnvoyService struct {
 	IPAddress       string            `json:"ip_address"`
@@ -81,6 +83,7 @@ type EnvoyRoute struct {
 	HostRewrite string `json:"host_rewrite"`
 	Cluster     string `json:"cluster"`
 }
+// ------------------------------------------------------------------------
 
 type EnvoyApi struct {
 	list   *memberlist.Memberlist
@@ -290,6 +293,8 @@ func (s *EnvoyApi) EnvoyClustersFromState() []*EnvoyCluster {
 	return clusters
 }
 
+// EnvoyListenerFromService takes a Sidecar service and formats it into
+// the API format for an Envoy proxy listener (LDS API v1)
 func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *EnvoyListener {
 	apiName := SvcName(svc.Name, port)
 	// Holy indentation, Bat Man!
