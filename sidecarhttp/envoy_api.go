@@ -84,6 +84,7 @@ type EnvoyRoute struct {
 	HostRewrite string `json:"host_rewrite"`
 	Cluster     string `json:"cluster"`
 }
+
 // ------------------------------------------------------------------------
 
 type EnvoyApi struct {
@@ -182,9 +183,7 @@ func (s *EnvoyApi) clustersHandler(response http.ResponseWriter, req *http.Reque
 
 	result := struct {
 		Clusters []*EnvoyCluster `json:"clusters"`
-	}{
-		clusters,
-	}
+	}{clusters}
 
 	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
 
@@ -211,9 +210,7 @@ func (s *EnvoyApi) listenersHandler(response http.ResponseWriter, req *http.Requ
 
 	result := struct {
 		Listeners []*EnvoyListener `json:"listeners"`
-	}{
-		listeners,
-	}
+	}{listeners}
 
 	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
 	if err != nil {
@@ -325,7 +322,7 @@ func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *E
 	apiName := SvcName(svc.Name, port)
 	// Holy indentation, Bat Man!
 	return &EnvoyListener{
-		Name: apiName,
+		Name:    apiName,
 		Address: fmt.Sprintf("tcp://%s:%d", s.config.BindIP, port),
 		Filters: []*EnvoyFilter{
 			{
