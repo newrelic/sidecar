@@ -3,6 +3,7 @@ package catalog
 import (
 	"sort"
 
+	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/service"
 )
 
@@ -32,19 +33,12 @@ func (state *ServicesState) EachLocalService(fn func(hostname *string, serviceId
 }
 
 // Services -------------------------------
+//   by Age
 type ServicesByAge []*service.Service
 
-func (s ServicesByAge) Len() int {
-	return len(s)
-}
-
-func (s ServicesByAge) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s ServicesByAge) Less(i, j int) bool {
-	return s[i].Updated.Before(s[j].Updated)
-}
+func (s ServicesByAge) Len() int           { return len(s) }
+func (s ServicesByAge) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s ServicesByAge) Less(i, j int) bool { return s[i].Updated.Before(s[j].Updated) }
 
 func (s *Server) SortedServices() []*service.Service {
 	servicesList := make([]*service.Service, 0, len(s.Services))
@@ -57,6 +51,13 @@ func (s *Server) SortedServices() []*service.Service {
 
 	return servicesList
 }
+
+//   by Name
+type ServicesByName []*service.Service
+
+func (a ServicesByName) Len() int           { return len(a) }
+func (a ServicesByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ServicesByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 // Servers --------------------------------
 type ServerByName []*Server
@@ -84,3 +85,11 @@ func (state *ServicesState) SortedServers() []*Server {
 
 	return serversList
 }
+
+// Memberlist --------------------------------
+//   by Name
+type ListByName []*memberlist.Node
+
+func (a ListByName) Len() int           { return len(a) }
+func (a ListByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ListByName) Less(i, j int) bool { return a[i].Name < a[j].Name }

@@ -13,7 +13,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 	function svcGetServices() {
       return $http({
         method: 'GET', 
-        url: '/services.json',
+        url: '/api/services.json',
 		dataType: 'json',
       });
     };
