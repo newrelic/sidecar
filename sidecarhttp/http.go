@@ -66,6 +66,7 @@ func ServeHttp(list *memberlist.Memberlist, state *catalog.ServicesState, config
 	router.PathPrefix("/v1").Handler(http.StripPrefix("/v1", envoyApi.HttpMux()))
 
 	// DEPRECATED - to be removed once common clients are updated
+	router.HandleFunc("/services.{extension}", wrap(api.servicesHandler)).Methods("GET")
 	router.HandleFunc("/state.{extension}", wrap(api.stateHandler)).Methods("GET")
 	router.HandleFunc("/watch", wrap(api.watchHandler)).Methods("GET")
 	// ------------------------------------------------------------
