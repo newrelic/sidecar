@@ -43,6 +43,10 @@ func UpdateHandler(response http.ResponseWriter, req *http.Request, rcvr *Receiv
 		rcvr.LastSvcChanged = &evt.ChangeEvent.Service
 
 		if ShouldNotify(evt.ChangeEvent.PreviousStatus, evt.ChangeEvent.Service.Status) {
+			if !rcvr.IsSubscribed(evt.ChangeEvent.Service.Name) {
+				return
+			}
+
 			if rcvr.OnUpdate == nil {
 				log.Errorf("No OnUpdate() callback registered!")
 				return

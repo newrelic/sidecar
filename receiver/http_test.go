@@ -106,6 +106,97 @@ func Test_updateHandler(t *testing.T) {
 			So(received, ShouldBeTrue)
 		})
 
+		Convey("enqueus all updates if no Subscriptions are provided", func() {
+			var evtState *catalog.ServicesState
+			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState.LastChanged = time.Now().UTC()
+
+			change := catalog.StateChangedEvent{
+				State: *evtState,
+				ChangeEvent: catalog.ChangeEvent{
+					Service: service.Service{
+						Name:    "nobody-wants-this",
+						ID:      "10101010101",
+						Updated: time.Now().UTC(),
+						Created: time.Now().UTC(),
+						Status:  service.ALIVE,
+					},
+					PreviousStatus: service.TOMBSTONE,
+				},
+			}
+
+			encoded, _ := json.Marshal(change)
+			req := httptest.NewRequest("POST", "/update", bytes.NewBuffer(encoded))
+
+			UpdateHandler(recorder, req, rcvr)
+			resp := recorder.Result()
+
+			So(resp.StatusCode, ShouldEqual, 200)
+			So(len(rcvr.ReloadChan), ShouldEqual, 1)
+		})
+
+		Convey("does not enqueue updates if the service is not subscribed to", func() {
+			var evtState *catalog.ServicesState
+			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState.LastChanged = time.Now().UTC()
+
+			change := catalog.StateChangedEvent{
+				State: *evtState,
+				ChangeEvent: catalog.ChangeEvent{
+					Service: service.Service{
+						Name:    "nobody-wants-this",
+						ID:      "10101010101",
+						Updated: time.Now().UTC(),
+						Created: time.Now().UTC(),
+						Status:  service.ALIVE,
+					},
+					PreviousStatus: service.TOMBSTONE,
+				},
+			}
+
+			rcvr.Subscribe("another-service")
+
+			encoded, _ := json.Marshal(change)
+			req := httptest.NewRequest("POST", "/update", bytes.NewBuffer(encoded))
+
+			UpdateHandler(recorder, req, rcvr)
+			resp := recorder.Result()
+
+			So(resp.StatusCode, ShouldEqual, 200)
+			So(len(rcvr.ReloadChan), ShouldEqual, 0)
+		})
+
+		Convey("enqueues updates if the service is subscribed to", func() {
+			var evtState *catalog.ServicesState
+			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState.LastChanged = time.Now().UTC()
+
+			change := catalog.StateChangedEvent{
+				State: *evtState,
+				ChangeEvent: catalog.ChangeEvent{
+					Service: service.Service{
+						Name:    "subscribed-service",
+						ID:      "10101010101",
+						Updated: time.Now().UTC(),
+						Created: time.Now().UTC(),
+						Status:  service.ALIVE,
+					},
+					PreviousStatus: service.TOMBSTONE,
+				},
+			}
+
+			rcvr.Subscribe("subscribed-service")
+
+			encoded, _ := json.Marshal(change)
+			req := httptest.NewRequest("POST", "/update", bytes.NewBuffer(encoded))
+
+			UpdateHandler(recorder, req, rcvr)
+			resp := recorder.Result()
+
+			So(resp.StatusCode, ShouldEqual, 200)
+			So(len(rcvr.ReloadChan), ShouldEqual, 1)
+		})
+
 		Convey("a copy of the state is passed to the OnUpdate func", func() {
 			var evtState *catalog.ServicesState
 			evtState = deepcopy.Copy(state).(*catalog.ServicesState)

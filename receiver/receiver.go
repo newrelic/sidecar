@@ -24,6 +24,7 @@ type Receiver struct {
 	LastSvcChanged *service.Service
 	OnUpdate       func(state *catalog.ServicesState)
 	Looper         director.Looper
+	Subscriptions  []string
 }
 
 func NewReceiver(capacity int, onUpdate func(state *catalog.ServicesState)) *Receiver {
@@ -84,6 +85,34 @@ func FetchState(url string) (*catalog.ServicesState, error) {
 	}
 
 	return state, nil
+}
+
+// IsSubscribed allows a receiver to filter incoming events by service name
+func (rcvr *Receiver) IsSubscribed(svcName string) bool {
+	// If we didn't specify any specifically, then we want them all
+	if len(rcvr.Subscriptions) < 1 {
+		return true
+	}
+
+	for _, subName := range rcvr.Subscriptions {
+		if subName == svcName {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Subscribe is not synchronized and should not be called dynamically. This
+// is generally used at setup of the Receiver, before any events begin arriving.
+func (rcvr *Receiver) Subscribe(svcName string) {
+	for _, subName := range rcvr.Subscriptions {
+		if subName == svcName {
+			return
+		}
+	}
+
+	rcvr.Subscriptions = append(rcvr.Subscriptions, svcName)
 }
 
 // ProcessUpdates loops forever, processing updates to the state.
