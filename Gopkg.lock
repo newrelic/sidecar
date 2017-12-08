@@ -241,6 +241,12 @@
   version = "v2.2.5"
 
 [[projects]]
+  branch = "v1"
+  name = "gopkg.in/jarcoal/httpmock.v1"
+  packages = ["."]
+  revision = "cf52904a3cf0f78f199ecade6a6df8e245d5b25a"
+
+[[projects]]
   name = "gopkg.in/relistan/rubberneck.v1"
   packages = ["."]
   revision = "4c696efeea6013864af139313af7c7492458fbbf"
@@ -249,6 +255,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c109a72885ee6f83dfad7776ee86775b17518f4d49f676071dbb79ae49d07a3f"
+  inputs-digest = "1f81c9a744228d3f94eb883f0e11dcee283a58e964870fefcb49c11da988c87c"
   solver-name = "gps-cdcl"
   solver-version = 1

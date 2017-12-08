@@ -1,14 +1,14 @@
 package catalog
 
 import (
-	"errors"
+	"net/http"
 	"net/url"
 	"testing"
 
-	"github.com/Nitro/sidecar/mockhttp"
 	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/jarcoal/httpmock.v1"
 )
 
 func Test_NewUrlListener(t *testing.T) {
@@ -48,18 +48,17 @@ func Test_prepareCookieJar(t *testing.T) {
 
 func Test_Listen(t *testing.T) {
 	Convey("Listen()", t, func() {
-		client := mockhttp.ClientWithExpectations([]mockhttp.HttpExpectation{
-			{
-				Expect:  "beowulf.example.com",
-				Send:    "",
-				Content: "application/json",
-				Err:     errors.New("OMG!"),
-			},
-		})
-
 		url := "http://beowulf.example.com"
+
+		httpmock.RegisterResponder(
+			"POST", url,
+			func(req *http.Request) (*http.Response, error) {
+				return httpmock.NewStringResponse(500, "so bad!"), nil
+			},
+		)
+
+		httpmock.Activate()
 		listener := NewUrlListener(url, false)
-		listener.Client = client
 		errors := make(chan error)
 		listener.looper = director.NewFreeLooper(1, errors)
 
@@ -72,6 +71,10 @@ func Test_Listen(t *testing.T) {
 		state.Hostname = hostname
 		state.AddServiceEntry(service1)
 		state.Servers[hostname].Services[service1.ID].Tombstone()
+
+		Reset(func() {
+			httpmock.DeactivateAndReset()
+		})
 
 		Convey("handles a bad post", func() {
 			listener.eventChannel <- ChangeEvent{}
