@@ -1,6 +1,7 @@
 package receiver
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -8,9 +9,9 @@ import (
 
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
-	log "github.com/sirupsen/logrus"
-	"github.com/relistan/go-director"
 	"github.com/mohae/deepcopy"
+	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -72,6 +73,10 @@ func FetchState(url string) (*catalog.ServicesState, error) {
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("Bad status code on state fetch: %d", resp.StatusCode)
 	}
 
 	bytes, err := ioutil.ReadAll(resp.Body)
