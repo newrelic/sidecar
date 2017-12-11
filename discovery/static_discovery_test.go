@@ -106,11 +106,11 @@ func Test_Listeners(t *testing.T) {
 
 			expected0 := ChangeListener{
 				Name:"Service(beowulf-asdf)",
-				Url:"http://" + disco.Hostname + ":10000/update",
+				Url:"http://" + disco.Hostname + ":10000/sidecar/update",
 			}
 			expected1 := ChangeListener{
 				Name:"Service(hrothgar-abba)",
-				Url:"http://" + disco.Hostname + ":11000/update",
+				Url:"http://" + disco.Hostname + ":11000/sidecar/update",
 			}
 
 			So(len(listeners), ShouldEqual, 2)

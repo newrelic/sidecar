@@ -202,7 +202,7 @@ func (d *DockerDiscovery) listenerForContainer(cntnr *docker.Container) *ChangeL
 
 	return &ChangeListener{
 		Name: svc.ListenerName(),
-		Url:  fmt.Sprintf("http://%s:%d", listenPort.IP, listenPort.Port),
+		Url:  fmt.Sprintf("http://%s:%d/sidecar/update", listenPort.IP, listenPort.Port),
 	}
 }
 

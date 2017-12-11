@@ -75,7 +75,7 @@ func (d *StaticDiscovery) Listeners() []ChangeListener {
 		if target.ListenPort > 0 {
 			listener := ChangeListener{
 				Name: target.Service.ListenerName(),
-				Url:  fmt.Sprintf("http://%s:%d/update", d.Hostname, target.ListenPort),
+				Url:  fmt.Sprintf("http://%s:%d/sidecar/update", d.Hostname, target.ListenPort),
 			}
 			listeners = append(listeners, listener)
 		}

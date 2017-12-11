@@ -398,8 +398,8 @@ a service can subscribe to Sidecar events:
  2. Add a Docker label to the subscribing service in the form
     `SidecarListener=10005` where 10005 is a port that is mapped to a
     `ServicePort` with a Docker label like `ServicePort_80=10005`. This port will
-    then receive all updates on the `/update` endpoint. The subscription will be
-    dynamically added and removed when the service starts or stops.
+    then receive all updates on the `/sidecar/update` endpoint. The subscription
+    will be dynamically added and removed when the service starts or stops.
 
  3. Add the listener export to the `static.json` file exposed by static
     services. The `ListenPort` is a top-level setting for the `Target` and is
@@ -408,15 +408,19 @@ a service can subscribe to Sidecar events:
 Monitoring It
 -------------
 
-The logging output is pretty (too?) verbose and contains lots of information
-about what's going on and what the current state is. Or you can use the web
-interface.
+The logging output is pretty good in the normal `info` level. It can be made
+quite verbose in `debug` mode, and contains lots of information about what's
+going on and what the current state is. The web interface also contains a lot
+of runtime information on the cluster and the services. If you are running
+HAproxy, it's also recommneded that you expose the HAproxy stats port on 3212
+so that Sidecar can find it.
 
-Currently the web interface runs on port 7777 on each machine that runs `sidecar`.
+Currently the web interface runs on port 7777 on each machine that runs
+`sidecar`.
 
-The `/services` endpoint is a very textual web interface for humans. The
-`/services.json` endpoint is JSON-encoded. The JSON is still pretty-printed so
-it's readable by humans.
+The `/ui/services` endpoint is a very textual web interface for humans. The
+`/api/services.json` endpoint is JSON-encoded. The JSON is still pretty-printed
+so it's readable by humans.
 
 Sidecar API
 -----------

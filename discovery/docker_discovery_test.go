@@ -111,7 +111,7 @@ func Test_DockerDiscovery(t *testing.T) {
 			So(processed[0], ShouldResemble,
 				ChangeListener{
 					Name: "Service(beowulf-deadbeef1231)",
-					Url:  "http://127.0.0.1:80",
+					Url:  "http://127.0.0.1:80/sidecar/update",
 				},
 			)
 		})
