@@ -492,6 +492,12 @@ patents, and ideas in that code in our products if we so choose. You also agree
 the code is provided as-is and you provide no warranties as to its fitness or
 correctness for any purpose
 
+Ports
+-----
+
+Memberlist requires both TCP and UDP protocols be enabled on port 7946. (It tries UDP first)
+
+Clarify 
 Logo
 ----
 
