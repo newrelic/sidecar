@@ -227,9 +227,10 @@ Defaults are in bold at the end of the line:
    
 
 ### Ports
-Sidecar requires both TCP and UDP protocols be open through any network filters
-or firewalls between it and any peers in the cluster. These are the ports the
-gossip protocol runs on.
+
+Sidecar requires both TCP and UDP protocols be open on port 7946 through any
+network filters or firewalls between it and any peers in the cluster. These are
+the ports the gossip protocol runs on.
 
 ## Discovery
 
