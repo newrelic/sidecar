@@ -147,6 +147,8 @@ You always need to supply at least one IP address or hostname with the
 be your own hostname. You may specify the argument multiple times to have
 multiple hosts. It is recommended to use more than one when possible.
 
+Note: `--cluster-ip` will overwrite the values passed into the `SIDECAR_SEEDS` environment variable. 
+
 ### Running in a Container
 
 The easiest way to deploy Sidecar to your Docker fleet is to run it in a
