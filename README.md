@@ -224,6 +224,12 @@ Defaults are in bold at the end of the line:
  * `HAPROXY_GROUP`: The Unix group under which HAproxy should run **haproxy**
  * `HAPROXY_USE_HOSTNAMES`: Should we write hostnames in the HAproxy config instead
    of IP addresses? **`false`**
+   
+
+### Ports
+Sidecar requires both TCP and UDP protocols be open through any network filters
+or firewalls between it and any peers in the cluster. These are the ports the
+gossip protocol runs on.
 
 ## Discovery
 
