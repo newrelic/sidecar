@@ -98,6 +98,9 @@ func (d *DockerDiscovery) inspectContainer(svc *service.Service) (*docker.Contai
 		return nil, err
 	}
 
+	d.Lock()
+	defer d.Unlock()
+
 	// Cache it for next time
 	d.containerCache[svc.ID] = container
 
