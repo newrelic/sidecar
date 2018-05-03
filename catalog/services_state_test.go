@@ -18,8 +18,8 @@ var hostname = "shakespeare"
 var anotherHostname = "chaucer"
 
 type mockListener struct {
-	name   string
-	events chan ChangeEvent
+	name    string
+	events  chan ChangeEvent
 	managed bool
 }
 
@@ -410,6 +410,25 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			So(svc.Status, ShouldEqual, service.TOMBSTONE)
 			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
 			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
+		})
+
+		Convey("Unhealthy/Unknown services have a lifespan and then are tombstoned", func() {
+			unhealthyService := service.Service{ID: "unhealthy_shakespeare", Hostname: hostname, Updated: baseTime, Status: service.UNHEALTHY}
+			state.AddServiceEntry(unhealthyService)
+			unknownService := service.Service{ID: "unknown_shakespeare", Hostname: hostname, Updated: baseTime, Status: service.UNKNOWN}
+			state.AddServiceEntry(unknownService)
+
+			svcs := state.Servers[hostname].Services
+
+			stamp := baseTime.Add(0 - ALIVE_LIFESPAN - 5*time.Second)
+
+			svcs["unhealthy_shakespeare"].Updated = stamp
+			svcs["unknown_shakespeare"].Updated = stamp
+
+			state.TombstoneOthersServices()
+
+			So(svcs["unhealthy_shakespeare"].Status, ShouldEqual, service.TOMBSTONE)
+			So(svcs["unknown_shakespeare"].Status, ShouldEqual, service.TOMBSTONE)
 		})
 
 		Convey("Can detect new services or newly changed services", func() {
