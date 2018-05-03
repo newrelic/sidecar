@@ -604,27 +604,27 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 			if len(state.Servers[*hostname].Services) < 1 {
 				delete(state.Servers, *hostname)
 			}
-		}
+		} else {
+			// Everything that is not tombstoned needs to be considered for
+			// removal if it exceeds the allowed ALIVE_TIMESPAN
+			if svc.Updated.Before(time.Now().UTC().Add(0 - ALIVE_LIFESPAN)) {
+				log.Warnf("Found expired service %s from %s, tombstoning",
+					svc.Name, svc.Hostname,
+				)
 
-		if svc.IsAlive() &&
-			svc.Updated.Before(time.Now().UTC().Add(0-ALIVE_LIFESPAN)) {
+				// Because we don't know that other hosts haven't gotten a newer
+				// message that we missed, we'll tombstone them with the original
+				// timestamp + 1 second. This way we don't invalidate newer records
+				// we didn't see. This might happen when any node is removed from
+				// cluster and re-joins, for example. So we can't use svc.Tombstone()
+				// which updates the timestamp to Now().UTC()
+				previousStatus := svc.Status
+				svc.Status = service.TOMBSTONE
+				svc.Updated = svc.Updated.Add(time.Second)
+				state.ServiceChanged(svc, previousStatus, svc.Updated)
 
-			log.Warnf("Found expired service %s from %s, tombstoning",
-				svc.Name, svc.Hostname,
-			)
-
-			// Because we don't know that other hosts haven't gotten a newer
-			// message that we missed, we'll tombstone them with the original
-			// timestamp + 1 second. This way we don't invalidate newer records
-			// we didn't see. This might happen when any node is removed from
-			// cluster and re-joins, for example. So we can't use svc.Tombstone()
-			// which updates the timestamp to Now().UTC()
-			previousStatus := svc.Status
-			svc.Status = service.TOMBSTONE
-			svc.Updated = svc.Updated.Add(time.Second)
-			state.ServiceChanged(svc, previousStatus, svc.Updated)
-
-			result = append(result, *svc)
+				result = append(result, *svc)
+			}
 		}
 	})
 
