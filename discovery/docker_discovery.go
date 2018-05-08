@@ -6,15 +6,15 @@ import (
 	"sync"
 	"time"
 
+	director "github.com/relistan/go-director"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/Nitro/sidecar/service"
 	"github.com/fsouza/go-dockerclient"
-	"github.com/relistan/go-director"
 )
 
 const (
-	CACHE_DRAIN_INTERVAL = 10 * time.Minute // Drain the cache every 10 mins
+	CacheDrainInterval = 10 * time.Minute // Drain the cache every 10 mins
 )
 
 type DockerClient interface {
@@ -30,9 +30,9 @@ type DockerDiscovery struct {
 	endpoint       string                       // The Docker endpoint to talk to
 	services       []*service.Service           // The list of services we know about
 	ClientProvider func() (DockerClient, error) // Return the client we'll use to connect
-	containerCache map[string]*docker.Container // Cache of inspected containers
 	serviceNamer   ServiceNamer                 // The service namer implementation
 	advertiseIp    string                       // The address we'll advertise for services
+	containerCache *ContainerCache              // Stores full container data for fast lookups
 	sync.RWMutex                                // Reader/Writer lock
 }
 
@@ -40,7 +40,7 @@ func NewDockerDiscovery(endpoint string, svcNamer ServiceNamer, ip string) *Dock
 	discovery := DockerDiscovery{
 		endpoint:       endpoint,
 		events:         make(chan *docker.APIEvents),
-		containerCache: make(map[string]*docker.Container),
+		containerCache: NewContainerCache(),
 		serviceNamer:   svcNamer,
 		advertiseIp:    ip,
 	}
@@ -81,7 +81,8 @@ func (d *DockerDiscovery) HealthCheck(svc *service.Service) (string, string) {
 
 func (d *DockerDiscovery) inspectContainer(svc *service.Service) (*docker.Container, error) {
 	// If we have it cached, return it!
-	if container, ok := d.containerCache[svc.ID]; ok {
+	container := d.containerCache.Get(svc.ID)
+	if container != nil {
 		return container, nil
 	}
 
@@ -92,38 +93,48 @@ func (d *DockerDiscovery) inspectContainer(svc *service.Service) (*docker.Contai
 		return nil, err
 	}
 
-	container, err := client.InspectContainer(svc.ID)
+	container, err = client.InspectContainer(svc.ID)
 	if err != nil {
 		log.Errorf("Error inspecting container : %v\n", svc.ID)
 		return nil, err
 	}
 
-	d.Lock()
-	defer d.Unlock()
-
 	// Cache it for next time
-	d.containerCache[svc.ID] = container
+	d.containerCache.Set(svc, container)
 
 	return container, nil
 }
 
 // The main loop, poll for containers continuously.
 func (d *DockerDiscovery) Run(looper director.Looper) {
-	quitChan := make(chan bool)
+	connQuitChan := make(chan bool)
 
-	go d.watchEvents(quitChan)
-	go d.processEvents(quitChan)
-	go d.drainCache(quitChan)
+	go d.manageConnection(connQuitChan)
 
 	go func() {
-		// Loop around fetching the whole container list
+		// Loop around, process any events which came in, and
+		// periodically fetch the whole container list
 		looper.Loop(func() error {
-			d.getContainers()
+			select {
+			case event := <-d.events:
+				if event == nil {
+					// This usually happens because of a Docker restart.
+					// Sleep, let us reconnect in the background, then loop.
+					return nil
+				}
+				log.Debugf("Event: %#v\n", event)
+				d.handleEvent(*event)
+			case <-time.After(SLEEP_INTERVAL):
+				d.getContainers()
+			case <-time.After(CacheDrainInterval):
+				d.containerCache.Drain(len(d.services))
+			}
+
 			return nil
 		})
 
 		// Propagate quit channel message
-		close(quitChan)
+		close(connQuitChan)
 	}()
 }
 
@@ -264,19 +275,10 @@ func (d *DockerDiscovery) getContainers() {
 		containerMap[svc.ID] = true
 	}
 
-	d.pruneContainerCache(containerMap)
+	d.containerCache.Prune(containerMap)
 }
 
-// Loop through the current cache and remove anything that has disappeared
-func (d *DockerDiscovery) pruneContainerCache(liveContainers map[string]interface{}) {
-	for id := range d.containerCache {
-		if _, ok := liveContainers[id]; !ok {
-			delete(d.containerCache, id)
-		}
-	}
-}
-
-func (d *DockerDiscovery) watchEvents(quit chan bool) {
+func (d *DockerDiscovery) manageConnection(quit chan bool) {
 	client, err := d.ClientProvider()
 	if err != nil {
 		log.Errorf("Error when creating Docker client: %s\n", err.Error())
@@ -333,41 +335,59 @@ func (d *DockerDiscovery) handleEvent(event docker.APIEvents) {
 	}
 }
 
-func (d *DockerDiscovery) processEvents(quit chan bool) {
-	for {
-		select {
-		case <-quit:
-			return
-		default:
-		}
+// A ContainerCache keeps a history of the containers we've inspected
+// in order to do fast lookups of container info when needed.
+type ContainerCache struct {
+	cache map[string]*docker.Container // Cache of inspected containers
+	sync.RWMutex
+}
 
-		event := <-d.events
-		if event == nil {
-			// This usually happens because of a Docker restart.
-			// Sleep, let us reconnect in the background, then loop.
-			time.Sleep(SLEEP_INTERVAL)
-			continue
-		}
-		log.Debugf("Event: %#v\n", event)
-		d.handleEvent(*event)
+func NewContainerCache() *ContainerCache {
+	return &ContainerCache{
+		cache: make(map[string]*docker.Container),
 	}
 }
 
 // On a timed basis, drain the containerCache
-func (d *DockerDiscovery) drainCache(quit chan bool) {
-	for {
-		select {
-		case <-quit:
-			return
-		case <-time.After(CACHE_DRAIN_INTERVAL):
-			log.Debug("Draining containerCache")
-			d.Lock()
-			// Make a new one, leave the old one for GC
-			d.containerCache = make(
-				map[string]*docker.Container,
-				len(d.services),
-			)
-			d.Unlock()
+func (c *ContainerCache) Drain(newSize int) {
+	c.Lock()
+	defer c.Unlock()
+	// Make a new one, leave the old one for GC
+	c.cache = make(map[string]*docker.Container, newSize)
+}
+
+// Loop through the current cache and remove anything that has disappeared
+func (c *ContainerCache) Prune(liveContainers map[string]interface{}) {
+	c.Lock()
+	defer c.Unlock()
+
+	for id := range c.cache {
+		if _, ok := liveContainers[id]; !ok {
+			delete(c.cache, id)
 		}
 	}
+}
+
+// Get locks the cache, try to get a service if we have it
+func (c *ContainerCache) Get(svcID string) *docker.Container {
+	c.RLock()
+	defer c.RUnlock()
+
+	if container, ok := c.cache[svcID]; ok {
+		return container
+	}
+
+	return nil
+}
+
+func (c *ContainerCache) Set(svc *service.Service, container *docker.Container) {
+	c.Lock()
+	defer c.Unlock()
+	c.cache[svc.ID] = container
+}
+
+func (c *ContainerCache) Len() int {
+	c.RLock()
+	defer c.RUnlock()
+	return len(c.cache)
 }

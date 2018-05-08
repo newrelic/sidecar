@@ -304,8 +304,8 @@ func main() {
 	trackingLooper := director.NewTimedLooper(
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
-	discoLooper := director.NewTimedLooper(
-		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
+	discoLooper := director.NewFreeLooper(
+		director.FOREVER, make(chan error),
 	)
 	listenLooper := director.NewTimedLooper(
 		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
