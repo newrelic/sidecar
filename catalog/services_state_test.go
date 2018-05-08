@@ -431,6 +431,15 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			So(svcs["unknown_shakespeare"].Status, ShouldEqual, service.TOMBSTONE)
 		})
 
+		Convey("Tombstones aren't re-tombstoned", func() {
+			tombstonedService := service.Service{ID: "dead_shakespeare", Hostname: hostname, Updated: baseTime, Status: service.TOMBSTONE}
+			state.AddServiceEntry(tombstonedService)
+
+			svcs := state.TombstoneOthersServices()
+
+			So(svcs, ShouldBeNil)
+		})
+
 		Convey("Can detect new services or newly changed services", func() {
 			// service1 and services[0] are copies of the same service
 			service1.Status = service.UNHEALTHY
