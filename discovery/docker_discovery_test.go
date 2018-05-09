@@ -153,7 +153,7 @@ func Test_DockerDiscovery(t *testing.T) {
 
 		Convey("inspectContainer()", func() {
 			Convey("looks in the cache first", func() {
-				disco.containerCache[svcId1] = &docker.Container{Path: "cached"}
+				disco.containerCache.Set(&service1, &docker.Container{Path: "cached"})
 				container, err := disco.inspectContainer(&service1)
 
 				So(err, ShouldBeNil)
@@ -186,15 +186,15 @@ func Test_DockerDiscovery(t *testing.T) {
 				liveContainers[svcId1] = true
 
 				// Cache some things
-				disco.containerCache[svcId1] = &docker.Container{Path: "cached"}
-				disco.containerCache[svcId2] = &docker.Container{Path: "cached"}
+				disco.containerCache.Set(&service1, &docker.Container{Path: "cached"})
+				disco.containerCache.Set(&service2, &docker.Container{Path: "cached"})
 
-				So(len(disco.containerCache), ShouldEqual, 2)
+				So(disco.containerCache.Len(), ShouldEqual, 2)
 
-				disco.pruneContainerCache(liveContainers)
+				disco.containerCache.Prune(liveContainers)
 
-				_, ok := disco.containerCache[svcId2] // Should be missing
-				So(ok, ShouldBeFalse)
+				container := disco.containerCache.Get(svcId2) // Should be missing
+				So(container, ShouldBeNil)
 			})
 		})
 	})

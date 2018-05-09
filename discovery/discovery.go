@@ -86,11 +86,12 @@ func (d *MultiDiscovery) Run(looper director.Looper) {
 	var loopers []director.Looper
 
 	for _, disco := range d.Discoverers {
-		l := director.NewTimedLooper(director.FOREVER, SLEEP_INTERVAL, make(chan error))
+		l := director.NewFreeLooper(director.FOREVER, make(chan error))
 		loopers = append(loopers, l)
 		disco.Run(l)
 	}
 
+	// Waiting for a quit on the Looper's channel
 	looper.Loop(func() error {
 		return nil
 	})
