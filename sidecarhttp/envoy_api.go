@@ -1,7 +1,8 @@
 package sidecarhttp
 
+//go:generate ffjson $GOFILE
+
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
 	"github.com/gorilla/mux"
+	"github.com/pquerna/ffjson/ffjson"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -100,6 +102,12 @@ func (s *EnvoyApi) optionsHandler(response http.ResponseWriter, req *http.Reques
 	return
 }
 
+type SDSResult struct {
+	Env     string          `json:"env"`
+	Hosts   []*EnvoyService `json:"hosts"`
+	Service string          `json:"service"`
+}
+
 // registrationHandler takes the name of a single service and returns results for just
 // that service. It implements the Envoy SDS API V1.
 func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.Request, params map[string]string) {
@@ -149,17 +157,14 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 		clusterName = s.list.ClusterName()
 	}
 
-	result := struct {
-		Env     string          `json:"env"`
-		Hosts   []*EnvoyService `json:"hosts"`
-		Service string          `json:"service"`
-	}{
-		clusterName,
-		instances,
-		name,
+	result := SDSResult{
+		Env:     clusterName,
+		Hosts:   instances,
+		Service: name,
 	}
 
-	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
+	jsonBytes, err := result.MarshalJSON()
+	defer ffjson.Pool(jsonBytes)
 	if err != nil {
 		log.Errorf("Error marshaling state in registrationHandler: %s", err.Error())
 		sendJsonError(response, 500, "Internal server error")
@@ -167,6 +172,10 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 	}
 
 	response.Write(jsonBytes)
+}
+
+type CDSResult struct {
+	Clusters []*EnvoyCluster `json:"clusters"`
 }
 
 // clustersHandler returns cluster information for all Sidecar services. It
@@ -181,12 +190,10 @@ func (s *EnvoyApi) clustersHandler(response http.ResponseWriter, req *http.Reque
 	log.Debugf("Reporting Envoy cluster information for cluster '%s' and node '%s'",
 		params["service_cluster"], params["service_node"])
 
-	result := struct {
-		Clusters []*EnvoyCluster `json:"clusters"`
-	}{clusters}
+	result := CDSResult{clusters}
 
-	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
-
+	jsonBytes, err := result.MarshalJSON()
+	defer ffjson.Pool(jsonBytes)
 	if err != nil {
 		log.Errorf("Error marshaling state in servicesHandler: %s", err.Error())
 		sendJsonError(response, 500, "Internal server error")
@@ -194,6 +201,10 @@ func (s *EnvoyApi) clustersHandler(response http.ResponseWriter, req *http.Reque
 	}
 
 	response.Write(jsonBytes)
+}
+
+type LDSResult struct {
+	Listeners []*EnvoyListener `json:"listeners"`
 }
 
 // listenersHandler returns a list of listeners for all ServicePorts. It
@@ -208,11 +219,9 @@ func (s *EnvoyApi) listenersHandler(response http.ResponseWriter, req *http.Requ
 
 	listeners := s.EnvoyListenersFromState()
 
-	result := struct {
-		Listeners []*EnvoyListener `json:"listeners"`
-	}{listeners}
-
-	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
+	result := LDSResult{listeners}
+	jsonBytes, err := result.MarshalJSON()
+	defer ffjson.Pool(jsonBytes)
 	if err != nil {
 		log.Errorf("Error marshaling state in servicesHandler: %s", err.Error())
 		sendJsonError(response, 500, "Internal server error")
