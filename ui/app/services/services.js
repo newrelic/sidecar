@@ -58,6 +58,9 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 		svcGetHaproxy().then(function(haproxy) {
 			state.haproxy = haproxy.data;
 			haproxyWaiter.resolve();
+		}).catch(function() {
+			// didn't get a valid response, maybe we're not running HAproxy
+			haproxyWaiter.resolve();
 		});
 	};
 
