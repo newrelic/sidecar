@@ -77,7 +77,7 @@ video shows the current state of the UI which is improved since the first video.
 Complete Overview and Theory
 ----------------------------
 
-![Sidecar Architecture](views/static/Sidecar Architecture.png)
+![Sidecar Architecture](views/static/Sidecar%20Architecture.png)
 
 Sidecar is an eventually consistent service discovery platform where hosts learn
 about each others' state via a gossip protocol. Hosts exchange messages about
