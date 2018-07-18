@@ -129,8 +129,7 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 		return
 	}
 
-	var instances []*EnvoyService
-
+	instances := make([]*EnvoyService, 0)
 	// Enter critical section
 	func() {
 		s.state.RLock()
@@ -144,13 +143,6 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 			}
 		})
 	}()
-
-	// Did we have any entries for this service in the catalog?
-	if len(instances) == 0 {
-		log.Debugf("Envoy Service '%s' has no instances!", name)
-		sendJsonError(response, 404, fmt.Sprintf("no instances of %s found", name))
-		return
-	}
 
 	clusterName := ""
 	if s.list != nil {
@@ -284,7 +276,7 @@ func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) 
 // EnvoyClustersFromState genenerates a set of Envoy API cluster
 // definitions from Sidecar state
 func (s *EnvoyApi) EnvoyClustersFromState() []*EnvoyCluster {
-	var clusters []*EnvoyCluster
+	clusters := make([]*EnvoyCluster, 0)
 
 	s.state.RLock()
 	defer s.state.RUnlock()
@@ -369,7 +361,7 @@ func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *E
 // EnvoyListenersFromState creates a set of Enovy API listener
 // definitions from all the ServicePorts in the Sidecar state.
 func (s *EnvoyApi) EnvoyListenersFromState() []*EnvoyListener {
-	var listeners []*EnvoyListener
+	listeners := make([]*EnvoyListener, 0)
 
 	s.state.RLock()
 	defer s.state.RUnlock()
