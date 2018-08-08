@@ -237,6 +237,57 @@ func Test_listenersHandler(t *testing.T) {
 			So(ldsResult.Listeners, ShouldNotBeNil)
 			So(ldsResult.Listeners, ShouldBeEmpty)
 		})
+
+		Convey("supports TCP proxy mode", func() {
+			state.AddServiceEntry(service.Service{
+				ID:       "deadbeef789",
+				Name:     "chaucer",
+				Image:    "101deadbeef",
+				Created:  baseTime,
+				Hostname: hostname,
+				Updated:  baseTime,
+				Status:   service.ALIVE,
+				Ports: []service.Port{
+					{IP: "127.0.0.1", Port: 9999, ServicePort: 10122},
+				},
+				ProxyMode: "http",
+			})
+
+			api.listenersHandler(recorder, req, nil)
+			status, _, body := getResult(recorder)
+
+			So(status, ShouldEqual, 200)
+
+			var ldsResult LDSResult
+			err := json.Unmarshal([]byte(body), &ldsResult)
+			So(err, ShouldBeNil)
+			So(ldsResult.Listeners, ShouldNotBeNil)
+
+			So(len(ldsResult.Listeners), ShouldEqual, 2)
+
+			var httpListener *EnvoyListener
+			var tcpListener *EnvoyListener
+			for _, l := range ldsResult.Listeners {
+				if l.Name == "chaucer:10122" {
+					httpListener = l
+				} else if l.Name == "bocaccio:10100" {
+					tcpListener = l
+				}
+			}
+
+			So(httpListener, ShouldNotBeNil)
+			So(len(httpListener.Filters), ShouldEqual, 1)
+			So(httpListener.Filters[0].Name, ShouldEqual, "envoy.http_connection_manager")
+
+			So(tcpListener, ShouldNotBeNil)
+			So(len(tcpListener.Filters), ShouldEqual, 1)
+			So(tcpListener.Filters[0].Name, ShouldEqual, "envoy.tcp_proxy")
+			So(tcpListener.Filters[0].Config, ShouldNotBeNil)
+			So(tcpListener.Filters[0].Config.RouteConfig, ShouldNotBeNil)
+			So(len(tcpListener.Filters[0].Config.RouteConfig.Routes), ShouldEqual, 1)
+			So(tcpListener.Filters[0].Config.RouteConfig.Routes[0].Cluster, ShouldEqual, "bocaccio:10100")
+
+		})
 	})
 }
 
