@@ -84,7 +84,7 @@ about each others' state via a gossip protocol. Hosts exchange messages about
 which services they are running and which have gone away. All messages are
 timestamped and the latest timestamp always wins. Each host maintains its own
 local state and continually merges changes in from others. Messaging is over
-UDP except when doing anti-entropy transfers. 
+UDP except when doing anti-entropy transfers.
 
 There is an anti-entropy mechanism where full state exchanges take place
 between peer nodes on an intermittent basis. This allows for any missed
@@ -149,7 +149,7 @@ You always need to supply at least one IP address or hostname with the
 be your own hostname. You may specify the argument multiple times to have
 multiple hosts. It is recommended to use more than one when possible.
 
-Note: `--cluster-ip` will overwrite the values passed into the `SIDECAR_SEEDS` environment variable. 
+Note: `--cluster-ip` will overwrite the values passed into the `SIDECAR_SEEDS` environment variable.
 
 ### Running in a Container
 
@@ -173,12 +173,13 @@ Defaults are in bold at the end of the line:
  * `SIDECAR_LOGGING_LEVEL`: The logging level to use (debug, info, warn, error)
    **info**
  * `SIDECAR_LOGGING_FORMAT`: Logging format to use (text, json) **text**
- * `SIDECAR_DISCOVERY`: Which discovery backends to use as a csv array 
+ * `SIDECAR_DISCOVERY`: Which discovery backends to use as a csv array
    (static, docker) **`[ docker ]`**
  * `SIDECAR_SEEDS`: csv array of IP addresses used to seed the cluster.
  * `SIDECAR_CLUSTER_NAME`: The name of the Sidecar cluster. Restricts membership
    to hosts with the same cluster name.
- * `SIDECAR_ADVERTISE_IP`: Manually override the IP address Sidecar uers for
+ * `SIDECAR_BIND_PORT`: Manually override the Memberlist bind port **7946**
+ * `SIDECAR_ADVERTISE_IP`: Manually override the IP address Sidecar uses for
    cluster membership.
  * `SIDECAR_EXCLUDE_IPS`: csv array of IPs to exclude from interface selection
    **`[ 192.168.168.168 ]`**
@@ -205,7 +206,7 @@ Defaults are in bold at the end of the line:
  * `LISTENERS_URLS`: If we want to statically configure any event listeners, the
    URLs should go in a csv array here. See **Listeners** section below for more
    on dynamic listeners.
- 
+
  * `HAPROXY_DISABLE`: Disable management of HAproxy entirely. This is useful if
    you need to run without a proxy or are using something like
    [haproxy-api](https://github.com/Nitro/haproxy-api) to manage HAproxy based
@@ -226,13 +227,14 @@ Defaults are in bold at the end of the line:
  * `HAPROXY_GROUP`: The Unix group under which HAproxy should run **haproxy**
  * `HAPROXY_USE_HOSTNAMES`: Should we write hostnames in the HAproxy config instead
    of IP addresses? **`false`**
-   
+
 
 ### Ports
 
-Sidecar requires both TCP and UDP protocols be open on port 7946 through any
-network filters or firewalls between it and any peers in the cluster. These are
-the ports the gossip protocol runs on.
+Sidecar requires both TCP and UDP protocols be open on the port configured
+via SIDECAR_BIND_PORT (default 7946) through any network filters or firewalls
+between it and any peers in the cluster. This is the port that the gossip
+protocol (Memberlist) runs on.
 
 ## Discovery
 
@@ -317,15 +319,13 @@ container itself. This is accomplished with another Docker label like so:
 	SidecarDiscover=false
 ```
 
-**HAproxy Behavior**
-By default, HAProxy will run in HTTP mode. The mode can be changed to TCP by
+**Proxy Behavior**
+By default, HAProxy or Envoy will run in HTTP mode. The mode can be changed to TCP by
 setting the following Docker label:
 
 ```
 ProxyMode=tcp
 ```
-
-This setting is currently not supported for Lyft's Envoy proxy.
 
 **Templating In Labels**
 You sometimes need to pass information in the Docker labels which

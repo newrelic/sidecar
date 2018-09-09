@@ -57,27 +57,28 @@ type EnvoyListener struct {
 	// Many optional fields omitted
 }
 
-// A basic Envoy Http Route Filter
+// A basic Envoy Route Filter
 type EnvoyFilter struct {
-	Name   string                 `json:"name"`
-	Config *EnvoyHttpFilterConfig `json:"config"`
+	Name   string             `json:"name"`
+	Config *EnvoyFilterConfig `json:"config"`
 }
 
-type EnvoyHttpFilterConfig struct {
+type EnvoyFilterConfig struct {
 	CodecType   string            `json:"codec_type,omitempty"`
 	StatPrefix  string            `json:"stat_prefix,omitempty"`
 	RouteConfig *EnvoyRouteConfig `json:"route_config,omitempty"`
 	Filters     []*EnvoyFilter    `json:"filters,omitempty"`
 }
 
-type EnvoyVirtualHost struct {
+type EnvoyHTTPVirtualHost struct {
 	Name    string        `json:"name"`
 	Domains []string      `json:"domains"`
 	Routes  []*EnvoyRoute `json:"routes"`
 }
 
 type EnvoyRouteConfig struct {
-	VirtualHosts []*EnvoyVirtualHost `json:"virtual_hosts"`
+	VirtualHosts []*EnvoyHTTPVirtualHost `json:"virtual_hosts,omitempty"` // Used for HTTP
+	Routes       []*EnvoyTCPRoute        `json:"routes,omitempty"`        // Use for TCP
 }
 
 type EnvoyRoute struct {
@@ -85,6 +86,14 @@ type EnvoyRoute struct {
 	Prefix      string `json:"prefix"`
 	HostRewrite string `json:"host_rewrite"`
 	Cluster     string `json:"cluster"`
+}
+
+type EnvoyTCPRoute struct {
+	Cluster           string   `json:"cluster"`
+	DestinationIPList []string `json:"destination_ip_list,omitempty"`
+	DestinationPorts  string   `json:"destination_ports,omitempty"`
+	SourceIPList      []string `json:"source_ip_list,omitempty"`
+	SourcePorts       []string `json:"source_ports,omitempty"`
 }
 
 // ------------------------------------------------------------------------
@@ -129,8 +138,7 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 		return
 	}
 
-	var instances []*EnvoyService
-
+	instances := make([]*EnvoyService, 0)
 	// Enter critical section
 	func() {
 		s.state.RLock()
@@ -144,13 +152,6 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 			}
 		})
 	}()
-
-	// Did we have any entries for this service in the catalog?
-	if len(instances) == 0 {
-		log.Debugf("Envoy Service '%s' has no instances!", name)
-		sendJsonError(response, 404, fmt.Sprintf("no instances of %s found", name))
-		return
-	}
 
 	clusterName := ""
 	if s.list != nil {
@@ -284,7 +285,7 @@ func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) 
 // EnvoyClustersFromState genenerates a set of Envoy API cluster
 // definitions from Sidecar state
 func (s *EnvoyApi) EnvoyClustersFromState() []*EnvoyCluster {
-	var clusters []*EnvoyCluster
+	clusters := make([]*EnvoyCluster, 0)
 
 	s.state.RLock()
 	defer s.state.RUnlock()
@@ -329,24 +330,27 @@ func (s *EnvoyApi) EnvoyClustersFromState() []*EnvoyCluster {
 // the API format for an Envoy proxy listener (LDS API v1)
 func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *EnvoyListener {
 	apiName := SvcName(svc.Name, port)
-	// Holy indentation, Bat Man!
-	return &EnvoyListener{
+
+	listener := &EnvoyListener{
 		Name:    apiName,
 		Address: fmt.Sprintf("tcp://%s:%d", s.config.BindIP, port),
-		Filters: []*EnvoyFilter{
+	}
+
+	if svc.ProxyMode == "http" {
+		listener.Filters = []*EnvoyFilter{
 			{
 				Name: "envoy.http_connection_manager",
-				Config: &EnvoyHttpFilterConfig{
+				Config: &EnvoyFilterConfig{
 					CodecType:  "auto",
 					StatPrefix: "ingress_http",
 					Filters: []*EnvoyFilter{
 						{
 							Name:   "router",
-							Config: &EnvoyHttpFilterConfig{},
+							Config: &EnvoyFilterConfig{},
 						},
 					},
 					RouteConfig: &EnvoyRouteConfig{
-						VirtualHosts: []*EnvoyVirtualHost{
+						VirtualHosts: []*EnvoyHTTPVirtualHost{
 							{
 								Name:    svc.Name,
 								Domains: []string{"*"},
@@ -362,14 +366,32 @@ func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *E
 					},
 				},
 			},
-		},
+		}
+	} else { // == "tcp"
+		listener.Filters = []*EnvoyFilter{
+			{
+				Name: "envoy.tcp_proxy",
+				Config: &EnvoyFilterConfig{
+					StatPrefix: "ingress_tcp",
+					RouteConfig: &EnvoyRouteConfig{
+						Routes: []*EnvoyTCPRoute{
+							{
+								Cluster: apiName,
+							},
+						},
+					},
+				},
+			},
+		}
 	}
+
+	return listener
 }
 
 // EnvoyListenersFromState creates a set of Enovy API listener
 // definitions from all the ServicePorts in the Sidecar state.
 func (s *EnvoyApi) EnvoyListenersFromState() []*EnvoyListener {
-	var listeners []*EnvoyListener
+	listeners := make([]*EnvoyListener, 0)
 
 	s.state.RLock()
 	defer s.state.RUnlock()
