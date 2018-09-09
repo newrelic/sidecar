@@ -178,7 +178,8 @@ Defaults are in bold at the end of the line:
  * `SIDECAR_SEEDS`: csv array of IP addresses used to seed the cluster.
  * `SIDECAR_CLUSTER_NAME`: The name of the Sidecar cluster. Restricts membership
    to hosts with the same cluster name.
- * `SIDECAR_ADVERTISE_IP`: Manually override the IP address Sidecar uers for
+ * `SIDECAR_BIND_PORT`: Manually override the Memberlist bind port **7946**
+ * `SIDECAR_ADVERTISE_IP`: Manually override the IP address Sidecar uses for
    cluster membership.
  * `SIDECAR_EXCLUDE_IPS`: csv array of IPs to exclude from interface selection
    **`[ 192.168.168.168 ]`**
@@ -230,9 +231,10 @@ Defaults are in bold at the end of the line:
 
 ### Ports
 
-Sidecar requires both TCP and UDP protocols be open on port 7946 through any
-network filters or firewalls between it and any peers in the cluster. These are
-the ports the gossip protocol runs on.
+Sidecar requires both TCP and UDP protocols be open on the port configured
+via SIDECAR_BIND_PORT (default 7946) through any network filters or firewalls
+between it and any peers in the cluster. This is the port that the gossip
+protocol (Memberlist) runs on.
 
 ## Discovery
 

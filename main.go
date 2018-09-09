@@ -246,10 +246,12 @@ func configureMemberlist(config *Config, state *catalog.ServicesState) *memberli
 	// Make sure we pass on the cluster name to Memberlist
 	mlConfig.ClusterName = config.Sidecar.ClusterName
 
-	// Figure out our IP address from the CLI or by inspecting
+	// Figure out our IP address from the CLI or by inspecting the network interfaces
 	publishedIP, err := getPublishedIP(config.Sidecar.ExcludeIPs, config.Sidecar.AdvertiseIP)
 	exitWithError(err, "Failed to find private IP address")
+	mlConfig.BindPort = config.Sidecar.BindPort
 	mlConfig.AdvertiseAddr = publishedIP
+	mlConfig.AdvertisePort = config.Sidecar.BindPort
 
 	return mlConfig
 }
