@@ -275,7 +275,7 @@ how to handle a service it has discovered. It uses these to:
  3. How to health check the service. `HealthCheck` and `HealthCheckArgs`
  4. Whether or not the service is a receiver of Sidecar change events. `SidecarListener`
  5. Wether or not Sidecar should entirely ignore this service. `SidecarDiscovery`
- 6. HAproxy proxy behavior. `ProxyMode` . Not supported by Envoy currently.
+ 6. HAproxy proxy behavior. `ProxyMode`
 
 **Service Ports**
 Services may be started with one or more `ServicePort_xxx` labels that help
