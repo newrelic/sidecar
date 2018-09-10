@@ -302,11 +302,11 @@ you would use the following labels:
 	HealthCheckArgs=http://:9090/status
 ```
 
-The currently available check types are `HttpGet` and `External`. `External`
-checks will run the command specified in the `HealthCheckArgs` label (in the
-context of a bash shell). An exit status of 0 is considered healthy and
-anything else is unhealthy. Nagios checks work very well with this mode of
-health checking.
+The currently available check types are `HttpGet`, `External` and
+`AlwaysSuccessful`. `External` checks will run the command specified in
+the `HealthCheckArgs` label (in the context of a bash shell). An exit
+status of 0 is considered healthy and anything else is unhealthy. Nagios
+checks work very well with this mode of health checking.
 
 **Excluding From Discovery**
 Additionally, it can sometimes be nice to exclude certain containers from
