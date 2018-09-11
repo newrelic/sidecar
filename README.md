@@ -472,11 +472,14 @@ address, you can start the envoy container with your platform's equivalent
 of the following Docker command:
 
 ```bash
-docker run -i -t --net host --cap-add NET_ADMIN gonitro/envoyproxy:latest
+docker run -i -t --net host --cap-add NET_ADMIN gonitro/envoyproxy:1.7.0-27960f3
 ```
 
 **Note:** This assumes host networking mode so that Envoy can freely open
-and close listeners.
+and close listeners. Beware that the docker (Linux) bridge network is not
+reachable on OSX hosts, due to the way containers are run under HyperKit,
+so we suggest trying this on Linux instead.
+
 
 Contributing
 ------------
