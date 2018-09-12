@@ -42,6 +42,7 @@ type SidecarConfig struct {
 	Seeds                []string      `envconfig:"SEEDS"`
 	ClusterName          string        `envconfig:"CLUSTER_NAME" default:"default"`
 	AdvertiseIP          string        `envconfig:"ADVERTISE_IP"`
+	BindPort             int           `envconfig:"BIND_PORT" default:"7946"`
 }
 
 type DockerConfig struct {
