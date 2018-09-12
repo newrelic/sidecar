@@ -7,8 +7,8 @@ import (
 
 	"github.com/Nitro/sidecar/discovery"
 	"github.com/Nitro/sidecar/service"
-	log "github.com/sirupsen/logrus"
 	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -88,10 +88,7 @@ func (m *Monitor) fetchCheckForService(svc *service.Service, disco discovery.Dis
 	check := &Check{}
 	check.Type, check.Args = disco.HealthCheck(svc)
 	if check.Type == "" {
-		log.Warnf(
-			"Adding check for service %s (id: %s) failed. Got check type: %s, check args: %s.",
-			svc.Name, svc.ID, check.Type, check.Args,
-		)
+		log.Warnf("Got empty check type for service %s (id: %s) with args: %s!", svc.Name, svc.ID, check.Args)
 		return nil
 	}
 
