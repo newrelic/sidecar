@@ -474,7 +474,7 @@ address, you can start the envoy container with your platform's equivalent
 of the following Docker command:
 
 ```bash
-docker run -i -t --net host --cap-add NET_ADMIN gonitro/envoyproxy:1.7.0-27960f3
+docker run -i -t --net host --cap-add NET_ADMIN gonitro/envoyproxy:latest
 ```
 
 **Note:** This assumes host networking mode so that Envoy can freely open
