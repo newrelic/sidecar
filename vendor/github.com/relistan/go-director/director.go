@@ -28,11 +28,6 @@ type Looper interface {
 // If you pass in a DoneChan at creation time, it will send a nil on the
 // channel when the loop has completed successfully or an error if the loop
 // resulted in an error condition.
-//
-// If you pass in a quitChan it can be used to tell the loop to exit on completion
-// of the next iteration.  Using both Done and Quit channels allows full external
-// control of the loop.
-
 type TimedLooper struct {
 	Count     int
 	Interval  time.Duration
@@ -41,8 +36,6 @@ type TimedLooper struct {
 	Immediate bool
 }
 
-// Same as a TimedLooper, except it will execute an iteration of the loop
-// immediately after calling on Loop() (as opposed to waiting until the tick)
 func NewTimedLooper(count int, interval time.Duration, done chan error) *TimedLooper {
 	return &TimedLooper{
 		Count:     count,
@@ -53,6 +46,8 @@ func NewTimedLooper(count int, interval time.Duration, done chan error) *TimedLo
 	}
 }
 
+// Same as a TimedLooper, except it will execute an iteration of the loop
+// immediately after calling on Loop() (as opposed to waiting until the tick)
 func NewImmediateTimedLooper(count int, interval time.Duration, done chan error) *TimedLooper {
 	return &TimedLooper{
 		Count:     count,
@@ -82,7 +77,6 @@ func (l *TimedLooper) Loop(fn func() error) {
 	i := 0
 
 	var stop bool
-
 	stopFunc := func(err error) {
 		l.Done(err)
 		stop = true
@@ -104,13 +98,6 @@ func (l *TimedLooper) Loop(fn func() error) {
 				return
 			}
 		}
-
-		select {
-		case <-l.quitChan:
-			stopFunc(nil)
-			return
-		default:
-		}
 	}
 
 	// Immediatelly run our function if we've been instantiated via
@@ -119,13 +106,23 @@ func (l *TimedLooper) Loop(fn func() error) {
 		runIteration()
 	}
 
-	ticks := time.Tick(l.Interval)
-	for range ticks {
+	ticker := time.NewTicker(l.Interval)
+	defer ticker.Stop()
+	for {
+		// The execution loop needs to be able to stop automatically
+		// after l.Count iterations. It does so when runIteration
+		// invokes stopFunc, which sets `stop` to false.
 		if stop {
 			break
 		}
 
-		runIteration()
+		select {
+		case <-ticker.C:
+			runIteration()
+		case <-l.quitChan:
+			stopFunc(nil)
+			break
+		}
 	}
 }
 

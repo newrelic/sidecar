@@ -40,7 +40,7 @@ func Test_TimedLooper(t *testing.T) {
 			count := 0
 			looper.Count = 5
 			go looper.Loop(func() error { count++; return nil })
-			looper.Wait()
+			So(looper.Wait(), ShouldBeNil)
 
 			So(count, ShouldEqual, 5)
 		})
@@ -59,7 +59,10 @@ func Test_TimedLooper(t *testing.T) {
 			looper.Quit()
 
 			So(looper.Wait(), ShouldBeNil)
-			So(count, ShouldBeLessThan, 2)
+
+			previousCount := count
+			time.Sleep(1 * time.Millisecond)
+			So(count, ShouldEqual, previousCount)
 		})
 	})
 }
@@ -96,7 +99,7 @@ func Test_FreeLooper(t *testing.T) {
 		Convey("The loop executes the function", func() {
 			run := false
 			go looper.Loop(func() error { run = true; return nil })
-			looper.Wait()
+			So(looper.Wait(), ShouldBeNil)
 
 			So(run, ShouldBeTrue)
 		})
@@ -105,7 +108,7 @@ func Test_FreeLooper(t *testing.T) {
 			count := 0
 			looper.Count = 5
 			go looper.Loop(func() error { count++; return nil })
-			looper.Wait()
+			So(looper.Wait(), ShouldBeNil)
 
 			So(count, ShouldEqual, 5)
 		})
@@ -124,7 +127,10 @@ func Test_FreeLooper(t *testing.T) {
 			looper.Quit()
 
 			So(looper.Wait(), ShouldBeNil)
-			So(count, ShouldBeLessThan, 2)
+
+			previousCount := count
+			time.Sleep(1 * time.Millisecond)
+			So(count, ShouldEqual, previousCount)
 		})
 	})
 }
@@ -144,7 +150,10 @@ func ExampleTimedLooper() {
 	}
 
 	go runner(looper)
-	looper.Wait()
+	err := looper.Wait()
+	if err != nil {
+		fmt.Printf("I got an error: %s\n", err.Error())
+	}
 
 	// Output:
 	// 0
@@ -170,8 +179,13 @@ func ExampleTimedLooper_Quit() {
 	}
 
 	go runner(looper)
+	// Wait for one run to complete
+	time.Sleep(90 * time.Millisecond)
 	looper.Quit()
-	looper.Wait()
+	err := looper.Wait()
+	if err != nil {
+		fmt.Printf("I got an error: %s\n", err.Error())
+	}
 
 	// Output:
 	// 0
