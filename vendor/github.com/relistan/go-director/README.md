@@ -1,4 +1,5 @@
 [![godoc here](https://img.shields.io/badge/godoc-here-blue.svg)](http://godoc.org/github.com/relistan/go-director)
+[![Build Status](https://travis-ci.org/relistan/go-director.svg?branch=master)](https://travis-ci.org/relistan/go-director)
 
 Director
 ========
@@ -32,15 +33,26 @@ if err != nil {
 }
 ```
 
-Details and Motivation
-----------------------
+The Problem This Solves
+-----------------------
+
+Testing functions that are meant to run in background goroutines can be tricky.
+You might have to wait for a period of time to let it run on a timed loop. You
+might have to trigger the function from inside the test rather than from where
+it would naturally run. Then there is the problem of stopping it between tests
+if you need to reset state. Or knowing that it completed. These are all
+solvable. Depending on your scenario it might not even be complex. But wouldn't
+it be nice if you could rely on doing this the same way everywhere? That's
+what this library attempts to do.
+
+Example Usage
+-------------
+
 The core interface for the package is the `Looper`. Two `Looper`
 implementations are currently included, a `TimedLooper` whichs runs the loop on
 a specified interval, and a `FreeLooper` which runs the loop as quickly as
-possible.
-
-This is really a convenience package to prevent writing boilerplate over and
-over, and to make it easy to test your code.
+possible. You get some nice fucntions to control how they behave. Let's take a
+look at how you might use it.
 
 The `Looper` interface looks like this:
 
