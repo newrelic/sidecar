@@ -63,7 +63,12 @@ func (s *SidecarApi) watchHandler(response http.ResponseWriter, req *http.Reques
 	// Let's subscribe to state change events
 	// AddListener and RemoveListener are thread safe
 	s.state.AddListener(listener)
-	defer s.state.RemoveListener(listener.Name())
+	defer func() {
+		err := s.state.RemoveListener(listener.Name())
+		if err != nil {
+			log.Warnf("Failed to remove HTTP listener: %s", err)
+		}
+	}()
 
 	byService := true
 	if req.URL.Query().Get("by_service") == "false" {

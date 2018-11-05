@@ -286,7 +286,10 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 		}
 	}
 
-	state.RemoveListener(h.Name())
+	err := state.RemoveListener(h.Name())
+	if err != nil {
+		log.Warnf("Failed to remove HAProxy listener: %s", err)
+	}
 }
 
 // Write out the the HAproxy config and reload the service.

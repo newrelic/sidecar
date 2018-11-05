@@ -486,13 +486,14 @@ func Test_Listeners(t *testing.T) {
 			So(len(state.listeners), ShouldEqual, 1)
 
 			err := state.RemoveListener("listener1")
-			So(len(state.listeners), ShouldEqual, 0)
 			So(err, ShouldBeNil)
+			So(len(state.listeners), ShouldEqual, 0)
 		})
 
-		Convey("Removing a listener that doesn't exist returns an error", func() {
-			err := state.RemoveListener("foo")
+		Convey("Removing non-existent listeners returns an error", func() {
+			err := state.RemoveListener("dummyListener")
 			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "no listener found with the name")
 		})
 
 		Convey("A major state change event notifies all listeners", func() {

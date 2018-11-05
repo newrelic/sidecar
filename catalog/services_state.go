@@ -255,13 +255,14 @@ func (state *ServicesState) RemoveListener(name string) error {
 	state.Lock()
 	defer state.Unlock()
 
-	if _, ok := state.listeners[name]; ok {
-		delete(state.listeners, name)
-		log.Debugf("RemoveListener(): removed %s, new count %d", name, len(state.listeners))
-		return nil
+	if _, ok := state.listeners[name]; !ok {
+		return fmt.Errorf("no listener found with the name %q", name)
 	}
 
-	return fmt.Errorf("No listener found with the name: %s", name)
+	delete(state.listeners, name)
+	log.Debugf("RemoveListener(): removed %s, new count %d", name, len(state.listeners))
+
+	return nil
 }
 
 // GetListeners returns a slice containing all the current listeners
@@ -442,7 +443,10 @@ func (state *ServicesState) TrackLocalListeners(fn func() []Listener, looper dir
 					log.Infof("Stopping UrlListener %s", listener.Name())
 					urlListener.Stop()
 				}
-				state.RemoveListener(listener.Name())
+				err := state.RemoveListener(listener.Name())
+				if err != nil {
+					log.Warnf("Failed to remove listener %q: %s", listener.Name(), err)
+				}
 			}
 		}
 
