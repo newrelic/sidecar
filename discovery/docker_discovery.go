@@ -278,29 +278,37 @@ func (d *DockerDiscovery) getContainers() {
 	d.containerCache.Prune(containerMap)
 }
 
-func (d *DockerDiscovery) manageConnection(quit chan bool) {
+func (d *DockerDiscovery) configureDockerConnection() DockerClient {
 	client, err := d.ClientProvider()
 	if err != nil {
-		log.Errorf("Error when creating Docker client: %s\n", err.Error())
-		return
+		log.Errorf("Error creating Docker client: %s", err)
+		return nil
 	}
-	client.AddEventListener(d.events)
+
+	err = client.AddEventListener(d.events)
+	if err != nil {
+		log.Errorf("Error adding Docker client event listener: %s", err)
+		return nil
+	}
+
+	return client
+}
+
+func (d *DockerDiscovery) manageConnection(quit chan bool) {
+	client := d.configureDockerConnection()
 
 	// Health check the connection and set it back up when it goes away.
 	for {
-
-		err := client.Ping()
-		if err != nil {
+		// Is the client connected?
+		if client == nil || client.Ping() != nil {
 			log.Warn("Lost connection to Docker, re-connecting")
-			client.RemoveEventListener(d.events)
+			if client != nil {
+				// Swallow errors since we're overwriting the client anyway
+				_ = client.RemoveEventListener(d.events)
+			}
 			d.events = make(chan *docker.APIEvents) // RemoveEventListener closes it
 
-			client, err = docker.NewClient(d.endpoint)
-			if err == nil {
-				client.AddEventListener(d.events)
-			} else {
-				log.Error("Can't reconnect to Docker!")
-			}
+			client = d.configureDockerConnection()
 		}
 
 		select {
@@ -309,6 +317,7 @@ func (d *DockerDiscovery) manageConnection(quit chan bool) {
 		default:
 		}
 
+		// Sleep a bit before attempting to reconnect
 		time.Sleep(SLEEP_INTERVAL)
 	}
 }
