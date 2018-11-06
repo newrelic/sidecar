@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
@@ -73,10 +74,13 @@ func Test_Services(t *testing.T) {
 		})
 
 		Convey("Updates the current timestamp each time", func() {
-			services := disco.Services()
-			services2 := disco.Services()
+			s := disco.Services()
+			firstUpdate := s[0].Updated
+			time.Sleep(1 * time.Millisecond)
+			s = disco.Services()
+			secondUpdate := s[0].Updated
 
-			So(services[0].Updated.Before(services2[0].Updated), ShouldBeTrue)
+			So(firstUpdate.Before(secondUpdate), ShouldBeTrue)
 		})
 	})
 }
@@ -93,11 +97,11 @@ func Test_Listeners(t *testing.T) {
 
 		Convey("Returns all listeners extracted from Targets", func() {
 			tgt1 := &Target{
-				Service: service.Service{Name: "beowulf", ID: "asdf"},
+				Service:    service.Service{Name: "beowulf", ID: "asdf"},
 				ListenPort: 10000,
 			}
 			tgt2 := &Target{
-				Service: service.Service{Name: "hrothgar", ID: "abba"},
+				Service:    service.Service{Name: "hrothgar", ID: "abba"},
 				ListenPort: 11000,
 			}
 			disco.Targets = []*Target{tgt1, tgt2}
@@ -105,12 +109,12 @@ func Test_Listeners(t *testing.T) {
 			listeners := disco.Listeners()
 
 			expected0 := ChangeListener{
-				Name:"Service(beowulf-asdf)",
-				Url:"http://" + disco.Hostname + ":10000/sidecar/update",
+				Name: "Service(beowulf-asdf)",
+				Url:  "http://" + disco.Hostname + ":10000/sidecar/update",
 			}
 			expected1 := ChangeListener{
-				Name:"Service(hrothgar-abba)",
-				Url:"http://" + disco.Hostname + ":11000/sidecar/update",
+				Name: "Service(hrothgar-abba)",
+				Url:  "http://" + disco.Hostname + ":11000/sidecar/update",
 			}
 
 			So(len(listeners), ShouldEqual, 2)
