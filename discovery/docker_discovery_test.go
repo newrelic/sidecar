@@ -15,6 +15,8 @@ var hostname = "shakespeare"
 // Define a stubDockerClient that we can use to test the discovery
 type stubDockerClient struct {
 	ErrorOnInspectContainer bool
+	ErrorOnPing             bool
+	PingChan                chan struct{}
 }
 
 func (s *stubDockerClient) InspectContainer(id string) (*docker.Container, error) {
@@ -57,7 +59,24 @@ func (s *stubDockerClient) RemoveEventListener(listener chan *docker.APIEvents) 
 	return nil
 }
 
-func (s *stubDockerClient) Ping() error { return nil }
+func (s *stubDockerClient) Ping() error {
+	if s.ErrorOnPing {
+		return errors.New("dummy errror")
+	}
+
+	s.PingChan <- struct{}{}
+
+	return nil
+}
+
+type dummyLooper struct{}
+
+// Loop will block for enough time to prevent the event loop in DockerDiscovery.Run()
+// from closing connQuitChan before the tests finish running
+func (*dummyLooper) Loop(fn func() error) { time.Sleep(1 * time.Second) }
+func (*dummyLooper) Wait() error          { return nil }
+func (*dummyLooper) Done(error)           {}
+func (*dummyLooper) Quit()                {}
 
 func Test_DockerDiscovery(t *testing.T) {
 
@@ -75,10 +94,12 @@ func Test_DockerDiscovery(t *testing.T) {
 		service2 := service.Service{ID: svcId2, Hostname: hostname, Updated: baseTime}
 		services := []*service.Service{&service1, &service2}
 
+		client := stubDockerClient{
+			ErrorOnInspectContainer: false,
+		}
+
 		stubClientProvider := func() (DockerClient, error) {
-			return &stubDockerClient{
-				ErrorOnInspectContainer: false,
-			}, nil
+			return &client, nil
 		}
 
 		svcNamer := &RegexpNamer{ServiceNameMatch: "^/(.+)(-[0-9a-z]{7,14})$"}
@@ -195,6 +216,49 @@ func Test_DockerDiscovery(t *testing.T) {
 
 				container := disco.containerCache.Get(svcId2) // Should be missing
 				So(container, ShouldBeNil)
+			})
+		})
+
+		Convey("Run()", func() {
+			disco.sleepInterval = 1 * time.Millisecond
+
+			Convey("pings Docker", func() {
+				disco.Run(&dummyLooper{})
+
+				// Check a few times that it tries to ping Docker
+				for i := 0; i < 3; i++ {
+					pinged := false
+					select {
+					case <-client.PingChan:
+						pinged = true
+					case <-time.After(10 * time.Millisecond):
+					}
+
+					So(pinged, ShouldBeFalse)
+				}
+			})
+
+			Convey("reconnects if the connection is dropped", func() {
+				connectEvent := make(chan struct{})
+				disco.ClientProvider = func() (DockerClient, error) {
+					connectEvent <- struct{}{}
+					return stubClientProvider()
+				}
+
+				client.ErrorOnPing = true
+				disco.Run(&dummyLooper{})
+
+				// Check a few times that it tries to reconnect to Docker
+				for i := 0; i < 3; i++ {
+					triedToConnect := false
+					select {
+					case <-connectEvent:
+						triedToConnect = true
+					case <-time.After(10 * time.Millisecond):
+					}
+
+					So(triedToConnect, ShouldBeTrue)
+				}
 			})
 		})
 	})

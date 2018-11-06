@@ -33,6 +33,7 @@ type DockerDiscovery struct {
 	serviceNamer   ServiceNamer                 // The service namer implementation
 	advertiseIp    string                       // The address we'll advertise for services
 	containerCache *ContainerCache              // Stores full container data for fast lookups
+	sleepInterval  time.Duration                // The sleep interval for event processing and reconnection
 	sync.RWMutex                                // Reader/Writer lock
 }
 
@@ -43,6 +44,7 @@ func NewDockerDiscovery(endpoint string, svcNamer ServiceNamer, ip string) *Dock
 		containerCache: NewContainerCache(),
 		serviceNamer:   svcNamer,
 		advertiseIp:    ip,
+		sleepInterval:  SLEEP_INTERVAL,
 	}
 
 	// Default to our own method for returning this
@@ -124,7 +126,7 @@ func (d *DockerDiscovery) Run(looper director.Looper) {
 				}
 				log.Debugf("Event: %#v\n", event)
 				d.handleEvent(*event)
-			case <-time.After(SLEEP_INTERVAL):
+			case <-time.After(d.sleepInterval):
 				d.getContainers()
 			case <-time.After(CacheDrainInterval):
 				d.containerCache.Drain(len(d.services))
@@ -318,7 +320,7 @@ func (d *DockerDiscovery) manageConnection(quit chan bool) {
 		}
 
 		// Sleep a bit before attempting to reconnect
-		time.Sleep(SLEEP_INTERVAL)
+		time.Sleep(d.sleepInterval)
 	}
 }
 
