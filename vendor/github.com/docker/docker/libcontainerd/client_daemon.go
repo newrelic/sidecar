@@ -1,6 +1,6 @@
 // +build !windows
 
-package libcontainerd
+package libcontainerd // import "github.com/docker/docker/libcontainerd"
 
 import (
 	"context"
@@ -16,23 +16,25 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/containerd/containerd"
-	eventsapi "github.com/containerd/containerd/api/services/events/v1"
+	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/archive"
+	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
+	containerderrors "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/linux/runcopts"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/typeurl"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // InitProcessName is the name given to the first process of a
@@ -40,7 +42,7 @@ import (
 const InitProcessName = "init"
 
 type container struct {
-	sync.Mutex
+	mu sync.Mutex
 
 	bundleDir string
 	ctr       containerd.Container
@@ -49,72 +51,154 @@ type container struct {
 	oomKilled bool
 }
 
+func (c *container) setTask(t containerd.Task) {
+	c.mu.Lock()
+	c.task = t
+	c.mu.Unlock()
+}
+
+func (c *container) getTask() containerd.Task {
+	c.mu.Lock()
+	t := c.task
+	c.mu.Unlock()
+	return t
+}
+
+func (c *container) addProcess(id string, p containerd.Process) {
+	c.mu.Lock()
+	if c.execs == nil {
+		c.execs = make(map[string]containerd.Process)
+	}
+	c.execs[id] = p
+	c.mu.Unlock()
+}
+
+func (c *container) deleteProcess(id string) {
+	c.mu.Lock()
+	delete(c.execs, id)
+	c.mu.Unlock()
+}
+
+func (c *container) getProcess(id string) containerd.Process {
+	c.mu.Lock()
+	p := c.execs[id]
+	c.mu.Unlock()
+	return p
+}
+
+func (c *container) setOOMKilled(killed bool) {
+	c.mu.Lock()
+	c.oomKilled = killed
+	c.mu.Unlock()
+}
+
+func (c *container) getOOMKilled() bool {
+	c.mu.Lock()
+	killed := c.oomKilled
+	c.mu.Unlock()
+	return killed
+}
+
 type client struct {
 	sync.RWMutex // protects containers map
 
-	remote   *containerd.Client
+	client   *containerd.Client
 	stateDir string
 	logger   *logrus.Entry
+	ns       string
 
-	namespace  string
 	backend    Backend
 	eventQ     queue
 	containers map[string]*container
 }
 
-func (c *client) Version(ctx context.Context) (containerd.Version, error) {
-	return c.remote.Version(ctx)
+// NewClient creates a new libcontainerd client from a containerd client
+func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b Backend) (Client, error) {
+	c := &client{
+		client:     cli,
+		stateDir:   stateDir,
+		logger:     logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
+		ns:         ns,
+		backend:    b,
+		containers: make(map[string]*container),
+	}
+
+	go c.processEventStream(ctx, ns)
+
+	return c, nil
 }
 
+func (c *client) Version(ctx context.Context) (containerd.Version, error) {
+	return c.client.Version(ctx)
+}
+
+// Restore loads the containerd container.
+// It should not be called concurrently with any other operation for the given ID.
 func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallback) (alive bool, pid int, err error) {
 	c.Lock()
-	defer c.Unlock()
+	_, ok := c.containers[id]
+	if ok {
+		c.Unlock()
+		return false, 0, errors.WithStack(newConflictError("id already in use"))
+	}
 
-	var cio containerd.IO
+	cntr := &container{}
+	c.containers[id] = cntr
+	cntr.mu.Lock()
+	defer cntr.mu.Unlock()
+
+	c.Unlock()
+
 	defer func() {
+		if err != nil {
+			c.Lock()
+			delete(c.containers, id)
+			c.Unlock()
+		}
+	}()
+
+	var dio *cio.DirectIO
+	defer func() {
+		if err != nil && dio != nil {
+			dio.Cancel()
+			dio.Close()
+		}
 		err = wrapError(err)
 	}()
 
-	ctr, err := c.remote.LoadContainer(ctx, id)
+	ctr, err := c.client.LoadContainer(ctx, id)
 	if err != nil {
-		return false, -1, errors.WithStack(err)
+		return false, -1, errors.WithStack(wrapError(err))
 	}
 
-	defer func() {
-		if err != nil && cio != nil {
-			cio.Cancel()
-			cio.Close()
-		}
-	}()
-
-	t, err := ctr.Task(ctx, func(fifos *containerd.FIFOSet) (containerd.IO, error) {
-		io, err := newIOPipe(fifos)
+	attachIO := func(fifos *cio.FIFOSet) (cio.IO, error) {
+		// dio must be assigned to the previously defined dio for the defer above
+		// to handle cleanup
+		dio, err = cio.NewDirectIO(ctx, fifos)
 		if err != nil {
 			return nil, err
 		}
-
-		cio, err = attachStdio(io)
-		return cio, err
-	})
-	if err != nil && !strings.Contains(err.Error(), "no running task found") {
-		return false, -1, err
+		return attachStdio(dio)
+	}
+	t, err := ctr.Task(ctx, attachIO)
+	if err != nil && !containerderrors.IsNotFound(err) {
+		return false, -1, errors.Wrap(wrapError(err), "error getting containerd task for container")
 	}
 
 	if t != nil {
 		s, err := t.Status(ctx)
 		if err != nil {
-			return false, -1, err
+			return false, -1, errors.Wrap(wrapError(err), "error getting task status")
 		}
 
 		alive = s.Status != containerd.Stopped
 		pid = int(t.Pid())
 	}
-	c.containers[id] = &container{
-		bundleDir: filepath.Join(c.stateDir, id),
-		ctr:       ctr,
-		task:      t,
-		// TODO(mlaventure): load execs
-	}
+
+	cntr.bundleDir = filepath.Join(c.stateDir, id)
+	cntr.ctr = ctr
+	cntr.task = t
+	// TODO(mlaventure): load execs
 
 	c.logger.WithFields(logrus.Fields{
 		"container": id,
@@ -132,17 +216,17 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 
 	bdir, err := prepareBundleDir(filepath.Join(c.stateDir, id), ociSpec)
 	if err != nil {
-		return wrapSystemError(errors.Wrap(err, "prepare bundle dir failed"))
+		return errdefs.System(errors.Wrap(err, "prepare bundle dir failed"))
 	}
 
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
-	cdCtr, err := c.remote.NewContainer(ctx, id,
+	cdCtr, err := c.client.NewContainer(ctx, id,
 		containerd.WithSpec(ociSpec),
 		// TODO(mlaventure): when containerd support lcow, revisit runtime value
 		containerd.WithRuntime(fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS), runtimeOptions))
 	if err != nil {
-		return err
+		return wrapError(err)
 	}
 
 	c.Lock()
@@ -158,17 +242,17 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 // Start create and start a task for the specified containerd id
 func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin bool, attachStdio StdioCallback) (int, error) {
 	ctr := c.getContainer(id)
-	switch {
-	case ctr == nil:
+	if ctr == nil {
 		return -1, errors.WithStack(newNotFoundError("no such container"))
-	case ctr.task != nil:
+	}
+	if t := ctr.getTask(); t != nil {
 		return -1, errors.WithStack(newConflictError("container already started"))
 	}
 
 	var (
 		cp             *types.Descriptor
 		t              containerd.Task
-		cio            containerd.IO
+		rio            cio.IO
 		err            error
 		stdinCloseSync = make(chan struct{})
 	)
@@ -180,7 +264,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 		// remove the checkpoint when we're done
 		defer func() {
 			if cp != nil {
-				err := c.remote.ContentStore().Delete(context.Background(), cp.Digest)
+				err := c.client.ContentStore().Delete(context.Background(), cp.Digest)
 				if err != nil {
 					c.logger.WithError(err).WithFields(logrus.Fields{
 						"ref":    checkpointDir,
@@ -203,31 +287,31 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	}
 	uid, gid := getSpecUser(spec)
 	t, err = ctr.ctr.NewTask(ctx,
-		func(id string) (containerd.IO, error) {
-			fifos := newFIFOSet(ctr.bundleDir, id, InitProcessName, withStdin, spec.Process.Terminal)
-			cio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio)
-			return cio, err
+		func(id string) (cio.IO, error) {
+			fifos := newFIFOSet(ctr.bundleDir, InitProcessName, withStdin, spec.Process.Terminal)
+
+			rio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio)
+			return rio, err
 		},
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
 			info.Checkpoint = cp
-			info.Options = &runcopts.CreateOptions{
-				IoUid: uint32(uid),
-				IoGid: uint32(gid),
+			info.Options = &runctypes.CreateOptions{
+				IoUid:       uint32(uid),
+				IoGid:       uint32(gid),
+				NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
 			}
 			return nil
 		})
 	if err != nil {
 		close(stdinCloseSync)
-		if cio != nil {
-			cio.Cancel()
-			cio.Close()
+		if rio != nil {
+			rio.Cancel()
+			rio.Close()
 		}
-		return -1, err
+		return -1, wrapError(err)
 	}
 
-	c.Lock()
-	c.containers[id].task = t
-	c.Unlock()
+	ctr.setTask(t)
 
 	// Signal c.createIO that it can call CloseIO
 	close(stdinCloseSync)
@@ -237,74 +321,72 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 			c.logger.WithError(err).WithField("container", id).
 				Error("failed to delete task after fail start")
 		}
-		c.Lock()
-		c.containers[id].task = nil
-		c.Unlock()
-		return -1, err
+		ctr.setTask(nil)
+		return -1, wrapError(err)
 	}
 
 	return int(t.Pid()), nil
 }
 
+// Exec creates exec process.
+//
+// The containerd client calls Exec to register the exec config in the shim side.
+// When the client calls Start, the shim will create stdin fifo if needs. But
+// for the container main process, the stdin fifo will be created in Create not
+// the Start call. stdinCloseSync channel should be closed after Start exec
+// process.
 func (c *client) Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio StdioCallback) (int, error) {
 	ctr := c.getContainer(containerID)
-	switch {
-	case ctr == nil:
+	if ctr == nil {
 		return -1, errors.WithStack(newNotFoundError("no such container"))
-	case ctr.task == nil:
+	}
+	t := ctr.getTask()
+	if t == nil {
 		return -1, errors.WithStack(newInvalidParameterError("container is not running"))
-	case ctr.execs != nil && ctr.execs[processID] != nil:
+	}
+
+	if p := ctr.getProcess(processID); p != nil {
 		return -1, errors.WithStack(newConflictError("id already in use"))
 	}
 
 	var (
 		p              containerd.Process
-		cio            containerd.IO
+		rio            cio.IO
 		err            error
 		stdinCloseSync = make(chan struct{})
 	)
 
-	fifos := newFIFOSet(ctr.bundleDir, containerID, processID, withStdin, spec.Terminal)
+	fifos := newFIFOSet(ctr.bundleDir, processID, withStdin, spec.Terminal)
 
 	defer func() {
 		if err != nil {
-			if cio != nil {
-				cio.Cancel()
-				cio.Close()
+			if rio != nil {
+				rio.Cancel()
+				rio.Close()
 			}
-			rmFIFOSet(fifos)
 		}
 	}()
 
-	p, err = ctr.task.Exec(ctx, processID, spec, func(id string) (containerd.IO, error) {
-		cio, err = c.createIO(fifos, containerID, processID, stdinCloseSync, attachStdio)
-		return cio, err
+	p, err = t.Exec(ctx, processID, spec, func(id string) (cio.IO, error) {
+		rio, err = c.createIO(fifos, containerID, processID, stdinCloseSync, attachStdio)
+		return rio, err
 	})
 	if err != nil {
 		close(stdinCloseSync)
-		if cio != nil {
-			cio.Cancel()
-			cio.Close()
-		}
-		return -1, err
+		return -1, wrapError(err)
 	}
 
-	ctr.Lock()
-	if ctr.execs == nil {
-		ctr.execs = make(map[string]containerd.Process)
-	}
-	ctr.execs[processID] = p
-	ctr.Unlock()
+	ctr.addProcess(processID, p)
 
 	// Signal c.createIO that it can call CloseIO
-	close(stdinCloseSync)
+	//
+	// the stdin of exec process will be created after p.Start in containerd
+	defer close(stdinCloseSync)
 
 	if err = p.Start(ctx); err != nil {
 		p.Delete(context.Background())
-		ctr.Lock()
-		delete(ctr.execs, processID)
-		ctr.Unlock()
-		return -1, err
+		ctr.deleteProcess(processID)
+		return -1, wrapError(err)
 	}
 
 	return int(p.Pid()), nil
@@ -315,7 +397,7 @@ func (c *client) SignalProcess(ctx context.Context, containerID, processID strin
 	if err != nil {
 		return err
 	}
-	return p.Kill(ctx, syscall.Signal(signal))
+	return wrapError(p.Kill(ctx, syscall.Signal(signal)))
 }
 
 func (c *client) ResizeTerminal(ctx context.Context, containerID, processID string, width, height int) error {
@@ -342,7 +424,7 @@ func (c *client) Pause(ctx context.Context, containerID string) error {
 		return err
 	}
 
-	return p.(containerd.Task).Pause(ctx)
+	return wrapError(p.(containerd.Task).Pause(ctx))
 }
 
 func (c *client) Resume(ctx context.Context, containerID string) error {
@@ -429,12 +511,9 @@ func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, ti
 		return 255, time.Now(), nil
 	}
 
-	c.Lock()
-	if ctr, ok := c.containers[containerID]; ok {
-		ctr.task = nil
+	if ctr := c.getContainer(containerID); ctr != nil {
+		ctr.setTask(nil)
 	}
-	c.Unlock()
-
 	return status.ExitCode(), status.ExitTime(), nil
 }
 
@@ -445,7 +524,7 @@ func (c *client) Delete(ctx context.Context, containerID string) error {
 	}
 
 	if err := ctr.ctr.Delete(ctx); err != nil {
-		return err
+		return wrapError(err)
 	}
 
 	if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
@@ -468,9 +547,14 @@ func (c *client) Status(ctx context.Context, containerID string) (Status, error)
 		return StatusUnknown, errors.WithStack(newNotFoundError("no such container"))
 	}
 
-	s, err := ctr.task.Status(ctx)
+	t := ctr.getTask()
+	if t == nil {
+		return StatusUnknown, errors.WithStack(newNotFoundError("no such task"))
+	}
+
+	s, err := t.Status(ctx)
 	if err != nil {
-		return StatusUnknown, err
+		return StatusUnknown, wrapError(err)
 	}
 
 	return Status(s.Status), nil
@@ -482,26 +566,40 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		return err
 	}
 
-	img, err := p.(containerd.Task).Checkpoint(ctx)
+	opts := []containerd.CheckpointTaskOpts{}
+	if exit {
+		opts = append(opts, func(r *containerd.CheckpointTaskInfo) error {
+			if r.Options == nil {
+				r.Options = &runctypes.CheckpointOptions{
+					Exit: true,
+				}
+			} else {
+				opts, _ := r.Options.(*runctypes.CheckpointOptions)
+				opts.Exit = true
+			}
+			return nil
+		})
+	}
+	img, err := p.(containerd.Task).Checkpoint(ctx, opts...)
 	if err != nil {
-		return err
+		return wrapError(err)
 	}
 	// Whatever happens, delete the checkpoint from containerd
 	defer func() {
-		err := c.remote.ImageService().Delete(context.Background(), img.Name())
+		err := c.client.ImageService().Delete(context.Background(), img.Name())
 		if err != nil {
 			c.logger.WithError(err).WithField("digest", img.Target().Digest).
 				Warnf("failed to delete checkpoint image")
 		}
 	}()
 
-	b, err := content.ReadBlob(ctx, c.remote.ContentStore(), img.Target().Digest)
+	b, err := content.ReadBlob(ctx, c.client.ContentStore(), img.Target())
 	if err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to retrieve checkpoint data"))
+		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
 	var index v1.Index
 	if err := json.Unmarshal(b, &index); err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to decode checkpoint data"))
+		return errdefs.System(errors.Wrapf(err, "failed to decode checkpoint data"))
 	}
 
 	var cpDesc *v1.Descriptor
@@ -512,17 +610,17 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		}
 	}
 	if cpDesc == nil {
-		return wrapSystemError(errors.Wrapf(err, "invalid checkpoint"))
+		return errdefs.System(errors.Wrapf(err, "invalid checkpoint"))
 	}
 
-	rat, err := c.remote.ContentStore().ReaderAt(ctx, cpDesc.Digest)
+	rat, err := c.client.ContentStore().ReaderAt(ctx, *cpDesc)
 	if err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to get checkpoint reader"))
+		return errdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
 	}
 	defer rat.Close()
 	_, err = archive.Apply(ctx, checkpointDir, content.NewReader(rat))
 	if err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to read checkpoint reader"))
+		return errdefs.System(errors.Wrapf(err, "failed to read checkpoint reader"))
 	}
 
 	return err
@@ -544,33 +642,34 @@ func (c *client) removeContainer(id string) {
 
 func (c *client) getProcess(containerID, processID string) (containerd.Process, error) {
 	ctr := c.getContainer(containerID)
-	switch {
-	case ctr == nil:
+	if ctr == nil {
 		return nil, errors.WithStack(newNotFoundError("no such container"))
-	case ctr.task == nil:
-		return nil, errors.WithStack(newNotFoundError("container is not running"))
-	case processID == InitProcessName:
-		return ctr.task, nil
-	default:
-		ctr.Lock()
-		defer ctr.Unlock()
-		if ctr.execs == nil {
-			return nil, errors.WithStack(newNotFoundError("no execs"))
-		}
 	}
 
-	p := ctr.execs[processID]
+	t := ctr.getTask()
+	if t == nil {
+		return nil, errors.WithStack(newNotFoundError("container is not running"))
+	}
+	if processID == InitProcessName {
+		return t, nil
+	}
+
+	p := ctr.getProcess(processID)
 	if p == nil {
 		return nil, errors.WithStack(newNotFoundError("no such exec"))
 	}
-
 	return p, nil
 }
 
 // createIO creates the io to be used by a process
 // This needs to get a pointer to interface as upon closure the process may not have yet been registered
-func (c *client) createIO(fifos *containerd.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback) (containerd.IO, error) {
-	io, err := newIOPipe(fifos)
+func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback) (cio.IO, error) {
+	var (
+		io  *cio.DirectIO
+		err error
+	)
+
+	io, err = cio.NewDirectIO(context.Background(), fifos)
 	if err != nil {
 		return nil, err
 	}
@@ -601,12 +700,12 @@ func (c *client) createIO(fifos *containerd.FIFOSet, containerID, processID stri
 		})
 	}
 
-	cio, err := attachStdio(io)
+	rio, err := attachStdio(io)
 	if err != nil {
 		io.Cancel()
 		io.Close()
 	}
-	return cio, err
+	return rio, err
 }
 
 func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
@@ -621,12 +720,7 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 		}
 
 		if et == EventExit && ei.ProcessID != ei.ContainerID {
-			var p containerd.Process
-			ctr.Lock()
-			if ctr.execs != nil {
-				p = ctr.execs[ei.ProcessID]
-			}
-			ctr.Unlock()
+			p := ctr.getProcess(ei.ProcessID)
 			if p == nil {
 				c.logger.WithError(errors.New("no such process")).
 					WithFields(logrus.Fields{
@@ -642,153 +736,144 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 					"process":   ei.ProcessID,
 				}).Warn("failed to delete process")
 			}
-			c.Lock()
-			delete(ctr.execs, ei.ProcessID)
-			c.Unlock()
+			ctr.deleteProcess(ei.ProcessID)
+
 			ctr := c.getContainer(ei.ContainerID)
 			if ctr == nil {
 				c.logger.WithFields(logrus.Fields{
 					"container": ei.ContainerID,
 				}).Error("failed to find container")
 			} else {
-				rmFIFOSet(newFIFOSet(ctr.bundleDir, ei.ContainerID, ei.ProcessID, true, false))
+				newFIFOSet(ctr.bundleDir, ei.ProcessID, true, false).Close()
 			}
 		}
 	})
 }
 
-func (c *client) processEventStream(ctx context.Context) {
+func (c *client) processEventStream(ctx context.Context, ns string) {
 	var (
-		err         error
-		eventStream eventsapi.Events_SubscribeClient
-		ev          *eventsapi.Envelope
-		et          EventType
-		ei          EventInfo
-		ctr         *container
+		err error
+		ev  *events.Envelope
+		et  EventType
+		ei  EventInfo
+		ctr *container
 	)
-	defer func() {
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				c.logger.WithError(ctx.Err()).
-					Info("stopping event stream following graceful shutdown")
-			default:
-				go c.processEventStream(ctx)
-			}
-		}
-	}()
 
-	eventStream, err = c.remote.EventService().Subscribe(ctx, &eventsapi.SubscribeRequest{
-		Filters: []string{"namespace==" + c.namespace + ",topic~=/tasks/.+"},
-	}, grpc.FailFast(false))
-	if err != nil {
-		return
-	}
+	// Filter on both namespace *and* topic. To create an "and" filter,
+	// this must be a single, comma-separated string
+	eventStream, errC := c.client.EventService().Subscribe(ctx, "namespace=="+ns+",topic~=|^/tasks/|")
+
+	c.logger.Debug("processing event stream")
 
 	var oomKilled bool
 	for {
-		ev, err = eventStream.Recv()
-		if err != nil {
-			errStatus, ok := status.FromError(err)
-			if !ok || errStatus.Code() != codes.Canceled {
-				c.logger.WithError(err).Error("failed to get event")
+		select {
+		case err = <-errC:
+			if err != nil {
+				errStatus, ok := status.FromError(err)
+				if !ok || errStatus.Code() != codes.Canceled {
+					c.logger.WithError(err).Error("failed to get event")
+					go c.processEventStream(ctx, ns)
+				} else {
+					c.logger.WithError(ctx.Err()).Info("stopping event stream following graceful shutdown")
+				}
 			}
 			return
+		case ev = <-eventStream:
+			if ev.Event == nil {
+				c.logger.WithField("event", ev).Warn("invalid event")
+				continue
+			}
+
+			v, err := typeurl.UnmarshalAny(ev.Event)
+			if err != nil {
+				c.logger.WithError(err).WithField("event", ev).Warn("failed to unmarshal event")
+				continue
+			}
+
+			c.logger.WithField("topic", ev.Topic).Debug("event")
+
+			switch t := v.(type) {
+			case *apievents.TaskCreate:
+				et = EventCreate
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ContainerID,
+					Pid:         t.Pid,
+				}
+			case *apievents.TaskStart:
+				et = EventStart
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ContainerID,
+					Pid:         t.Pid,
+				}
+			case *apievents.TaskExit:
+				et = EventExit
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ID,
+					Pid:         t.Pid,
+					ExitCode:    t.ExitStatus,
+					ExitedAt:    t.ExitedAt,
+				}
+			case *apievents.TaskOOM:
+				et = EventOOM
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					OOMKilled:   true,
+				}
+				oomKilled = true
+			case *apievents.TaskExecAdded:
+				et = EventExecAdded
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ExecID,
+				}
+			case *apievents.TaskExecStarted:
+				et = EventExecStarted
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ExecID,
+					Pid:         t.Pid,
+				}
+			case *apievents.TaskPaused:
+				et = EventPaused
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+				}
+			case *apievents.TaskResumed:
+				et = EventResumed
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+				}
+			default:
+				c.logger.WithFields(logrus.Fields{
+					"topic": ev.Topic,
+					"type":  reflect.TypeOf(t)},
+				).Info("ignoring event")
+				continue
+			}
+
+			ctr = c.getContainer(ei.ContainerID)
+			if ctr == nil {
+				c.logger.WithField("container", ei.ContainerID).Warn("unknown container")
+				continue
+			}
+
+			if oomKilled {
+				ctr.setOOMKilled(true)
+				oomKilled = false
+			}
+			ei.OOMKilled = ctr.getOOMKilled()
+
+			c.processEvent(ctr, et, ei)
 		}
-
-		if ev.Event == nil {
-			c.logger.WithField("event", ev).Warn("invalid event")
-			continue
-		}
-
-		v, err := typeurl.UnmarshalAny(ev.Event)
-		if err != nil {
-			c.logger.WithError(err).WithField("event", ev).Warn("failed to unmarshal event")
-			continue
-		}
-
-		c.logger.WithField("topic", ev.Topic).Debug("event")
-
-		switch t := v.(type) {
-		case *eventsapi.TaskCreate:
-			et = EventCreate
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ContainerID,
-				Pid:         t.Pid,
-			}
-		case *eventsapi.TaskStart:
-			et = EventStart
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ContainerID,
-				Pid:         t.Pid,
-			}
-		case *eventsapi.TaskExit:
-			et = EventExit
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ID,
-				Pid:         t.Pid,
-				ExitCode:    t.ExitStatus,
-				ExitedAt:    t.ExitedAt,
-			}
-		case *eventsapi.TaskOOM:
-			et = EventOOM
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				OOMKilled:   true,
-			}
-			oomKilled = true
-		case *eventsapi.TaskExecAdded:
-			et = EventExecAdded
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ExecID,
-			}
-		case *eventsapi.TaskExecStarted:
-			et = EventExecStarted
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ExecID,
-				Pid:         t.Pid,
-			}
-		case *eventsapi.TaskPaused:
-			et = EventPaused
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-			}
-		case *eventsapi.TaskResumed:
-			et = EventResumed
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-			}
-		default:
-			c.logger.WithFields(logrus.Fields{
-				"topic": ev.Topic,
-				"type":  reflect.TypeOf(t)},
-			).Info("ignoring event")
-			continue
-		}
-
-		ctr = c.getContainer(ei.ContainerID)
-		if ctr == nil {
-			c.logger.WithField("container", ei.ContainerID).Warn("unknown container")
-			continue
-		}
-
-		if oomKilled {
-			ctr.oomKilled = true
-			oomKilled = false
-		}
-		ei.OOMKilled = ctr.oomKilled
-
-		c.processEvent(ctr, et, ei)
 	}
 }
 
 func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.Reader) (*types.Descriptor, error) {
-	writer, err := c.remote.ContentStore().Writer(ctx, ref, 0, "")
+	writer, err := c.client.ContentStore().Writer(ctx, content.WithRef(ref))
 	if err != nil {
 		return nil, err
 	}
@@ -811,12 +896,17 @@ func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.R
 }
 
 func wrapError(err error) error {
-	if err != nil {
-		msg := err.Error()
-		for _, s := range []string{"container does not exist", "not found", "no such container"} {
-			if strings.Contains(msg, s) {
-				return wrapNotFoundError(err)
-			}
+	switch {
+	case err == nil:
+		return nil
+	case containerderrors.IsNotFound(err):
+		return errdefs.NotFound(err)
+	}
+
+	msg := err.Error()
+	for _, s := range []string{"container does not exist", "not found", "no such container"} {
+		if strings.Contains(msg, s) {
+			return errdefs.NotFound(err)
 		}
 	}
 	return err

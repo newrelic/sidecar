@@ -1,25 +1,31 @@
-package image
+package image // import "github.com/docker/docker/integration/image"
 
 import (
 	"archive/tar"
 	"bytes"
 	"context"
 	"io"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration/util/request"
+	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/internal/testutil"
+	"gotest.tools/skip"
 )
 
 // Ensure we don't regress on CVE-2017-14992.
 func TestImportExtremelyLargeImageWorks(t *testing.T) {
+	skip.If(t, runtime.GOARCH == "arm64", "effective test will be time out")
+	skip.If(t, testEnv.OSType == "windows", "TODO enable on windows")
+
 	client := request.NewAPIClient(t)
 
 	// Construct an empty tar archive with about 8GB of junk padding at the
 	// end. This should not cause any crashes (the padding should be mostly
 	// ignored).
 	var tarBuffer bytes.Buffer
+
 	tw := tar.NewWriter(&tarBuffer)
 	if err := tw.Close(); err != nil {
 		t.Fatal(err)

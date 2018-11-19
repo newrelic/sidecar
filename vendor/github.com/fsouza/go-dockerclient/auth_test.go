@@ -43,7 +43,7 @@ func TestAuthConfigurationsFromFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 	authString := base64.StdEncoding.EncodeToString([]byte("user:pass"))
-	content := fmt.Sprintf("{\"auths\":{\"foo\": {\"auth\": \"%s\"}}}", authString)
+	content := fmt.Sprintf(`{"auths":{"foo": {"auth": "%s"}}}`, authString)
 	configFile := path.Join(tmpDir, "docker_config")
 	if err = ioutil.WriteFile(configFile, []byte(content), 0600); err != nil {
 		t.Errorf("Error writing auth config for TestAuthConfigurationsFromFile: %s", err)
@@ -96,6 +96,29 @@ func TestAuthBadConfig(t *testing.T) {
 	}
 }
 
+func TestAuthMixedWithKeyChain(t *testing.T) {
+	t.Parallel()
+	auth := base64.StdEncoding.EncodeToString([]byte("user:pass"))
+	read := strings.NewReader(fmt.Sprintf(`{"auths":{"docker.io":{},"localhost:5000":{"auth":"%s"}},"credsStore":"osxkeychain"}`, auth))
+	ac, err := NewAuthConfigurations(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, ok := ac.Configs["localhost:5000"]
+	if !ok {
+		t.Error("NewAuthConfigurations: Expected Configs to contain localhost:5000")
+	}
+	if got, want := c.Username, "user"; got != want {
+		t.Errorf(`AuthConfigurations.Configs["docker.io"].Username: wrong result. Want %q. Got %q`, want, got)
+	}
+	if got, want := c.Password, "pass"; got != want {
+		t.Errorf(`AuthConfigurations.Configs["docker.io"].Password: wrong result. Want %q. Got %q`, want, got)
+	}
+	if got, want := c.ServerAddress, "localhost:5000"; got != want {
+		t.Errorf(`AuthConfigurations.Configs["localhost:5000"].ServerAddress: wrong result. Want %q. Got %q`, want, got)
+	}
+}
+
 func TestAuthAndOtherFields(t *testing.T) {
 	t.Parallel()
 	auth := base64.StdEncoding.EncodeToString([]byte("user:pass"))
@@ -125,6 +148,7 @@ func TestAuthAndOtherFields(t *testing.T) {
 		t.Errorf(`AuthConfigurations.Configs["docker.io"].ServerAddress: wrong result. Want %q. Got %q`, want, got)
 	}
 }
+
 func TestAuthConfig(t *testing.T) {
 	t.Parallel()
 	auth := base64.StdEncoding.EncodeToString([]byte("user:pass"))
@@ -148,6 +172,48 @@ func TestAuthConfig(t *testing.T) {
 	}
 	if got, want := c.ServerAddress, "docker.io"; got != want {
 		t.Errorf(`AuthConfigurations.Configs["docker.io"].ServerAddress: wrong result. Want %q. Got %q`, want, got)
+	}
+}
+
+func TestAuthConfigIdentityToken(t *testing.T) {
+	t.Parallel()
+	auth := base64.StdEncoding.EncodeToString([]byte("someuser:"))
+	read := strings.NewReader(fmt.Sprintf(`{"auths":{"docker.io":{"auth":"%s","identitytoken":"sometoken"}}}`, auth))
+	ac, err := NewAuthConfigurations(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c, ok := ac.Configs["docker.io"]
+	if !ok {
+		t.Error("NewAuthConfigurations: Expected Configs to contain docker.io")
+	}
+	if got, want := c.Username, "someuser"; got != want {
+		t.Errorf(`AuthConfigurations.Configs["docker.io"].Username: wrong result. Want %q. Got %q`, want, got)
+	}
+	if got, want := c.IdentityToken, "sometoken"; got != want {
+		t.Errorf(`AuthConfigurations.Configs["docker.io"].IdentityToken: wrong result. Want %q. Got %q`, want, got)
+	}
+}
+
+func TestAuthConfigRegistryToken(t *testing.T) {
+	t.Parallel()
+	auth := base64.StdEncoding.EncodeToString([]byte("someuser:"))
+	read := strings.NewReader(fmt.Sprintf(`{"auths":{"docker.io":{"auth":"%s","registrytoken":"sometoken"}}}`, auth))
+	ac, err := NewAuthConfigurations(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c, ok := ac.Configs["docker.io"]
+	if !ok {
+		t.Error("NewAuthConfigurations: Expected Configs to contain docker.io")
+	}
+	if got, want := c.Username, "someuser"; got != want {
+		t.Errorf(`AuthConfigurations.Configs["docker.io"].Username: wrong result. Want %q. Got %q`, want, got)
+	}
+	if got, want := c.RegistryToken, "sometoken"; got != want {
+		t.Errorf(`AuthConfigurations.Configs["docker.io"].RegistryToken: wrong result. Want %q. Got %q`, want, got)
 	}
 }
 

@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 	var checkpointDir string
 	var err2 error
 	if checkDir != "" {
-		checkpointDir = filepath.Join(checkDir, ctrID, "checkpoints")
+		checkpointDir = checkDir
 	} else {
 		checkpointDir = ctrCheckpointDir
 	}
@@ -34,9 +34,6 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 			err2 = fmt.Errorf("checkpoint with name %s already exists for container %s", checkpointID, ctrName)
 		case err != nil && os.IsNotExist(err):
 			err2 = os.MkdirAll(checkpointAbsDir, 0700)
-			if os.IsExist(err2) {
-				err2 = nil
-			}
 		case err != nil:
 			err2 = err
 		case err == nil:
@@ -98,7 +95,7 @@ func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDelet
 	}
 	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), false)
 	if err == nil {
-		return os.RemoveAll(filepath.Join(checkpointDir, config.CheckpointID))
+		return os.RemoveAll(checkpointDir)
 	}
 	return err
 }

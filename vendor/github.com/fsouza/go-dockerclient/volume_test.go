@@ -18,12 +18,14 @@ func TestListVolumes(t *testing.T) {
 	{
 		"Name": "tardis",
 		"Driver": "local",
-		"Mountpoint": "/var/lib/docker/volumes/tardis"
+		"Mountpoint": "/var/lib/docker/volumes/tardis",
+		"CreatedAt": "2017-07-19T12:00:26Z"
 	},
 	{
 		"Name": "foo",
 		"Driver": "bar",
-		"Mountpoint": "/var/lib/docker/volumes/bar"
+		"Mountpoint": "/var/lib/docker/volumes/bar",
+		"CreatedAt": "2017-07-19T12:01:26Z"
 	}
 ]`
 	body := `{ "Volumes": ` + volumesData + ` }`
@@ -85,7 +87,10 @@ func TestInspectVolume(t *testing.T) {
 	body := `{
 		"Name": "tardis",
 		"Driver": "local",
-		"Mountpoint": "/var/lib/docker/volumes/tardis"
+		"Mountpoint": "/var/lib/docker/volumes/tardis",
+		"Options": {
+			"foo": "bar"
+		}
 	}`
 	var expected Volume
 	if err := json.Unmarshal([]byte(body), &expected); err != nil {
@@ -128,6 +133,28 @@ func TestRemoveVolume(t *testing.T) {
 	u, _ := url.Parse(client.getURL("/volumes/" + name))
 	if req.URL.Path != u.Path {
 		t.Errorf("RemoveVolume(%q): Wrong request path. Want %q. Got %q.", name, u.Path, req.URL.Path)
+	}
+}
+
+func TestRemoveVolumeWithOptions(t *testing.T) {
+	t.Parallel()
+	name := "test"
+	fakeRT := &FakeRoundTripper{message: "", status: http.StatusNoContent}
+	client := newTestClient(fakeRT)
+	if err := client.RemoveVolumeWithOptions(RemoveVolumeOptions{
+		Name:  name,
+		Force: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	req := fakeRT.requests[0]
+	expectedMethod := "DELETE"
+	if req.Method != expectedMethod {
+		t.Errorf("RemoveVolume(%q): Wrong HTTP method. Want %s. Got %s.", name, expectedMethod, req.Method)
+	}
+	u, _ := url.Parse(client.getURL("/volumes/" + name + "?force=1"))
+	if req.URL.RequestURI() != u.RequestURI() {
+		t.Errorf("RemoveVolume(%q): Wrong request path. Want %q. Got %q.", name, u.RequestURI(), req.URL.RequestURI())
 	}
 }
 

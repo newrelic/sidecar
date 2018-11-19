@@ -1,9 +1,8 @@
-package router
+package router // import "github.com/docker/docker/api/server/router"
 
 import (
+	"context"
 	"net/http"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/server/httputils"
 )
@@ -45,7 +44,7 @@ func experimentalHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	return notImplementedError{}
 }
 
-// Handler returns returns the APIFunc to let the server wrap it in middlewares.
+// Handler returns the APIFunc to let the server wrap it in middlewares.
 func (r *experimentalRoute) Handler() httputils.APIFunc {
 	return r.handler
 }

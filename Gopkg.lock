@@ -72,7 +72,8 @@
   revision = "0cf103d319cc2d7efe085224094f466d1f8b9640"
 
 [[projects]]
-  digest = "1:c5808846facb26eb8ba4dea7b886c588af06a7e5cea02606cd855699be0fb1da"
+  branch = "master"
+  digest = "1:fae3ced68f9a692f2f4f26b96a96131570626cce5cb9947bdf8a183afc1d2cdc"
   name = "github.com/docker/docker"
   packages = [
     "api/types",
@@ -86,23 +87,20 @@
     "api/types/swarm",
     "api/types/swarm/runtime",
     "api/types/versions",
+    "errdefs",
     "opts",
-    "pkg/archive",
     "pkg/fileutils",
     "pkg/homedir",
     "pkg/idtools",
     "pkg/ioutils",
-    "pkg/jsonmessage",
     "pkg/longpath",
     "pkg/mount",
     "pkg/pools",
     "pkg/stdcopy",
     "pkg/system",
-    "pkg/term",
-    "pkg/term/windows",
   ]
   pruneopts = ""
-  revision = "fe8aac6f5ae413a967adb0adad0b54abdfb825c4"
+  revision = "758255791e25767aeeb5b2509e2d54f9ec91b242"
 
 [[projects]]
   digest = "1:a5ecc2e70260a87aa263811281465a5effcfae8a54bac319cee87c4625f04d63"
@@ -121,12 +119,25 @@
   version = "v0.3.2"
 
 [[projects]]
-  digest = "1:4aace94ccef304a40e76fdc0959453fbb2451f12599bf5b556c1ff42c20be681"
-  name = "github.com/fsouza/go-dockerclient"
-  packages = ["."]
+  branch = "master"
+  digest = "1:1392d9689349a715bda4eb3f7179d100dee5ea50a51ae04c3b29de5b33dec74a"
+  name = "github.com/docker/libnetwork"
+  packages = ["ipamutils"]
   pruneopts = ""
-  revision = "2ff310040c161b75fa19fb9b287a90a6e03c0012"
-  version = "1.1"
+  revision = "1f28166bb386cf9223d2d00a28382b0e474be314"
+
+[[projects]]
+  digest = "1:c08cbc7eb4c2abccd2662de15ee646ea7ab855b9dc8ec1f9ea4c8f6096f0d787"
+  name = "github.com/fsouza/go-dockerclient"
+  packages = [
+    ".",
+    "internal/archive",
+    "internal/jsonmessage",
+    "internal/term",
+  ]
+  pruneopts = ""
+  revision = "f3bdb27a96799b10006a884ef2fed89284466276"
+  version = "v1.3.1"
 
 [[projects]]
   digest = "1:70a80170917a15e1ff02faab5f9e716e945e0676e86599ba144d38f96e30c3bf"
@@ -265,10 +276,7 @@
 [[projects]]
   digest = "1:fa19ddee0e5ee5951a6a450a4b6ec635a42957f86bfc87d9d778eeee04ad2036"
   name = "github.com/opencontainers/runc"
-  packages = [
-    "libcontainer/system",
-    "libcontainer/user",
-  ]
+  packages = ["libcontainer/user"]
   pruneopts = ""
   revision = "baf6536d6259209c3edfa2b22237af82942d3dfa"
   version = "v0.1.1"
@@ -348,17 +356,6 @@
   packages = ["ssh/terminal"]
   pruneopts = ""
   revision = "9f005a07e0d31d45e6656d241bb5c0f2efd4bc94"
-
-[[projects]]
-  branch = "master"
-  digest = "1:1285570ced192ee4703ca44573a4eaf19b5a0895af56f9db2210b171eefd2a41"
-  name = "golang.org/x/net"
-  packages = [
-    "context",
-    "context/ctxhttp",
-  ]
-  pruneopts = ""
-  revision = "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
 
 [[projects]]
   branch = "master"

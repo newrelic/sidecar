@@ -1,14 +1,18 @@
-package splunk
+package splunk // import "github.com/docker/docker/daemon/logger/splunk"
 
 import (
 	"compress/gzip"
+	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
+	"gotest.tools/env"
 )
 
 // Validate options
@@ -26,10 +30,10 @@ func TestValidateLogOpt(t *testing.T) {
 		splunkVerifyConnectionKey:     "true",
 		splunkGzipCompressionKey:      "true",
 		splunkGzipCompressionLevelKey: "1",
-		envKey:      "a",
-		envRegexKey: "^foo",
-		labelsKey:   "b",
-		tagKey:      "c",
+		envKey:                        "a",
+		envRegexKey:                   "^foo",
+		labelsKey:                     "b",
+		tagKey:                        "c",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -78,6 +82,36 @@ func TestNewMissedToken(t *testing.T) {
 	if err.Error() != "splunk: splunk-token is expected" {
 		t.Fatal("Logger driver should fail when no required parameters specified")
 	}
+}
+
+func TestNewWithProxy(t *testing.T) {
+	proxy := "http://proxy.testing:8888"
+	reset := env.Patch(t, "HTTP_PROXY", proxy)
+	defer reset()
+
+	// must not be localhost
+	splunkURL := "http://example.com:12345"
+	logger, err := New(logger.Info{
+		Config: map[string]string{
+			splunkURLKey:              splunkURL,
+			splunkTokenKey:            "token",
+			splunkVerifyConnectionKey: "false",
+		},
+		ContainerID: "containeriid",
+	})
+	assert.NilError(t, err)
+	splunkLogger := logger.(*splunkLoggerInline)
+
+	proxyFunc := splunkLogger.transport.Proxy
+	assert.Assert(t, proxyFunc != nil)
+
+	req, err := http.NewRequest("GET", splunkURL, nil)
+	assert.NilError(t, err)
+
+	proxyURL, err := proxyFunc(req)
+	assert.NilError(t, err)
+	assert.Assert(t, proxyURL != nil)
+	assert.Equal(t, proxy, proxyURL.String())
 }
 
 // Test default settings
@@ -217,9 +251,9 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 			splunkIndexKey:           "myindex",
 			splunkFormatKey:          splunkFormatInline,
 			splunkGzipCompressionKey: "true",
-			tagKey:      "{{.ImageName}}/{{.Name}}",
-			labelsKey:   "a",
-			envRegexKey: "^foo",
+			tagKey:                   "{{.ImageName}}/{{.Name}}",
+			labelsKey:                "a",
+			envRegexKey:              "^foo",
 		},
 		ContainerID:        "containeriid",
 		ContainerName:      "/container_name",
@@ -449,10 +483,10 @@ func TestRawFormat(t *testing.T) {
 	}
 
 	hostname, err := info.Hostname()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	loggerDriver, err := New(info)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	if !hec.connectionVerified {
 		t.Fatal("By default connection should be verified")
@@ -1062,7 +1096,7 @@ func TestSkipVerify(t *testing.T) {
 		t.Fatal("No messages should be accepted at this point")
 	}
 
-	hec.simulateServerError = false
+	hec.simulateErr(false)
 
 	for i := defaultStreamChannelSize * 2; i < defaultStreamChannelSize*4; i++ {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
@@ -1110,7 +1144,7 @@ func TestBufferMaximum(t *testing.T) {
 	}
 
 	hec := NewHTTPEventCollectorMock(t)
-	hec.simulateServerError = true
+	hec.simulateErr(true)
 	go hec.Serve()
 
 	info := logger.Info{
@@ -1306,5 +1340,50 @@ func TestCannotSendAfterClose(t *testing.T) {
 	err = hec.Close()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDeadlockOnBlockedEndpoint(t *testing.T) {
+	hec := NewHTTPEventCollectorMock(t)
+	go hec.Serve()
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:   hec.URL(),
+			splunkTokenKey: hec.token,
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+
+	l, err := New(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, unblock := context.WithCancel(context.Background())
+	hec.withBlock(ctx)
+	defer unblock()
+
+	batchSendTimeout = 1 * time.Second
+
+	if err := l.Log(&logger.Message{}); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		l.Close()
+		close(done)
+	}()
+
+	select {
+	case <-time.After(60 * time.Second):
+		buf := make([]byte, 1e6)
+		buf = buf[:runtime.Stack(buf, true)]
+		t.Logf("STACK DUMP: \n\n%s\n\n", string(buf))
+		t.Fatal("timeout waiting for close to finish")
+	case <-done:
 	}
 }

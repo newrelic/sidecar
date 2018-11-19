@@ -1,11 +1,11 @@
-package convert
+package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
 	"errors"
 	"fmt"
 	"strings"
 
-	container "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -35,6 +35,8 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		Secrets:    secretReferencesFromGRPC(c.Secrets),
 		Configs:    configReferencesFromGRPC(c.Configs),
 		Isolation:  IsolationFromGRPC(c.Isolation),
+		Init:       initFromGRPC(c.Init),
+		Sysctls:    c.Sysctls,
 	}
 
 	if c.DNSConfig != nil {
@@ -117,6 +119,21 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 	}
 
 	return containerSpec
+}
+
+func initFromGRPC(v *gogotypes.BoolValue) *bool {
+	if v == nil {
+		return nil
+	}
+	value := v.GetValue()
+	return &value
+}
+
+func initToGRPC(v *bool) *gogotypes.BoolValue {
+	if v == nil {
+		return nil
+	}
+	return &gogotypes.BoolValue{Value: *v}
 }
 
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
@@ -234,6 +251,8 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Secrets:    secretReferencesToGRPC(c.Secrets),
 		Configs:    configReferencesToGRPC(c.Configs),
 		Isolation:  isolationToGRPC(c.Isolation),
+		Init:       initToGRPC(c.Init),
+		Sysctls:    c.Sysctls,
 	}
 
 	if c.DNSConfig != nil {
@@ -301,6 +320,12 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
 			} else if string(m.BindOptions.Propagation) != "" {
 				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
+			}
+
+			if m.BindOptions.NonRecursive {
+				// TODO(AkihiroSuda): NonRecursive is unsupported for Swarm-mode now because of mutual vendoring
+				// across moby and swarmkit. Will be available soon after the moby PR gets merged.
+				return nil, fmt.Errorf("invalid NonRecursive: %q", m.BindOptions.Propagation)
 			}
 		}
 
