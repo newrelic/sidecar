@@ -7,9 +7,9 @@ import (
 	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
-	log "github.com/sirupsen/logrus"
 	"github.com/armon/go-metrics"
 	"github.com/pquerna/ffjson/ffjson"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -143,7 +143,7 @@ func (d *servicesDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 }
 
 func (d *servicesDelegate) LocalState(join bool) []byte {
-	log.Debugf("LocalState(): %b", join)
+	log.Debugf("LocalState(): %t", join)
 	d.state.RLock()
 	defer d.state.RUnlock()
 	return d.state.Encode()
@@ -200,9 +200,9 @@ func (d *servicesDelegate) packPacket(broadcasts [][]byte, limit int, overhead i
 		total += len(message) + overhead
 	}
 
-	if lastItem < 0 && len(broadcasts) > 0{
+	if lastItem < 0 && len(broadcasts) > 0 {
 		// Don't warn on startup... it's fairly normal
-		gracePeriod := time.Now().UTC().Add(0-(5*time.Second))
+		gracePeriod := time.Now().UTC().Add(0 - (5 * time.Second))
 		if d.StartedAt.Before(gracePeriod) {
 			log.Warnf("All messages were too long to fit! No broadcasts!")
 		}

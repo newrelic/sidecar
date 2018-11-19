@@ -307,10 +307,10 @@ func main() {
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
 	discoLooper := director.NewTimedLooper(
-		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
+		director.FOREVER, discovery.DefaultSleepInterval, make(chan error),
 	)
 	listenLooper := director.NewTimedLooper(
-		director.FOREVER, discovery.SLEEP_INTERVAL, make(chan error),
+		director.FOREVER, discovery.DefaultSleepInterval, make(chan error),
 	)
 	healthWatchLooper := director.NewTimedLooper(
 		director.FOREVER, healthy.WATCH_INTERVAL, make(chan error),

@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	SLEEP_INTERVAL = 1 * time.Second
+	DefaultSleepInterval = 1 * time.Second
 )
 
 // A ChangeListener is a service that will receive service change events
 // over the HTTP interface.
 type ChangeListener struct {
-	Name string    // Name to be represented in the Listeners list
-	Url  string    // Url of the service to send events to
+	Name string // Name to be represented in the Listeners list
+	Url  string // Url of the service to send events to
 }
 
 // A Discoverer is responsible for finding services that we care
