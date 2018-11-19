@@ -44,7 +44,7 @@ func NewDockerDiscovery(endpoint string, svcNamer ServiceNamer, ip string) *Dock
 		containerCache: NewContainerCache(),
 		serviceNamer:   svcNamer,
 		advertiseIp:    ip,
-		sleepInterval:  SLEEP_INTERVAL,
+		sleepInterval:  DefaultSleepInterval,
 	}
 
 	// Default to our own method for returning this
