@@ -29,6 +29,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.StringVarP(&conf.Root, "graph", "g", defaultDataRoot, "Root of the Docker runtime")
 	flags.StringVar(&conf.ExecRoot, "exec-root", defaultExecRoot, "Root directory for execution state files")
 	flags.StringVar(&conf.ContainerdAddr, "containerd", "", "containerd grpc address")
+	flags.BoolVar(&conf.CriContainerd, "cri-containerd", false, "start containerd with cri")
 
 	// "--graph" is "soft-deprecated" in favor of "data-root". This flag was added
 	// before Docker 1.0, so won't be removed, only hidden, to discourage its usage.
@@ -59,13 +60,14 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", config.DefaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", config.DefaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
 	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
+	flags.IntVar(&conf.NetworkDiagnosticPort, "network-diagnostic-port", 0, "TCP port number of the network diagnostic server")
+	flags.MarkHidden("network-diagnostic-port")
 
 	flags.StringVar(&conf.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
 	flags.BoolVar(&conf.Experimental, "experimental", false, "Enable experimental features")
-
 	flags.StringVar(&conf.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
 
-	flags.Var(opts.NewListOptsRef(&conf.NodeGenericResources, opts.ValidateSingleGenericResource), "node-generic-resource", "Advertise user-defined resource")
+	flags.Var(opts.NewNamedListOptsRef("node-generic-resources", &conf.NodeGenericResources, opts.ValidateSingleGenericResource), "node-generic-resource", "Advertise user-defined resource")
 
 	flags.IntVar(&conf.NetworkControlPlaneMTU, "network-control-plane-mtu", config.DefaultNetworkMtu, "Network Control plane MTU")
 
@@ -90,6 +92,8 @@ func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.
 	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
 
 	if runtime.GOOS != "windows" {
+		// TODO: Remove this flag after 3 release cycles (18.03)
 		flags.BoolVar(&options.V2Only, "disable-legacy-registry", true, "Disable contacting legacy registries")
+		flags.MarkHidden("disable-legacy-registry")
 	}
 }

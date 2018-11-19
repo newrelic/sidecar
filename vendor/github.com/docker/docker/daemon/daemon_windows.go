@@ -1,9 +1,8 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
@@ -27,7 +25,6 @@ import (
 	winlibnetwork "github.com/docker/libnetwork/drivers/windows"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
-	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -48,10 +45,6 @@ func getPluginExecRoot(root string) string {
 	return filepath.Join(root, "plugins")
 }
 
-func getBlkioWeightDevices(config *containertypes.HostConfig) ([]blkiodev.WeightDevice, error) {
-	return nil, nil
-}
-
 func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	return parseSecurityOpt(container, hostConfig)
 }
@@ -60,7 +53,7 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return nil
 }
 
-func (daemon *Daemon) getLayerInit() func(containerfs.ContainerFS) error {
+func setupInitLayer(idMapping *idtools.IdentityMapping) func(containerfs.ContainerFS) error {
 	return nil
 }
 
@@ -200,23 +193,20 @@ func verifyContainerResources(resources *containertypes.Resources, isHyperv bool
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 	warnings := []string{}
-
+	osv := system.GetOSVersion()
 	hyperv := daemon.runAsHyperVContainer(hostConfig)
-	if !hyperv && system.IsWindowsClient() && !system.IsIoTCore() {
-		// @engine maintainers. This block should not be removed. It partially enforces licensing
-		// restrictions on Windows. Ping @jhowardmsft if there are concerns or PRs to change this.
-		return warnings, fmt.Errorf("Windows client operating systems only support Hyper-V containers")
+
+	// On RS5, we allow (but don't strictly support) process isolation on Client SKUs.
+	// Prior to RS5, we don't allow process isolation on Client SKUs.
+	// @engine maintainers. This block should not be removed. It partially enforces licensing
+	// restrictions on Windows. Ping @jhowardmsft if there are concerns or PRs to change this.
+	if !hyperv && system.IsWindowsClient() && osv.Build < 17763 {
+		return warnings, fmt.Errorf("Windows client operating systems earlier than version 1809 can only run Hyper-V containers")
 	}
 
 	w, err := verifyContainerResources(&hostConfig.Resources, hyperv)
 	warnings = append(warnings, w...)
 	return warnings, err
-}
-
-// reloadPlatform updates configuration with platform specific options
-// and updates the passed attributes
-func (daemon *Daemon) reloadPlatform(config *config.Config, attributes map[string]string) error {
-	return nil
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
@@ -268,7 +258,7 @@ func ensureServicesInstalled(services []string) error {
 }
 
 // configureKernelSecuritySupport configures and validate security support for the kernel
-func configureKernelSecuritySupport(config *config.Config, driverNames []string) error {
+func configureKernelSecuritySupport(config *config.Config, driverName string) error {
 	return nil
 }
 
@@ -336,7 +326,8 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 	// discover and add HNS networks to windows
 	// network that exist are removed and added again
 	for _, v := range hnsresponse {
-		if strings.ToLower(v.Type) == "private" {
+		networkTypeNorm := strings.ToLower(v.Type)
+		if networkTypeNorm == "private" || networkTypeNorm == "internal" {
 			continue // workaround for HNS reporting unsupported networks
 		}
 		var n libnetwork.Network
@@ -350,6 +341,9 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		}
 
 		controller.WalkNetworks(s)
+
+		drvOptions := make(map[string]string)
+
 		if n != nil {
 			// global networks should not be deleted by local HNS
 			if n.Info().Scope() == datastore.GlobalScope {
@@ -358,12 +352,21 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 			v.Name = n.Name()
 			// This will not cause network delete from HNS as the network
 			// is not yet populated in the libnetwork windows driver
+
+			// restore option if it existed before
+			drvOptions = n.Info().DriverOptions()
 			n.Delete()
 		}
-
 		netOption := map[string]string{
 			winlibnetwork.NetworkName: v.Name,
 			winlibnetwork.HNSID:       v.Id,
+		}
+
+		// add persisted driver options
+		for k, v := range drvOptions {
+			if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
+				netOption[k] = v
+			}
 		}
 
 		v4Conf := []*libnetwork.IpamConf{}
@@ -466,14 +469,14 @@ func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
 
-func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
-	return &idtools.IDMappings{}, nil
+func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) {
+	return &idtools.IdentityMapping{}, nil
 }
 
-func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPair) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools.Identity) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
-	if err := system.MkdirAllWithACL(config.Root, 0, system.SddlAdministratorsLocalSystem); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAllWithACL(config.Root, 0, system.SddlAdministratorsLocalSystem); err != nil {
 		return err
 	}
 	return nil
@@ -592,9 +595,12 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 // daemon to run in. This is only applicable on Windows
 func (daemon *Daemon) setDefaultIsolation() error {
 	daemon.defaultIsolation = containertypes.Isolation("process")
-	// On client SKUs, default to Hyper-V. Note that IoT reports as a client SKU
-	// but it should not be treated as such.
-	if system.IsWindowsClient() && !system.IsIoTCore() {
+	osv := system.GetOSVersion()
+
+	// On client SKUs, default to Hyper-V. @engine maintainers. This
+	// should not be removed. Ping @jhowardmsft is there are PRs to
+	// to change this.
+	if system.IsWindowsClient() {
 		daemon.defaultIsolation = containertypes.Isolation("hyperv")
 	}
 	for _, option := range daemon.configStore.ExecOptions {
@@ -613,10 +619,11 @@ func (daemon *Daemon) setDefaultIsolation() error {
 				daemon.defaultIsolation = containertypes.Isolation("hyperv")
 			}
 			if containertypes.Isolation(val).IsProcess() {
-				if system.IsWindowsClient() && !system.IsIoTCore() {
+				if system.IsWindowsClient() && osv.Build < 17763 {
+					// On RS5, we allow (but don't strictly support) process isolation on Client SKUs.
 					// @engine maintainers. This block should not be removed. It partially enforces licensing
 					// restrictions on Windows. Ping @jhowardmsft if there are concerns or PRs to change this.
-					return fmt.Errorf("Windows client operating systems only support Hyper-V containers")
+					return fmt.Errorf("Windows client operating systems earlier than version 1809 can only run Hyper-V containers")
 				}
 				daemon.defaultIsolation = containertypes.Isolation("process")
 			}
@@ -629,25 +636,7 @@ func (daemon *Daemon) setDefaultIsolation() error {
 	return nil
 }
 
-func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
-	var layers []string
-	for _, l := range rootfs.DiffIDs {
-		layers = append(layers, l.String())
-	}
-	return types.RootFS{
-		Type:   rootfs.Type,
-		Layers: layers,
-	}
-}
-
 func setupDaemonProcess(config *config.Config) error {
-	return nil
-}
-
-// verifyVolumesInfo is a no-op on windows.
-// This is called during daemon initialization to migrate volumes from pre-1.7.
-// volumes were not supported on windows pre-1.7
-func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 	return nil
 }
 
@@ -671,4 +660,7 @@ func (daemon *Daemon) loadRuntimes() error {
 
 func (daemon *Daemon) initRuntimes(_ map[string]types.Runtime) error {
 	return nil
+}
+
+func setupResolvConf(config *config.Config) {
 }

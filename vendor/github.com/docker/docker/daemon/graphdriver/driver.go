@@ -1,7 +1,6 @@
-package graphdriver
+package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,13 +27,6 @@ const (
 var (
 	// All registered drivers
 	drivers map[string]InitFunc
-
-	// ErrNotSupported returned when driver is not supported.
-	ErrNotSupported = errors.New("driver not supported")
-	// ErrPrerequisites returned when driver does not meet prerequisites.
-	ErrPrerequisites = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
-	// ErrIncompatibleFS returned when file system is not supported.
-	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
 )
 
 //CreateOpts contains optional arguments for Create() and CreateReadWrite()
@@ -203,6 +195,7 @@ type Options struct {
 func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if name != "" {
 		logrus.Debugf("[graphdriver] trying provided driver: %s", name) // so the logs show specified driver
+		logDeprecatedWarning(name)
 		return GetDriver(name, pg, config)
 	}
 
@@ -240,6 +233,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 
 			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
+			logDeprecatedWarning(name)
 			return driver, nil
 		}
 	}
@@ -248,32 +242,33 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 	for _, name := range list {
 		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
-			if isDriverNotSupported(err) {
+			if IsDriverNotSupported(err) {
 				continue
 			}
 			return nil, err
 		}
+		logDeprecatedWarning(name)
 		return driver, nil
 	}
 
 	// Check all registered drivers if no priority driver is found
 	for name, initFunc := range drivers {
+		if isDeprecated(name) {
+			// Deprecated storage-drivers are skipped in automatic selection, but
+			// can be selected through configuration.
+			continue
+		}
 		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
-			if isDriverNotSupported(err) {
+			if IsDriverNotSupported(err) {
 				continue
 			}
 			return nil, err
 		}
+		logDeprecatedWarning(name)
 		return driver, nil
 	}
 	return nil, fmt.Errorf("No supported storage backend found")
-}
-
-// isDriverNotSupported returns true if the error initializing
-// the graph driver is a non-supported error.
-func isDriverNotSupported(err error) bool {
-	return err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS
 }
 
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
@@ -283,8 +278,56 @@ func scanPriorDrivers(root string) map[string]bool {
 	for driver := range drivers {
 		p := filepath.Join(root, driver)
 		if _, err := os.Stat(p); err == nil && driver != "vfs" {
-			driversMap[driver] = true
+			if !isEmptyDir(p) {
+				driversMap[driver] = true
+			}
 		}
 	}
 	return driversMap
+}
+
+// IsInitialized checks if the driver's home-directory exists and is non-empty.
+func IsInitialized(driverHome string) bool {
+	_, err := os.Stat(driverHome)
+	if os.IsNotExist(err) {
+		return false
+	}
+	if err != nil {
+		logrus.Warnf("graphdriver.IsInitialized: stat failed: %v", err)
+	}
+	return !isEmptyDir(driverHome)
+}
+
+// isEmptyDir checks if a directory is empty. It is used to check if prior
+// storage-driver directories exist. If an error occurs, it also assumes the
+// directory is not empty (which preserves the behavior _before_ this check
+// was added)
+func isEmptyDir(name string) bool {
+	f, err := os.Open(name)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	if _, err = f.Readdirnames(1); err == io.EOF {
+		return true
+	}
+	return false
+}
+
+// isDeprecated checks if a storage-driver is marked "deprecated"
+func isDeprecated(name string) bool {
+	switch name {
+	// NOTE: when deprecating a driver, update daemon.fillDriverInfo() accordingly
+	case "aufs", "devicemapper", "overlay":
+		return true
+	}
+	return false
+}
+
+// logDeprecatedWarning logs a warning if the given storage-driver is marked "deprecated"
+func logDeprecatedWarning(name string) {
+	if isDeprecated(name) {
+		logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated, and will be removed in a future release", name)
+	}
 }

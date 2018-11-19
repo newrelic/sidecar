@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.10
+
 package docker
 
 import (
@@ -136,13 +138,12 @@ func TestBuildImageSendXRegistryConfig(t *testing.T) {
 		},
 	}
 
-	encodedConfig := "eyJjb25maWdzIjp7InF1YXkuaW8iOnsidXNlcm5hbWUiOiJmb28iLCJwYXNzd29yZCI6ImJhciIsImVtYWlsIjoiYmF6Iiwic2VydmVyYWRkcmVzcyI6InF1YXkuaW8ifX19Cg=="
-
+	encodedConfig := "eyJjb25maWdzIjp7InF1YXkuaW8iOnsidXNlcm5hbWUiOiJmb28iLCJwYXNzd29yZCI6ImJhciIsImVtYWlsIjoiYmF6Iiwic2VydmVyYWRkcmVzcyI6InF1YXkuaW8ifX19"
 	if err := client.BuildImage(opts); err != nil {
 		t.Fatal(err)
 	}
 
-	xRegistryConfig := fakeRT.requests[0].Header["X-Registry-Config"][0]
+	xRegistryConfig := fakeRT.requests[0].Header.Get("X-Registry-Config")
 	if xRegistryConfig != encodedConfig {
 		t.Errorf(
 			"BuildImage: X-Registry-Config not set currectly: expected %q, got %q",

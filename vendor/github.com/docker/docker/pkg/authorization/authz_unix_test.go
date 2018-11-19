@@ -3,7 +3,7 @@
 // TODO Windows: This uses a Unix socket for testing. This might be possible
 // to port to Windows using a named pipe instead.
 
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"bytes"
@@ -144,7 +144,7 @@ func TestDrainBody(t *testing.T) {
 		length             int // length is the message length send to drainBody
 		expectedBodyLength int // expectedBodyLength is the expected body length after drainBody is called
 	}{
-		{10, 10}, // Small message size
+		{10, 10},                           // Small message size
 		{maxBodySize - 1, maxBodySize - 1}, // Max message size
 		{maxBodySize * 2, 0},               // Large message size (skip copying body)
 
@@ -168,6 +168,66 @@ func TestDrainBody(t *testing.T) {
 		}
 		if len(modified) != len(msg) {
 			t.Fatalf("Result should not be truncated. Original length: '%d', new length: '%d'", len(msg), len(modified))
+		}
+	}
+}
+
+func TestSendBody(t *testing.T) {
+	var (
+		url       = "nothing.com"
+		testcases = []struct {
+			contentType string
+			expected    bool
+		}{
+			{
+				contentType: "application/json",
+				expected:    true,
+			},
+			{
+				contentType: "Application/json",
+				expected:    true,
+			},
+			{
+				contentType: "application/JSON",
+				expected:    true,
+			},
+			{
+				contentType: "APPLICATION/JSON",
+				expected:    true,
+			},
+			{
+				contentType: "application/json; charset=utf-8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json;charset=utf-8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json; charset=UTF8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json;charset=UTF8",
+				expected:    true,
+			},
+			{
+				contentType: "text/html",
+				expected:    false,
+			},
+			{
+				contentType: "",
+				expected:    false,
+			},
+		}
+	)
+
+	for _, testcase := range testcases {
+		header := http.Header{}
+		header.Set("Content-Type", testcase.contentType)
+
+		if b := sendBody(url, header); b != testcase.expected {
+			t.Fatalf("Unexpected Content-Type; Expected: %t, Actual: %t", testcase.expected, b)
 		}
 	}
 }

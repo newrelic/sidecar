@@ -1,4 +1,4 @@
-package vfs
+package vfs // import "github.com/docker/docker/daemon/graphdriver/vfs"
 
 import (
 	"fmt"
@@ -7,17 +7,16 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/quota"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (
-	// CopyWithTar defines the copy method to use.
-	CopyWithTar = chrootarchive.NewArchiver(nil).CopyWithTar
+	// CopyDir defines the copy method to use.
+	CopyDir = dirCopy
 )
 
 func init() {
@@ -28,17 +27,15 @@ func init() {
 // This sets the home directory for the driver and returns NaiveDiffDriver.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	d := &Driver{
-		home:       home,
-		idMappings: idtools.NewIDMappingsFromMaps(uidMaps, gidMaps),
+		home:      home,
+		idMapping: idtools.NewIDMappingsFromMaps(uidMaps, gidMaps),
 	}
-	rootIDs := d.idMappings.RootPair()
+	rootIDs := d.idMapping.RootPair()
 	if err := idtools.MkdirAllAndChown(home, 0700, rootIDs); err != nil {
 		return nil, err
 	}
 
-	if err := setupDriverQuota(d); err != nil {
-		return nil, err
-	}
+	setupDriverQuota(d)
 
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
@@ -49,8 +46,8 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 // Driver must be wrapped in NaiveDiffDriver to be used as a graphdriver.Driver
 type Driver struct {
 	driverQuota
-	home       string
-	idMappings *idtools.IDMappings
+	home      string
+	idMapping *idtools.IdentityMapping
 }
 
 func (d *Driver) String() string {
@@ -108,7 +105,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
 func (d *Driver) create(id, parent string, size uint64) error {
 	dir := d.dir(id)
-	rootIDs := d.idMappings.RootPair()
+	rootIDs := d.idMapping.RootPair()
 	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0700, rootIDs); err != nil {
 		return err
 	}
@@ -133,7 +130,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return CopyWithTar(parentDir.Path(), dir)
+	return CopyDir(parentDir.Path(), dir)
 }
 
 func (d *Driver) dir(id string) string {

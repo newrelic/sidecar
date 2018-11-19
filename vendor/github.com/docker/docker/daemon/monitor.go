@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
@@ -39,19 +39,23 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 		if runtime.GOOS == "windows" {
 			return errors.New("received StateOOM from libcontainerd on Windows. This should never happen")
 		}
+
+		c.Lock()
+		defer c.Unlock()
 		daemon.updateHealthMonitor(c)
 		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
 		}
+
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.EventExit:
 		if int(ei.Pid) == c.Pid {
+			c.Lock()
 			_, _, err := daemon.containerd.DeleteTask(context.Background(), c.ID)
 			if err != nil {
 				logrus.WithError(err).Warnf("failed to delete container %s from containerd", c.ID)
 			}
 
-			c.Lock()
 			c.StreamConfig.Wait()
 			c.Reset(false)
 
@@ -65,9 +69,13 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 				c.RestartCount++
 				c.SetRestarting(&exitStatus)
 			} else {
+				if ei.Error != nil {
+					c.SetError(ei.Error)
+				}
 				c.SetStopped(&exitStatus)
 				defer daemon.autoRemove(c)
 			}
+			defer c.Unlock() // needs to be called before autoRemove
 
 			// cancel healthcheck here, they will be automatically
 			// restarted if/when the container is started again
@@ -91,7 +99,9 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 						}
 					}
 					if err != nil {
+						c.Lock()
 						c.SetStopped(&exitStatus)
+						c.Unlock()
 						defer daemon.autoRemove(c)
 						if err != restartmanager.ErrRestartCanceled {
 							logrus.Errorf("restartmanger wait error: %+v", err)
@@ -101,14 +111,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			}
 
 			daemon.setStateCounter(c)
-			defer c.Unlock()
-			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-				return err
-			}
-			return daemon.postRunProcessing(c, ei)
+			return c.CheckpointTo(daemon.containersReplica)
 		}
 
-		if execConfig := c.ExecCommands.ByPid(int(ei.Pid)); execConfig != nil {
+		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
 			defer execConfig.Unlock()
@@ -122,11 +128,17 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			// remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected.
 			c.ExecCommands.Delete(execConfig.ID, execConfig.Pid)
+			attributes := map[string]string{
+				"execID":   execConfig.ID,
+				"exitCode": strconv.Itoa(ec),
+			}
+			daemon.LogContainerEventWithAttributes(c, "exec_die", attributes)
 		} else {
 			logrus.WithFields(logrus.Fields{
 				"container": c.ID,
+				"exec-id":   ei.ProcessID,
 				"exec-pid":  ei.Pid,
-			}).Warnf("Ignoring Exit Event, no such exec command found")
+			}).Warn("Ignoring Exit Event, no such exec command found")
 		}
 	case libcontainerd.EventStart:
 		c.Lock()

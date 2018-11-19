@@ -1,6 +1,6 @@
 // +build !windows
 
-package runconfig
+package runconfig // import "github.com/docker/docker/runconfig"
 
 import (
 	"bytes"
@@ -10,7 +10,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // TODO Windows: This will need addressing for a Windows daemon.
@@ -21,20 +22,20 @@ func TestNetworkModeTest(t *testing.T) {
 		"something:weird":          {true, false, false, false, false, false},
 		"bridge":                   {true, true, false, false, false, false},
 		DefaultDaemonNetworkMode(): {true, true, false, false, false, false},
-		"host":           {false, false, true, false, false, false},
-		"container:name": {false, false, false, true, false, false},
-		"none":           {true, false, false, false, true, false},
-		"default":        {true, false, false, false, false, true},
+		"host":                     {false, false, true, false, false, false},
+		"container:name":           {false, false, false, true, false, false},
+		"none":                     {true, false, false, false, true, false},
+		"default":                  {true, false, false, false, false, true},
 	}
 	networkModeNames := map[container.NetworkMode]string{
 		"":                         "",
 		"something:weird":          "something:weird",
 		"bridge":                   "bridge",
 		DefaultDaemonNetworkMode(): "bridge",
-		"host":           "host",
-		"container:name": "container",
-		"none":           "none",
-		"default":        "default",
+		"host":                     "host",
+		"container:name":           "container",
+		"none":                     "none",
+		"default":                  "default",
 	}
 	for networkMode, state := range networkModes {
 		if networkMode.IsPrivate() != state[0] {
@@ -83,12 +84,12 @@ func TestIpcModeTest(t *testing.T) {
 	}
 
 	for ipcMode, state := range ipcModes {
-		assert.Equal(t, state.private, ipcMode.IsPrivate(), "IpcMode.IsPrivate() parsing failed for %q", ipcMode)
-		assert.Equal(t, state.host, ipcMode.IsHost(), "IpcMode.IsHost()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.container, ipcMode.IsContainer(), "IpcMode.IsContainer()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.shareable, ipcMode.IsShareable(), "IpcMode.IsShareable()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.valid, ipcMode.Valid(), "IpcMode.Valid()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.ctrName, ipcMode.Container(), "IpcMode.Container() parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.private, ipcMode.IsPrivate()), "IpcMode.IsPrivate() parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.host, ipcMode.IsHost()), "IpcMode.IsHost()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.container, ipcMode.IsContainer()), "IpcMode.IsContainer()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.shareable, ipcMode.IsShareable()), "IpcMode.IsShareable()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.valid, ipcMode.Valid()), "IpcMode.Valid()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.ctrName, ipcMode.Container()), "IpcMode.Container() parsing failed for %q", ipcMode)
 	}
 }
 
@@ -195,7 +196,7 @@ func TestDecodeHostConfig(t *testing.T) {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
 
-		assert.False(t, c.Privileged)
+		assert.Check(t, !c.Privileged)
 
 		if l := len(c.Binds); l != 1 {
 			t.Fatalf("Expected 1 bind, found %d\n", l)
