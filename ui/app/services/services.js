@@ -27,6 +27,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 			method: 'GET',
 			url: haproxyUrl,
 			dataType: 'text/plain',
+			timeout: 300
 		});
 	};
 
@@ -122,7 +123,13 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 
 		// Haproxy
 		var haproxyResponse = stateService.getHaproxy();
-		var raw = Papa.parse(haproxyResponse, { header: true });
+		var raw = {};
+		try {
+			raw = Papa.parse(haproxyResponse, { header: true });
+		} catch(e) {
+			console.log("Appears there is HAproxy, skipping")
+			return;
+		}
 
 		var transform = function(memo, item) {
 			if (item.svname == 'FRONTEND' || item.svname == 'BACKEND' ||
