@@ -127,7 +127,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 		try {
 			raw = Papa.parse(haproxyResponse, { header: true });
 		} catch(e) {
-			console.log("Appears there is HAproxy, skipping")
+			console.log("Appears there is no HAproxy, skipping")
 			return;
 		}
 
