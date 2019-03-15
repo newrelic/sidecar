@@ -35,6 +35,7 @@ type SidecarApi struct {
 func (s *SidecarApi) HttpMux() http.Handler {
 	router := mux.NewRouter()
 	router.HandleFunc("/services/{name}.{extension}", wrap(s.oneServiceHandler)).Methods("GET")
+	router.HandleFunc("/services/{id}/tombstone", wrap(s.tombstoneServiceHandler)).Methods("POST")
 	router.HandleFunc("/services.{extension}", wrap(s.servicesHandler)).Methods("GET")
 	router.HandleFunc("/state.{extension}", wrap(s.stateHandler)).Methods("GET")
 	router.HandleFunc("/watch", wrap(s.watchHandler)).Methods("GET")
@@ -187,6 +188,53 @@ func (s *SidecarApi) oneServiceHandler(response http.ResponseWriter, req *http.R
 	}
 
 	response.Write(jsonBytes)
+}
+
+
+
+// tombstoneServiceHandler takes service Id and mark the service as tombstone manually
+// This allow services to be marked as tombstone before actually shutting down the service.
+func (s *SidecarApi) tombstoneServiceHandler(response http.ResponseWriter, req *http.Request, params map[string]string) {
+	defer req.Body.Close()
+
+	response.Header().Set("Access-Control-Allow-Origin", "*")
+	response.Header().Set("Access-Control-Allow-Methods", "POST")
+	response.Header().Set("Content-Type", "application/json")
+
+	serviceId, ok := params["id"]
+	if !ok {
+		sendJsonError(response, 404, "Not Found - No service id provided")
+		return
+	}
+
+	if s.state == nil {
+		sendJsonError(response, 500, "Internal Server Error - Something went terribly wrong")
+		return
+	}
+
+	var instances []*service.Service
+	// Enter critical section
+	s.state.Lock()
+	defer s.state.Lock()
+	s.state.EachService(func(hostname *string, id *string, svc *service.Service) {
+		if svc.ID == serviceId {
+
+			previousStatus := svc.Status
+			svc.Status = service.TOMBSTONE
+			svc.Updated = svc.Updated.Add(time.Second)
+			s.state.ServiceChanged(svc, previousStatus, svc.Updated)
+			instances = append(instances, svc)
+
+			response.WriteHeader(201)
+			response.Write([]byte(fmt.Sprintf("Service Id %s Updated", serviceId)))
+			return
+		}
+	})
+
+	response.WriteHeader(404)
+	return
+
+
 }
 
 // serviceHandler returns the results for all the services we know about
