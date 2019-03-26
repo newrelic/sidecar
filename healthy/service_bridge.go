@@ -117,7 +117,11 @@ func (m *Monitor) templateCheckArgs(check *Check, svc *service.Service) string {
 	}
 
 	var output bytes.Buffer
-	t.Execute(&output, svc)
+	err = t.Execute(&output, svc)
+	if err != nil {
+		log.Errorf("Unable to execute template: '%s'", check.Args)
+		return check.Args
+	}
 
 	return output.String()
 }

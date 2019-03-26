@@ -80,8 +80,9 @@ func Test_Listen(t *testing.T) {
 			listener.eventChannel <- ChangeEvent{}
 			listener.Retries = 0
 			listener.Watch(state)
-			listener.looper.Wait()
+			err := listener.looper.Wait()
 
+			So(err, ShouldBeNil)
 			So(len(errors), ShouldEqual, 0)
 		})
 	})

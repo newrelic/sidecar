@@ -189,7 +189,8 @@ func configureCpuProfiler(opts *CliOpts) {
 	if *opts.CpuProfile {
 		profilerFile, err := os.Create("sidecar.cpu.prof")
 		exitWithError(err, "Can't write profiling file")
-		pprof.StartCPUProfile(profilerFile)
+		err = pprof.StartCPUProfile(profilerFile)
+		exitWithError(err, "Can't start the CPU profiler")
 		log.Debug("Profiling!")
 	}
 }
@@ -367,7 +368,8 @@ func main() {
 	})
 
 	if !config.HAproxy.Disable {
-		proxy.WriteAndReload(state)
+		err := proxy.WriteAndReload(state)
+		exitWithError(err, "Failed to reload HAProxy config")
 	}
 
 	select {}

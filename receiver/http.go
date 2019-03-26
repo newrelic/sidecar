@@ -22,7 +22,10 @@ func UpdateHandler(response http.ResponseWriter, req *http.Request, rcvr *Receiv
 	if err != nil {
 		message, _ := json.Marshal(ApiErrors{[]string{err.Error()}})
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write(message)
+		_, err := response.Write(message)
+		if err != nil {
+			log.Errorf("Error replying to client when failed to read the request body: %s", err)
+		}
 		return
 	}
 
@@ -31,7 +34,10 @@ func UpdateHandler(response http.ResponseWriter, req *http.Request, rcvr *Receiv
 	if err != nil {
 		message, _ := json.Marshal(ApiErrors{[]string{err.Error()}})
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write(message)
+		_, err := response.Write(message)
+		if err != nil {
+			log.Errorf("Error replying to client when failed to unmarshal the request JSON: %s", err)
+		}
 		return
 	}
 

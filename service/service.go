@@ -184,7 +184,7 @@ func buildPortFor(port *docker.APIPort, container *docker.APIContainers, ip stri
 		if err != nil {
 			log.Errorf("Error converting label value for %s to integer: %s",
 				svcPortLabel,
-				err.Error(),
+				err,
 			)
 			return returnPort
 		}

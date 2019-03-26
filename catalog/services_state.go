@@ -575,7 +575,7 @@ func (state *ServicesState) BroadcastTombstones(fn func() []service.Service, loo
 
 		tombstones = append(tombstones, otherTombstones...)
 
-		if tombstones != nil && len(tombstones) > 0 {
+		if len(tombstones) > 0 {
 			state.SendServices(
 				tombstones,
 				director.NewTimedLooper(TOMBSTONE_COUNT, state.tombstoneRetransmit, nil),

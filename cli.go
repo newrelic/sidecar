@@ -8,12 +8,12 @@ import (
 )
 
 type CliOpts struct {
-	AdvertiseIP    *string
-	ClusterIPs     *[]string
-	ClusterName    *string
-	CpuProfile     *bool
-	Discover       *[]string
-	LoggingLevel   *string
+	AdvertiseIP  *string
+	ClusterIPs   *[]string
+	ClusterName  *string
+	CpuProfile   *bool
+	Discover     *[]string
+	LoggingLevel *string
 }
 
 func exitWithError(err error, message string) {

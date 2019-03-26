@@ -108,7 +108,6 @@ type EnvoyApi struct {
 func (s *EnvoyApi) optionsHandler(response http.ResponseWriter, req *http.Request) {
 	response.Header().Set("Access-Control-Allow-Origin", "*")
 	response.Header().Set("Access-Control-Allow-Methods", "GET")
-	return
 }
 
 type SDSResult struct {
@@ -167,12 +166,15 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 	jsonBytes, err := result.MarshalJSON()
 	defer ffjson.Pool(jsonBytes)
 	if err != nil {
-		log.Errorf("Error marshaling state in registrationHandler: %s", err.Error())
+		log.Errorf("Error marshaling state in registrationHandler: %s", err)
 		sendJsonError(response, 500, "Internal server error")
 		return
 	}
 
-	response.Write(jsonBytes)
+	_, err = response.Write(jsonBytes)
+	if err != nil {
+		log.Errorf("Error writing registration response to client: %s", err)
+	}
 }
 
 type CDSResult struct {
@@ -201,7 +203,10 @@ func (s *EnvoyApi) clustersHandler(response http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	response.Write(jsonBytes)
+	_, err = response.Write(jsonBytes)
+	if err != nil {
+		log.Errorf("Error writing clusters response to client: %s", err)
+	}
 }
 
 type LDSResult struct {
@@ -229,7 +234,10 @@ func (s *EnvoyApi) listenersHandler(response http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	response.Write(jsonBytes)
+	_, err = response.Write(jsonBytes)
+	if err != nil {
+		log.Errorf("Error writing listeners response to client: %s", err)
+	}
 }
 
 // lookupHost does a vv slow lookup of the DNS host for a service. Totally

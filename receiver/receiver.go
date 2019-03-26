@@ -145,8 +145,7 @@ func (rcvr *Receiver) ProcessUpdates() {
 			// Copy the state while locked so we don't have it change
 			// under us while writing and we don't hold onto the lock the
 			// whole time we're writing to disk (e.g. in haproxy-api).
-			var tmpState *catalog.ServicesState
-			tmpState = deepcopy.Copy(rcvr.CurrentState).(*catalog.ServicesState)
+			tmpState := deepcopy.Copy(rcvr.CurrentState).(*catalog.ServicesState)
 			rcvr.StateLock.Unlock()
 
 			rcvr.OnUpdate(tmpState)

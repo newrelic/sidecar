@@ -32,12 +32,16 @@ func serversHandler(response http.ResponseWriter, req *http.Request, list *membe
 	state.RLock()
 	defer state.RUnlock()
 
-	response.Write(
+	_, err := response.Write(
 		[]byte(`
  			<head>
  			<meta http-equiv="refresh" content="4">
  			</head>
 	    	<pre>` + state.Format(list) + "</pre>"))
+
+	if err != nil {
+		log.Errorf("Error writing servers response to client: %s", err)
+	}
 }
 
 type Member struct {

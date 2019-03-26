@@ -73,8 +73,7 @@ func Test_updateHandler(t *testing.T) {
 		Convey("updates the state and enqueues an update", func() {
 			startTime := rcvr.CurrentState.LastChanged
 
-			var evtState *catalog.ServicesState
-			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState := deepcopy.Copy(state).(*catalog.ServicesState)
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
@@ -107,8 +106,7 @@ func Test_updateHandler(t *testing.T) {
 		})
 
 		Convey("enqueus all updates if no Subscriptions are provided", func() {
-			var evtState *catalog.ServicesState
-			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState := deepcopy.Copy(state).(*catalog.ServicesState)
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
@@ -136,8 +134,7 @@ func Test_updateHandler(t *testing.T) {
 		})
 
 		Convey("does not enqueue updates if the service is not subscribed to", func() {
-			var evtState *catalog.ServicesState
-			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState := deepcopy.Copy(state).(*catalog.ServicesState)
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
@@ -167,8 +164,7 @@ func Test_updateHandler(t *testing.T) {
 		})
 
 		Convey("enqueues updates if the service is subscribed to", func() {
-			var evtState *catalog.ServicesState
-			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState := deepcopy.Copy(state).(*catalog.ServicesState)
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
@@ -198,8 +194,7 @@ func Test_updateHandler(t *testing.T) {
 		})
 
 		Convey("a copy of the state is passed to the OnUpdate func", func() {
-			var evtState *catalog.ServicesState
-			evtState = deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState := deepcopy.Copy(state).(*catalog.ServicesState)
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{

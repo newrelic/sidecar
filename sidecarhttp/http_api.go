@@ -47,7 +47,6 @@ func (s *SidecarApi) HttpMux() http.Handler {
 func (s *SidecarApi) optionsHandler(response http.ResponseWriter, req *http.Request) {
 	response.Header().Set("Access-Control-Allow-Origin", "*")
 	response.Header().Set("Access-Control-Allow-Methods", "GET")
-	return
 }
 
 // watchHandler takes an optional GET parameter, "by_service"
@@ -75,8 +74,8 @@ func (s *SidecarApi) watchHandler(response http.ResponseWriter, req *http.Reques
 		byService = false
 	}
 
-	var jsonBytes []byte
 	pushUpdate := func() error {
+		var jsonBytes []byte
 		if byService {
 			s.state.RLock()
 			var err error
@@ -95,7 +94,10 @@ func (s *SidecarApi) watchHandler(response http.ResponseWriter, req *http.Reques
 		// In order to flush immediately, we have to cast to a Flusher.
 		// The normal HTTP library supports this but not all do, so we
 		// check just in case.
-		response.Write(jsonBytes)
+		_, err := response.Write(jsonBytes)
+		if err != nil {
+			log.Errorf("Unable to write watchHandler response: %s", err)
+		}
 		if f, ok := response.(http.Flusher); ok {
 			f.Flush()
 		}
@@ -189,7 +191,10 @@ func (s *SidecarApi) oneServiceHandler(response http.ResponseWriter, req *http.R
 		return
 	}
 
-	response.Write(jsonBytes)
+	_, err = response.Write(jsonBytes)
+	if err != nil {
+		log.Errorf("Error writing one service response to client: %s", err)
+	}
 }
 
 // serviceHandler returns the results for all the services we know about
@@ -255,7 +260,10 @@ func (s *SidecarApi) servicesHandler(response http.ResponseWriter, req *http.Req
 		return
 	}
 
-	response.Write(jsonBytes)
+	_, err = response.Write(jsonBytes)
+	if err != nil {
+		log.Errorf("Error writing services response to client: %s", err)
+	}
 }
 
 // stateHandler simply dumps the JSON output of the whole state object. This is
@@ -274,8 +282,11 @@ func (s *SidecarApi) stateHandler(response http.ResponseWriter, req *http.Reques
 	response.Header().Set("Content-Type", "application/json")
 	response.Header().Set("Access-Control-Allow-Origin", "*")
 	response.Header().Set("Access-Control-Allow-Methods", "GET")
-	response.Write(s.state.Encode())
-	return
+
+	_, err := response.Write(s.state.Encode())
+	if err != nil {
+		log.Errorf("Error writing state response to client: %s", err)
+	}
 }
 
 // Send back a JSON encoded error and message
@@ -286,17 +297,18 @@ func sendJsonError(response http.ResponseWriter, status int, message string) {
 	}
 
 	jsonBytes, err := json.Marshal(output)
-
 	if err != nil {
 		log.Errorf("Error encoding json error response: %s", err.Error())
-		response.WriteHeader(500)
-		response.Write([]byte("Interval server error"))
+		http.Error(response, "Interval server error", 500)
 		return
 	}
 
 	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(status)
-	response.Write(jsonBytes)
+	_, err = response.Write(jsonBytes)
+	if err != nil {
+		log.Errorf("Unable to write JSON error: %s", err)
+	}
 }
 
 func wrap(fn func(http.ResponseWriter, *http.Request, map[string]string)) http.HandlerFunc {

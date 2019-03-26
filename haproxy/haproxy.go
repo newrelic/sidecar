@@ -184,7 +184,10 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	}
 
 	// This is the potentially slowest bit, do it outside the critical section
-	io.Copy(output, buf)
+	_, err = io.Copy(output, buf)
+	if err != nil {
+		return fmt.Errorf("Error writing template '%s': %s", h.Template, err.Error())
+	}
 
 	return nil
 }
