@@ -210,15 +210,15 @@ func (h *HAproxy) swallowSignals() {
 		}
 	}()
 
-	signal.Notify(sigChan, syscall.SIGSTOP, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
+	signal.Notify(sigChan, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
 }
 
 // ResetSignals unhooks our signal handler from the signals the sub-commands
 // initiate. This is potentially destructive if other places in the program have
-// hooked to the same signals! Affected signals are SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU.
+// hooked to the same signals! Affected signals are SIGTSTP, SIGTTIN, SIGTTOU.
 func (h *HAproxy) ResetSignals() {
 	h.sigLock.Lock()
-	signal.Reset(syscall.SIGSTOP, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
+	signal.Reset(syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
 	select {
 	case h.sigStopChan <- struct{}{}: // nothing
 	default:
