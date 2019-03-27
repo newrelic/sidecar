@@ -259,12 +259,11 @@ func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) 
 			// NOT recommended... this is very slow. Useful in dev modes where you
 			// need to resolve to a different IP address only.
 			if s.config.UseHostnames {
-				var err error
-				address, err = lookupHost(svc.Hostname)
-				if err != nil {
+				if host, err := lookupHost(svc.Hostname); err == nil {
+					address = host
+				} else {
 					log.Warnf("Unable to resolve %s, using IP address", svc.Hostname)
 				}
-				address = port.IP
 			}
 
 			return &EnvoyService{
