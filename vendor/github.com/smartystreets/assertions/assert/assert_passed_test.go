@@ -3,24 +3,23 @@ package assert
 import (
 	"testing"
 
+	"github.com/smartystreets/assertions/internal/unit"
 	"github.com/smartystreets/assertions/should"
-	"github.com/smartystreets/gunit"
-	"github.com/smartystreets/logging"
 )
 
 func TestPassedResultFixture(t *testing.T) {
-	gunit.Run(new(PassedResultFixture), t)
+	unit.Run(new(PassedResultFixture), t)
 }
 
 type PassedResultFixture struct {
-	*gunit.Fixture
+	*unit.Fixture
 
 	result *Result
 }
 
 func (this *PassedResultFixture) Setup() {
 	this.result = So(1, should.Equal, 1)
-	this.result.logger = logging.Capture()
+	this.result.logger = capture()
 	this.result.stdout = this.result.logger.Log
 }
 
