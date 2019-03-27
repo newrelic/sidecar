@@ -60,9 +60,6 @@ func (s *SidecarApi) watchHandler(response http.ResponseWriter, req *http.Reques
 
 	listener := NewHttpListener()
 
-	// Find out when the http connection closed so we can stop
-	notify := response.(http.CloseNotifier).CloseNotify()
-
 	// Let's subscribe to state change events
 	// AddListener and RemoveListener are thread safe
 	s.state.AddListener(listener)
@@ -111,7 +108,8 @@ func (s *SidecarApi) watchHandler(response http.ResponseWriter, req *http.Reques
 	// Watch for further updates on the channel
 	for {
 		select {
-		case <-notify:
+		// Find out when the http connection was closed so we can stop
+		case <-req.Context().Done():
 			return
 
 		case <-listener.Chan():
