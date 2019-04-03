@@ -78,7 +78,7 @@ func Test_updateHandler(t *testing.T) {
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
-				State: *evtState,
+				State: evtState,
 				ChangeEvent: catalog.ChangeEvent{
 					Service: service.Service{
 						ID:      "10101010101",
@@ -112,7 +112,7 @@ func Test_updateHandler(t *testing.T) {
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
-				State: *evtState,
+				State: evtState,
 				ChangeEvent: catalog.ChangeEvent{
 					Service: service.Service{
 						Name:    "nobody-wants-this",
@@ -141,7 +141,7 @@ func Test_updateHandler(t *testing.T) {
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
-				State: *evtState,
+				State: evtState,
 				ChangeEvent: catalog.ChangeEvent{
 					Service: service.Service{
 						Name:    "nobody-wants-this",
@@ -172,7 +172,7 @@ func Test_updateHandler(t *testing.T) {
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
-				State: *evtState,
+				State: evtState,
 				ChangeEvent: catalog.ChangeEvent{
 					Service: service.Service{
 						Name:    "subscribed-service",
@@ -203,7 +203,7 @@ func Test_updateHandler(t *testing.T) {
 			evtState.LastChanged = time.Now().UTC()
 
 			change := catalog.StateChangedEvent{
-				State: *evtState,
+				State: evtState,
 				ChangeEvent: catalog.ChangeEvent{
 					Service: service.Service{
 						ID:      "10101010101",
