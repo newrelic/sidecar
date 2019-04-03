@@ -145,8 +145,9 @@ $ go run *.go --cluster-ip <boostrap_host>
 ```
 
 You always need to supply at least one IP address or hostname with the
-`--cluster-ip` argument. If are running solo, or are the first member, this can
-be your own hostname. You may specify the argument multiple times to have
+`--cluster-ip` argument (or via the `SIDECAR_SEEDS` environment variable).
+If are running solo, or are the first member, this can be your own
+hostname. You may specify the argument multiple times to have
 multiple hosts. It is recommended to use more than one when possible.
 
 Note: `--cluster-ip` will overwrite the values passed into the `SIDECAR_SEEDS` environment variable.
