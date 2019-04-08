@@ -16,7 +16,7 @@ before_install:
 script:
   - golangci-lint run
   - go test -v --timeout 30s ./... && (CGO_ENABLED=0 GOOS=linux go build -ldflags '-d')
-  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ]; then
+  - if [[ "$TRAVIS_BRANCH" == "master" ]] && [[ "${TRAVIS_GO_VERSION}" == "${PRODUCTION_GO_VERSION}"* ]]; then
       echo "Building container gonitro/sidecar:${TRAVIS_COMMIT::7}" &&
       cd ui && npm install && cd .. &&
       docker build -f docker/Dockerfile -t sidecar .  &&
@@ -27,11 +27,11 @@ script:
 after_success:
   - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
   - echo "Building on Go version ${TRAVIS_GO_VERSION} for branch ${TRAVIS_BRANCH}"
-  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ]; then
+  - if [[ "$TRAVIS_BRANCH" == "master" ]] && [[ "${TRAVIS_GO_VERSION}" == "${PRODUCTION_GO_VERSION}"* ]]; then
       echo "Pushing container gonitro/sidecar:${TRAVIS_COMMIT::7}" &&
       docker push gonitro/sidecar:${TRAVIS_COMMIT::7};
     fi
-  - if [ "$TRAVIS_BRANCH" == "master" ] && [ "${TRAVIS_GO_VERSION::3}" == "${PRODUCTION_GO_VERSION}" ] && [ -z "${NO_PUSH_LATEST}" ]; then
+  - if [[ "$TRAVIS_BRANCH" == "master" ]] && [[ "${TRAVIS_GO_VERSION}" == "${PRODUCTION_GO_VERSION}"* ]] && [ -z "${NO_PUSH_LATEST}" ]; then
       docker push gonitro/sidecar:latest;
     fi
 
@@ -48,4 +48,4 @@ deploy:
   on:
     repo: Nitro/sidecar
     tags: true
-    condition: ${TRAVIS_GO_VERSION::3} == ${PRODUCTION_GO_VERSION}
+    condition: "${TRAVIS_GO_VERSION}" == "${PRODUCTION_GO_VERSION}"*
