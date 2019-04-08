@@ -220,12 +220,12 @@
   revision = "0a025b7e63adc15a622f29b0b2c4c3848243bbf6"
 
 [[projects]]
-  digest = "1:d8ead22d381cfed54d53be7d935eb0f9f2b75889a4fb595802844b805dc13b87"
+  digest = "1:387bc9c583e744c448f77cd90d0551634fc682d0af505d2fa955243a73f37c24"
   name = "github.com/jtolds/gls"
   packages = ["."]
   pruneopts = ""
-  revision = "77f18212c9c7edc9bd6a33d383a7b545ce62f064"
-  version = "v4.2.1"
+  revision = "b4936e06046bbecbb94cae9c18127ebe510a2cb9"
+  version = "v4.20"
 
 [[projects]]
   digest = "1:b60a24f942c7031ece6c48bcab0b683c7d3d6aa9fd17e21459d9ae604da258fa"
@@ -326,7 +326,7 @@
   version = "v1.0.3"
 
 [[projects]]
-  digest = "1:fbf54e9f8cf26ea8e66dc1e0cc615663efa95af8c8d806125ff7f7bb7311b9e0"
+  digest = "1:87378f85dd64a5c51cf71495cabd384b250fb12be2b6a26486fb2e3b723a07ee"
   name = "github.com/smartystreets/assertions"
   packages = [
     ".",
@@ -334,11 +334,10 @@
     "internal/oglematchers",
   ]
   pruneopts = ""
-  revision = "ff1918e1e5a13a74014644ae7c1e0ba2f791364d"
-  version = "1.8.0"
+  revision = "980c5ac6f3acb6ce1cfe13160e49188807174fbe"
 
 [[projects]]
-  digest = "1:dd808f0f1628ff85a1b54424d3e6a61c54a87353d5063b9b5c82ad360f0346d5"
+  digest = "1:1f0ec82e0f5b72526f0abbe520a13ceb95e7ec05386ef261228813f272a0c05e"
   name = "github.com/smartystreets/goconvey"
   packages = [
     "convey",
@@ -346,8 +345,7 @@
     "convey/reporting",
   ]
   pruneopts = ""
-  revision = "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
-  version = "1.6.3"
+  revision = "200a235640ff2643e3126834b67f3e93df76640a"
 
 [[projects]]
   branch = "master"

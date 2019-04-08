@@ -1,6 +1,7 @@
 package sidecarhttp
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http/httptest"
@@ -254,23 +255,14 @@ func Test_servicesHandler(t *testing.T) {
 	})
 }
 
-type respRecorder struct {
-	*httptest.ResponseRecorder
-	closeNotifier chan bool
-}
-
-func (r *respRecorder) CloseNotify() <-chan bool {
-	return r.closeNotifier
-}
-
 func Test_watchHandler(t *testing.T) {
 	Convey("When invoking the watcher handler", t, func() {
-		dummyReq := httptest.NewRequest("GET", "/watch", nil)
+		ctx, cancel := context.WithCancel(context.Background())
 
-		dummyResp := &respRecorder{
-			ResponseRecorder: httptest.NewRecorder(),
-			closeNotifier:    make(chan bool, 1),
-		}
+		dummyReq := httptest.NewRequest("GET", "/watch", nil)
+		dummyReq = dummyReq.WithContext(ctx)
+
+		dummyResp := httptest.NewRecorder()
 
 		dummyState := catalog.NewServicesState()
 
@@ -299,7 +291,7 @@ func Test_watchHandler(t *testing.T) {
 			q.Add("by_service", "false")
 			dummyReq.URL.RawQuery = q.Encode()
 
-			dummyResp.closeNotifier <- true
+			cancel()
 			api.watchHandler(dummyResp, dummyReq, nil)
 
 			So(dummyResp.Body.String(), ShouldEqual, string(expectedPayload))
@@ -311,7 +303,7 @@ func Test_watchHandler(t *testing.T) {
 				So(err, ShouldBeNil)
 			}
 
-			dummyResp.closeNotifier <- true
+			cancel()
 			api.watchHandler(dummyResp, dummyReq, nil)
 
 			So(dummyResp.Body.String(), ShouldEqual, string(expectedPayload))

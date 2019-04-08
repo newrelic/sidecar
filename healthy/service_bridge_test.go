@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Nitro/sidecar/discovery"
 	"github.com/Nitro/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/Nitro/sidecar/discovery"
 )
 
 var hostname string = "indefatigable"
@@ -137,7 +137,10 @@ func Test_ServicesBridge(t *testing.T) {
 		Convey("Responds to changes in a list of services", func() {
 			So(len(monitor.Checks), ShouldEqual, 4)
 
-			ports := []service.Port{{"udp", 11234, 8080, "127.0.0.1"}, {"tcp", 1234, 8081, "127.0.0.1"}}
+			ports := []service.Port{
+				{Type: "udp", Port: 11234, ServicePort: 8080, IP: "127.0.0.1"},
+				{Type: "tcp", Port: 1234, ServicePort: 8081, IP: "127.0.0.1"},
+			}
 			svc := service.Service{ID: "babbacabba", Name: "testing-12312312", Ports: ports}
 			svcList := []service.Service{svc}
 
@@ -165,8 +168,8 @@ func Test_CheckForService(t *testing.T) {
 	Convey("When building a default check", t, func() {
 		svcId1 := "deadbeef123"
 		ports := []service.Port{
-			{"udp", 11234, 8080, "127.0.0.1"},
-			{"tcp", 1234, 8081, "127.0.0.1"},
+			{Type: "udp", Port: 11234, ServicePort: 8080, IP: "127.0.0.1"},
+			{Type: "tcp", Port: 1234, ServicePort: 8081, IP: "127.0.0.1"},
 		}
 		service1 := service.Service{ID: svcId1, Hostname: hostname, Ports: ports}
 

@@ -58,7 +58,7 @@
 
 [[constraint]]
   name = "github.com/smartystreets/goconvey"
-  version = "1.6.3"
+  revision = "200a235640ff2643e3126834b67f3e93df76640a"
 
 [[constraint]]
   name = "gopkg.in/alecthomas/kingpin.v2"

@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -34,7 +34,7 @@ type UrlListener struct {
 // A StateChangedEvent is sent to UrlListeners when a significant
 // event has changed the ServicesState.
 type StateChangedEvent struct {
-	State       ServicesState
+	State       *ServicesState
 	ChangeEvent ChangeEvent
 }
 
@@ -122,7 +122,7 @@ func (u *UrlListener) Watch(state *ServicesState) {
 
 			state.RLock()
 			event := StateChangedEvent{
-				State:       *state,
+				State:       state,
 				ChangeEvent: changedServiceEvent,
 			}
 

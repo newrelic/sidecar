@@ -184,7 +184,10 @@ func (h *HAproxy) WriteConfig(state *catalog.ServicesState, output io.Writer) er
 	}
 
 	// This is the potentially slowest bit, do it outside the critical section
-	io.Copy(output, buf)
+	_, err = io.Copy(output, buf)
+	if err != nil {
+		return fmt.Errorf("Error writing template '%s': %s", h.Template, err.Error())
+	}
 
 	return nil
 }
@@ -210,15 +213,15 @@ func (h *HAproxy) swallowSignals() {
 		}
 	}()
 
-	signal.Notify(sigChan, syscall.SIGSTOP, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
+	signal.Notify(sigChan, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
 }
 
 // ResetSignals unhooks our signal handler from the signals the sub-commands
 // initiate. This is potentially destructive if other places in the program have
-// hooked to the same signals! Affected signals are SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU.
+// hooked to the same signals! Affected signals are SIGTSTP, SIGTTIN, SIGTTOU.
 func (h *HAproxy) ResetSignals() {
 	h.sigLock.Lock()
-	signal.Reset(syscall.SIGSTOP, syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
+	signal.Reset(syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU)
 	select {
 	case h.sigStopChan <- struct{}{}: // nothing
 	default:
@@ -286,7 +289,10 @@ func (h *HAproxy) Watch(state *catalog.ServicesState) {
 		}
 	}
 
-	state.RemoveListener(h.Name())
+	err := state.RemoveListener(h.Name())
+	if err != nil {
+		log.Warnf("Failed to remove HAProxy listener: %s", err)
+	}
 }
 
 // Write out the the HAproxy config and reload the service.

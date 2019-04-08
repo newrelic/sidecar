@@ -45,9 +45,9 @@ func NewServicesDelegate(state *catalog.ServicesState) *servicesDelegate {
 func (d *servicesDelegate) Start() {
 	go func() {
 		for message := range d.notifications {
-			entry := service.Decode(message)
-			if entry == nil {
-				log.Errorf("NotifyMsg(): error decoding!")
+			entry, err := service.Decode(message)
+			if err != nil {
+				log.Errorf("Start(): error decoding message: %s", err)
 				continue
 			}
 			d.state.ServiceMsgs <- *entry

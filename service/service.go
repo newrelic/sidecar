@@ -1,4 +1,5 @@
 package service
+
 //go:generate ffjson $GOFILE
 
 import (
@@ -9,8 +10,8 @@ import (
 	"time"
 
 	"github.com/Nitro/sidecar/output"
-	log "github.com/sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -110,11 +111,16 @@ func (svc *Service) Version() string {
 	return parts[0]
 }
 
-func Decode(data []byte) *Service {
+// Decode decodes the input data JSON into a *Service. If it fails, it returns
+// a non-nil error
+func Decode(data []byte) (*Service, error) {
 	var svc Service
-	svc.UnmarshalJSON(data)
+	err := svc.UnmarshalJSON(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode service JSON: %s", err)
+	}
 
-	return &svc
+	return &svc, nil
 }
 
 // Format an APIContainers struct into a more compact struct we
@@ -178,7 +184,7 @@ func buildPortFor(port *docker.APIPort, container *docker.APIContainers, ip stri
 		if err != nil {
 			log.Errorf("Error converting label value for %s to integer: %s",
 				svcPortLabel,
-				err.Error(),
+				err,
 			)
 			return returnPort
 		}

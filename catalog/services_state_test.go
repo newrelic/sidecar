@@ -271,7 +271,8 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			looper := director.NewFreeLooper(5, make(chan error))
 			state.Broadcasts = make(chan [][]byte, 5)
 			state.SendServices(services, looper)
-			looper.Wait()
+			err := looper.Wait()
+			So(err, ShouldBeNil)
 
 			So(len(state.Broadcasts), ShouldEqual, 5)
 		})
@@ -280,7 +281,8 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			looper := director.NewFreeLooper(1, make(chan error))
 			go state.TrackNewServices(containerFn, looper)
 			state.ProcessServiceMsgs(director.NewFreeLooper(2, nil))
-			looper.Wait()
+			err := looper.Wait()
+			So(err, ShouldBeNil)
 
 			So(state.Servers[hostname].Services[svcId1], ShouldNotBeNil)
 			So(state.Servers[hostname].Services[svcId2], ShouldNotBeNil)
@@ -328,7 +330,9 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			service1.Tombstone()
 			service2.Tombstone()
 			go state.SendServices([]service.Service{service1, service2}, looper)
-			looper.Wait()
+
+			err := looper.Wait()
+			So(err, ShouldBeNil)
 
 			// First go-round
 			broadcasts := <-state.Broadcasts
@@ -486,13 +490,14 @@ func Test_Listeners(t *testing.T) {
 			So(len(state.listeners), ShouldEqual, 1)
 
 			err := state.RemoveListener("listener1")
-			So(len(state.listeners), ShouldEqual, 0)
 			So(err, ShouldBeNil)
+			So(len(state.listeners), ShouldEqual, 0)
 		})
 
-		Convey("Removing a listener that doesn't exist returns an error", func() {
-			err := state.RemoveListener("foo")
+		Convey("Removing non-existent listeners returns an error", func() {
+			err := state.RemoveListener("dummyListener")
 			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "no listener found with the name")
 		})
 
 		Convey("A major state change event notifies all listeners", func() {
@@ -638,7 +643,8 @@ func Test_DecodeStream(t *testing.T) {
 		}
 
 		buf := bytes.NewBufferString(string(jsonBytes))
-		DecodeStream(buf, mockCallback)
+		err = DecodeStream(buf, mockCallback)
+		So(err, ShouldBeNil)
 		So(compareMap["api"][0].Hostname, ShouldEqual, "some-aws-host")
 		So(compareMap["api"][0].Status, ShouldEqual, 1)
 	})
