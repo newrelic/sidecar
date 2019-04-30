@@ -19,6 +19,7 @@ const (
 	TOMBSTONE = iota
 	UNHEALTHY = iota
 	UNKNOWN   = iota
+	DRAINING  = iota
 )
 
 type Port struct {
@@ -162,6 +163,8 @@ func StatusString(status int) string {
 		return "Unhealthy"
 	case UNKNOWN:
 		return "Unknown"
+	case DRAINING:
+		return "Draining"
 	default:
 		return "Tombstone"
 	}

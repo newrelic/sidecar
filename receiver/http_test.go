@@ -105,7 +105,7 @@ func Test_updateHandler(t *testing.T) {
 			So(received, ShouldBeTrue)
 		})
 
-		Convey("enqueus all updates if no Subscriptions are provided", func() {
+		Convey("enqueues all updates if no Subscriptions are provided", func() {
 			evtState := deepcopy.Copy(state).(*catalog.ServicesState)
 			evtState.LastChanged = time.Now().UTC()
 
@@ -222,6 +222,34 @@ func Test_updateHandler(t *testing.T) {
 			state.Servers["chaucer"].Services = make(map[string]*service.Service)
 			So(lastReceivedState.LastChanged.Before(state.LastChanged), ShouldBeTrue)
 			So(len(lastReceivedState.Servers["chaucer"].Services), ShouldEqual, 2)
+		})
+
+		Convey("enqueues an update to mark a service as DRAINING", func() {
+			evtState := deepcopy.Copy(state).(*catalog.ServicesState)
+			evtState.LastChanged = time.Now().UTC()
+
+			change := catalog.StateChangedEvent{
+				State: evtState,
+				ChangeEvent: catalog.ChangeEvent{
+					Service: service.Service{
+						Name:    "nobody-wants-this",
+						ID:      "10101010101",
+						Updated: time.Now().UTC(),
+						Created: time.Now().UTC(),
+						Status:  service.DRAINING,
+					},
+					PreviousStatus: service.ALIVE,
+				},
+			}
+
+			encoded, _ := json.Marshal(change)
+			req := httptest.NewRequest("POST", "/update", bytes.NewBuffer(encoded))
+
+			UpdateHandler(recorder, req, rcvr)
+			resp := recorder.Result()
+
+			So(resp.StatusCode, ShouldEqual, 200)
+			So(len(rcvr.ReloadChan), ShouldEqual, 1)
 		})
 	})
 }

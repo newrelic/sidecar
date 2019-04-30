@@ -12,13 +12,13 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 .factory('stateService', function($http, $q) {
 	function svcGetServices() {
       return $http({
-        method: 'GET', 
+        method: 'GET',
         url: '/api/services.json',
 		dataType: 'json',
       });
     };
 
-	var haproxyUrl = window.location.protocol + 
+	var haproxyUrl = window.location.protocol +
 		'//' + window.location.hostname +
 		':3212/;csv;norefresh';
 
@@ -185,7 +185,7 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 				ports.push(port.Port.toString())
 			}
 		}
-	
+
 		return ports.join(", ")
 	};
 })
@@ -199,6 +199,8 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 	        return "Unhealthy"
 	    case 3:
 	        return "Unknown"
+	    case 4:
+	        return "Draining"
 	    default:
 	        return "Tombstone"
 	    }
@@ -218,9 +220,9 @@ angular.module('sidecar.services', ['ngRoute', 'ui.bootstrap'])
 		if (seconds > 630720000) { // More than 20 years ago
 			return "never";
 		}
-	
+
 	    var interval = Math.floor(seconds / 31536000);
-	
+
 	    if (interval > 1) {
 	        return interval + " years ago";
 	    }
@@ -275,11 +277,11 @@ if ( ! Array.prototype.groupBy) {
     this.forEach(function(o) {
       var group = JSON.stringify(f(o));
       groups[group] = groups[group] || [];
-      groups[group].push(o);  
+      groups[group].push(o);
     });
-    
+
     return Object.keys(groups).map(function (group) {
-      return groups[group]; 
-    }); 
-  }; 
+      return groups[group];
+    });
+  };
 }
