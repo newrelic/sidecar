@@ -309,6 +309,11 @@ func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 		// Store the previous newSvc so we can compare it
 		oldEntry := server.Services[newSvc.ID]
 
+		// Make sure we preserve the DRAINING status for services
+		if oldEntry.Status == service.DRAINING && newSvc.Status == service.ALIVE {
+			newSvc.Status = oldEntry.Status
+		}
+
 		// Update the new one
 		server.Services[newSvc.ID] = &newSvc
 

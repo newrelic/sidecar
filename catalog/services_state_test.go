@@ -219,6 +219,33 @@ func Test_ServicesStateWithData(t *testing.T) {
 				}
 				So(pendingBroadcast, ShouldBeFalse)
 			})
+
+			Convey("Sets a service's status to DRAINING", func() {
+				state.AddServiceEntry(svc)
+
+				svc.Status = service.DRAINING
+				svc.Updated = time.Now().UTC()
+
+				state.AddServiceEntry(svc)
+
+				So(state.HasServer(anotherHostname), ShouldBeTrue)
+				So(state.Servers[anotherHostname].Services[svc.ID].Status,
+					ShouldEqual, service.DRAINING)
+			})
+
+			Convey("Doesn't mark a DRAINING service as ALIVE", func() {
+				svc.Status = service.DRAINING
+				state.AddServiceEntry(svc)
+
+				svc.Status = service.ALIVE
+				svc.Updated = time.Now().UTC()
+
+				state.AddServiceEntry(svc)
+
+				So(state.HasServer(anotherHostname), ShouldBeTrue)
+				So(state.Servers[anotherHostname].Services[svc.ID].Status,
+					ShouldEqual, service.DRAINING)
+			})
 		})
 
 		Convey("Merge() merges state we care about from other state structs", func() {
