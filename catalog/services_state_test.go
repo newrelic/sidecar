@@ -248,6 +248,32 @@ func Test_ServicesStateWithData(t *testing.T) {
 			})
 		})
 
+		Convey("GetLocalServiceByID()", func() {
+			Convey("Returns an existing service on the current host", func() {
+				state.Hostname = anotherHostname
+				state.AddServiceEntry(svc)
+
+				returnedSvc, err := state.GetLocalServiceByID(svc.ID)
+				So(err, ShouldBeNil)
+				So(returnedSvc.ID, ShouldEqual, svc.ID)
+			})
+
+			Convey("Doesn't return a service running on other hosts", func() {
+				state.AddServiceEntry(svc)
+
+				_, err := state.GetLocalServiceByID(svc.ID)
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Returns an error for a non-existent service ID", func() {
+				state.AddServiceEntry(svc)
+
+				_, err := state.GetLocalServiceByID("missing")
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not found")
+			})
+		})
+
 		Convey("Merge() merges state we care about from other state structs", func() {
 			firstState := NewServicesState()
 			secondState := NewServicesState()

@@ -331,6 +331,22 @@ func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 	}
 }
 
+// GetLocalServiceByID returns a service for a given ID if it
+// happens to exist on the current host. Returns an error otherwise.
+func (state *ServicesState) GetLocalServiceByID(id string) (service.Service, error) {
+	state.RLock()
+	defer state.RUnlock()
+
+	if server, ok := state.Servers[state.Hostname]; ok {
+		if svc, ok := server.Services[id]; ok {
+			return *svc, nil
+		}
+	}
+
+	return service.Service{},
+		fmt.Errorf("service with ID %q not found on host %q", id, state.Hostname)
+}
+
 // Merge a complete state struct into this one. Usually used on
 // node startup and during anti-entropy operations.
 func (state *ServicesState) Merge(otherState *ServicesState) {
