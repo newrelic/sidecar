@@ -132,6 +132,11 @@ func (state *ServicesState) ProcessServiceMsgs(looper director.Looper) {
 	})
 }
 
+// UpdateService enqueues a state update for a given service
+func (state *ServicesState) UpdateService(svc service.Service) {
+	state.ServiceMsgs <- svc
+}
+
 // Shortcut for checking if the Servers map has an entry for this
 // hostname.
 func (state *ServicesState) HasServer(hostname string) bool {
@@ -324,8 +329,8 @@ func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 // node startup and during anti-entropy operations.
 func (state *ServicesState) Merge(otherState *ServicesState) {
 	for _, server := range otherState.Servers {
-		for _, service := range server.Services {
-			state.ServiceMsgs <- *service
+		for _, svc := range server.Services {
+			state.UpdateService(*svc)
 		}
 	}
 }
@@ -403,8 +408,8 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 // don't already know about.
 func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
-		for _, container := range fn() {
-			state.ServiceMsgs <- container
+		for _, svc := range fn() {
+			state.UpdateService(svc)
 		}
 		return nil
 	})

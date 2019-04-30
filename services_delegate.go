@@ -50,7 +50,7 @@ func (d *servicesDelegate) Start() {
 				log.Errorf("Start(): error decoding message: %s", err)
 				continue
 			}
-			d.state.ServiceMsgs <- *entry
+			d.state.UpdateService(*entry)
 		}
 	}()
 
