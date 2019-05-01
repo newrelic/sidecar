@@ -35,6 +35,7 @@ type SidecarApi struct {
 func (s *SidecarApi) HttpMux() http.Handler {
 	router := mux.NewRouter()
 	router.HandleFunc("/services/{name}.{extension}", wrap(s.oneServiceHandler)).Methods("GET")
+	router.HandleFunc("/services/{id}/drain", wrap(s.drainServiceHandler)).Methods("POST")
 	router.HandleFunc("/services.{extension}", wrap(s.servicesHandler)).Methods("GET")
 	router.HandleFunc("/state.{extension}", wrap(s.stateHandler)).Methods("GET")
 	router.HandleFunc("/watch", wrap(s.watchHandler)).Methods("GET")
@@ -286,6 +287,58 @@ func (s *SidecarApi) stateHandler(response http.ResponseWriter, req *http.Reques
 	_, err := response.Write(s.state.Encode())
 	if err != nil {
 		log.Errorf("Error writing state response to client: %s", err)
+	}
+}
+
+// drainServiceHandler instructs Sidecar to set the status of a given service
+// instance to DRAINING. This allows us to decomission the given service
+// instance and let it sit around for a short amount of time, so it can finish
+// processing the requests that are still in flight.
+func (s *SidecarApi) drainServiceHandler(response http.ResponseWriter, req *http.Request, params map[string]string) {
+	defer req.Body.Close()
+
+	if req.Method != http.MethodPost {
+		sendJsonError(response, 400, fmt.Sprintf("Bad request - Method %q not allowed", req.Method))
+		return
+	}
+
+	serviceID, ok := params["id"]
+	if !ok {
+		sendJsonError(response, 404, "Not Found - No service ID provided")
+		return
+	}
+
+	if s.state == nil {
+		sendJsonError(response, 500, "Internal Server Error - Something went terribly wrong")
+		return
+	}
+
+	svc, err := s.state.GetLocalServiceByID(serviceID)
+	if err != nil {
+		sendJsonError(response, 404, fmt.Sprintf("Not Found - Service ID %q not found", serviceID))
+		return
+	}
+
+	svc.Updated = time.Now()
+	svc.Status = service.DRAINING
+	s.state.UpdateService(svc)
+
+	result := struct {
+		Message string
+	}{
+		Message: fmt.Sprintf("Service %q instance %q set to DRAINING", svc.Name, svc.ID),
+	}
+	jsonBytes, err := json.MarshalIndent(&result, "", "  ")
+	if err != nil {
+		sendJsonError(response, 500, "Internal Server Error - Something went terribly wrong")
+		return
+	}
+
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(202)
+	_, err = response.Write(jsonBytes)
+	if err != nil {
+		log.Errorf("Error writing drain service response to client: %s", err)
 	}
 }
 
