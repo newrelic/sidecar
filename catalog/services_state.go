@@ -614,8 +614,8 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 		// removal if it exceeds the allowed ALIVE_TIMESPAN
 		if !svc.IsTombstone() &&
 			svc.Updated.Before(time.Now().UTC().Add(0-ALIVE_LIFESPAN)) {
-			log.Warnf("Found expired service %s from %s, tombstoning",
-				svc.Name, svc.Hostname,
+			log.Warnf("Found expired service %s ID %s from %s, tombstoning",
+				svc.Name, svc.ID, svc.Hostname,
 			)
 
 			// Because we don't know that other hosts haven't gotten a newer
