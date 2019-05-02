@@ -48,4 +48,4 @@ deploy:
   on:
     repo: Nitro/sidecar
     tags: true
-    condition: "${TRAVIS_GO_VERSION}" == "${PRODUCTION_GO_VERSION}"*
+    condition: ${TRAVIS_GO_VERSION} == ${PRODUCTION_GO_VERSION}*
