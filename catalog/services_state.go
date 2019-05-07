@@ -30,6 +30,7 @@ const (
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second                // Sleep between local service checks
 	TOMBSTONE_RETRANSMIT     = 1 * time.Second                // Time between tombstone retranmission
 	ALIVE_LIFESPAN           = 1*time.Minute + 20*time.Second // Down if not heard from in 80 seconds
+	DRAINING_LIFESPAN        = 10 * time.Minute               // Down if not heard from in 10 minutes
 	ALIVE_SLEEP_INTERVAL     = 1 * time.Second                // Sleep between local service checks
 	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute                // Broadcast Alive messages every minute
 )
@@ -620,10 +621,14 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 			}
 		}
 
+		svcLifespan := ALIVE_LIFESPAN
+		if svc.IsDraining() {
+			svcLifespan = DRAINING_LIFESPAN
+		}
 		// Everything that is not tombstoned needs to be considered for
 		// removal if it exceeds the allowed ALIVE_TIMESPAN
 		if !svc.IsTombstone() &&
-			svc.Updated.Before(time.Now().UTC().Add(0-ALIVE_LIFESPAN)) {
+			svc.Updated.Before(time.Now().UTC().Add(0-svcLifespan)) {
 			log.Warnf("Found expired service %s ID %s from %s, tombstoning",
 				svc.Name, svc.ID, svc.Hostname,
 			)

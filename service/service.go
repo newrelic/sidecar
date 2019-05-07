@@ -57,6 +57,10 @@ func (svc *Service) IsTombstone() bool {
 	return svc.Status == TOMBSTONE
 }
 
+func (svc *Service) IsDraining() bool {
+	return svc.Status == DRAINING
+}
+
 func (svc *Service) Invalidates(otherSvc *Service) bool {
 	return otherSvc != nil && svc.Updated.After(otherSvc.Updated)
 }

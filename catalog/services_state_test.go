@@ -443,6 +443,36 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
 		})
 
+		Convey("Draining services have a lifespan and then are tombstoned", func() {
+			lastChanged := state.Servers[hostname].LastChanged
+			service1.Status = service.DRAINING
+			state.AddServiceEntry(service1)
+			svc := state.Servers[hostname].Services[service1.ID]
+			stamp := service1.Updated.Add(0 - DRAINING_LIFESPAN - 5*time.Second)
+			svc.Updated = stamp
+
+			state.TombstoneOthersServices()
+
+			So(svc.Status, ShouldEqual, service.TOMBSTONE)
+			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
+			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
+		})
+
+		Convey("Draining services are not tombstoned before their lifespan expires", func() {
+			lastChanged := state.Servers[hostname].LastChanged
+			service1.Status = service.DRAINING
+			state.AddServiceEntry(service1)
+			svc := state.Servers[hostname].Services[service1.ID]
+			stamp := service1.Updated.Add(0 - ALIVE_LIFESPAN - 5*time.Second)
+			svc.Updated = stamp
+
+			state.TombstoneOthersServices()
+
+			So(svc.Status, ShouldEqual, service.DRAINING)
+			So(svc.Updated, ShouldBeTheSameTimeAs, stamp)
+			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
+		})
+
 		Convey("Unhealthy/Unknown services have a lifespan and then are tombstoned", func() {
 			unhealthyService := service.Service{ID: "unhealthy_shakespeare", Hostname: hostname, Updated: baseTime, Status: service.UNHEALTHY}
 			state.AddServiceEntry(unhealthyService)
