@@ -54,8 +54,8 @@
             <th>Created</th><th>Updated</th><th>Status</th>
           </tr>
 
-          <tr ng-repeat="group in services" 
-              ng-class="{'success': group[0].Status == 0, 'warning': group[0].Status == 1, 'danger': group[0].Status == 2 }"
+          <tr ng-repeat="group in services"
+              ng-class="{'success': group[0].Status == 0, 'warning': group[0].Status == 1, 'danger': group[0].Status == 2, 'info': group[0].Status == 4 }"
               class="group-row">
             <td>
               <span class="service-badge badge">{{ group.length }}</span>
@@ -88,8 +88,8 @@
               <th>Created</th><th>Updated</th><th>Status</th>
             </tr>
 
-            <tr ng-repeat="svc in group" 
-                ng-class="{'success': group[0].Status == 0, 'warning': group[0].Status == 1, 'danger': group[0].Status == 2 }"
+            <tr ng-repeat="svc in group"
+                ng-class="{'success': group[0].Status == 0, 'warning': group[0].Status == 1, 'danger': group[0].Status == 2, 'info': group[0].Status == 4 }"
                 class="group-row">
               <td>{{ svc.Hostname }}</td>
               <td>{{ svc.Image | extractTag }}</td>

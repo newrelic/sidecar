@@ -19,6 +19,7 @@ const (
 	TOMBSTONE = iota
 	UNHEALTHY = iota
 	UNKNOWN   = iota
+	DRAINING  = iota
 )
 
 type Port struct {
@@ -54,6 +55,10 @@ func (svc *Service) IsAlive() bool {
 
 func (svc *Service) IsTombstone() bool {
 	return svc.Status == TOMBSTONE
+}
+
+func (svc *Service) IsDraining() bool {
+	return svc.Status == DRAINING
 }
 
 func (svc *Service) Invalidates(otherSvc *Service) bool {
@@ -162,6 +167,8 @@ func StatusString(status int) string {
 		return "Unhealthy"
 	case UNKNOWN:
 		return "Unknown"
+	case DRAINING:
+		return "Draining"
 	default:
 		return "Tombstone"
 	}

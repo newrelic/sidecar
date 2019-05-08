@@ -30,6 +30,7 @@ const (
 	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second                // Sleep between local service checks
 	TOMBSTONE_RETRANSMIT     = 1 * time.Second                // Time between tombstone retranmission
 	ALIVE_LIFESPAN           = 1*time.Minute + 20*time.Second // Down if not heard from in 80 seconds
+	DRAINING_LIFESPAN        = 10 * time.Minute               // Down if not heard from in 10 minutes
 	ALIVE_SLEEP_INTERVAL     = 1 * time.Second                // Sleep between local service checks
 	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute                // Broadcast Alive messages every minute
 )
@@ -130,6 +131,11 @@ func (state *ServicesState) ProcessServiceMsgs(looper director.Looper) {
 		state.AddServiceEntry(service)
 		return nil
 	})
+}
+
+// UpdateService enqueues a state update for a given service
+func (state *ServicesState) UpdateService(svc service.Service) {
+	state.ServiceMsgs <- svc
 }
 
 // Shortcut for checking if the Servers map has an entry for this
@@ -304,6 +310,11 @@ func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 		// Store the previous newSvc so we can compare it
 		oldEntry := server.Services[newSvc.ID]
 
+		// Make sure we preserve the DRAINING status for services
+		if oldEntry.Status == service.DRAINING && newSvc.Status == service.ALIVE {
+			newSvc.Status = oldEntry.Status
+		}
+
 		// Update the new one
 		server.Services[newSvc.ID] = &newSvc
 
@@ -320,12 +331,28 @@ func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 	}
 }
 
+// GetLocalServiceByID returns a service for a given ID if it
+// happens to exist on the current host. Returns an error otherwise.
+func (state *ServicesState) GetLocalServiceByID(id string) (service.Service, error) {
+	state.RLock()
+	defer state.RUnlock()
+
+	if server, ok := state.Servers[state.Hostname]; ok {
+		if svc, ok := server.Services[id]; ok {
+			return *svc, nil
+		}
+	}
+
+	return service.Service{},
+		fmt.Errorf("service with ID %q not found on host %q", id, state.Hostname)
+}
+
 // Merge a complete state struct into this one. Usually used on
 // node startup and during anti-entropy operations.
 func (state *ServicesState) Merge(otherState *ServicesState) {
 	for _, server := range otherState.Servers {
-		for _, service := range server.Services {
-			state.ServiceMsgs <- *service
+		for _, svc := range server.Services {
+			state.UpdateService(*svc)
 		}
 	}
 }
@@ -403,8 +430,8 @@ func (state *ServicesState) Print(list *memberlist.Memberlist) {
 // don't already know about.
 func (state *ServicesState) TrackNewServices(fn func() []service.Service, looper director.Looper) {
 	looper.Loop(func() error {
-		for _, container := range fn() {
-			state.ServiceMsgs <- container
+		for _, svc := range fn() {
+			state.UpdateService(svc)
 		}
 		return nil
 	})
@@ -610,12 +637,16 @@ func (state *ServicesState) TombstoneOthersServices() []service.Service {
 			}
 		}
 
+		svcLifespan := ALIVE_LIFESPAN
+		if svc.IsDraining() {
+			svcLifespan = DRAINING_LIFESPAN
+		}
 		// Everything that is not tombstoned needs to be considered for
 		// removal if it exceeds the allowed ALIVE_TIMESPAN
 		if !svc.IsTombstone() &&
-			svc.Updated.Before(time.Now().UTC().Add(0-ALIVE_LIFESPAN)) {
-			log.Warnf("Found expired service %s from %s, tombstoning",
-				svc.Name, svc.Hostname,
+			svc.Updated.Before(time.Now().UTC().Add(0-svcLifespan)) {
+			log.Warnf("Found expired service %s ID %s from %s, tombstoning",
+				svc.Name, svc.ID, svc.Hostname,
 			)
 
 			// Because we don't know that other hosts haven't gotten a newer

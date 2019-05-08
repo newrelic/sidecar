@@ -57,6 +57,8 @@ func ShouldNotify(oldStatus int, newStatus int) bool {
 		if oldStatus == service.ALIVE {
 			return true
 		}
+	case service.DRAINING:
+		return true
 	default:
 		log.Errorf("Got unknown service change status: %d", newStatus)
 		return false

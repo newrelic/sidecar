@@ -219,6 +219,59 @@ func Test_ServicesStateWithData(t *testing.T) {
 				}
 				So(pendingBroadcast, ShouldBeFalse)
 			})
+
+			Convey("Sets a service's status to DRAINING", func() {
+				state.AddServiceEntry(svc)
+
+				svc.Status = service.DRAINING
+				svc.Updated = time.Now().UTC()
+
+				state.AddServiceEntry(svc)
+
+				So(state.HasServer(anotherHostname), ShouldBeTrue)
+				So(state.Servers[anotherHostname].Services[svc.ID].Status,
+					ShouldEqual, service.DRAINING)
+			})
+
+			Convey("Doesn't mark a DRAINING service as ALIVE", func() {
+				svc.Status = service.DRAINING
+				state.AddServiceEntry(svc)
+
+				svc.Status = service.ALIVE
+				svc.Updated = time.Now().UTC()
+
+				state.AddServiceEntry(svc)
+
+				So(state.HasServer(anotherHostname), ShouldBeTrue)
+				So(state.Servers[anotherHostname].Services[svc.ID].Status,
+					ShouldEqual, service.DRAINING)
+			})
+		})
+
+		Convey("GetLocalServiceByID()", func() {
+			Convey("Returns an existing service on the current host", func() {
+				state.Hostname = anotherHostname
+				state.AddServiceEntry(svc)
+
+				returnedSvc, err := state.GetLocalServiceByID(svc.ID)
+				So(err, ShouldBeNil)
+				So(returnedSvc.ID, ShouldEqual, svc.ID)
+			})
+
+			Convey("Doesn't return a service running on other hosts", func() {
+				state.AddServiceEntry(svc)
+
+				_, err := state.GetLocalServiceByID(svc.ID)
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Returns an error for a non-existent service ID", func() {
+				state.AddServiceEntry(svc)
+
+				_, err := state.GetLocalServiceByID("missing")
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not found")
+			})
 		})
 
 		Convey("Merge() merges state we care about from other state structs", func() {
@@ -413,6 +466,36 @@ func Test_TrackingAndBroadcasting(t *testing.T) {
 
 			So(svc.Status, ShouldEqual, service.TOMBSTONE)
 			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
+			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
+		})
+
+		Convey("Draining services have a lifespan and then are tombstoned", func() {
+			lastChanged := state.Servers[hostname].LastChanged
+			service1.Status = service.DRAINING
+			state.AddServiceEntry(service1)
+			svc := state.Servers[hostname].Services[service1.ID]
+			stamp := service1.Updated.Add(0 - DRAINING_LIFESPAN - 5*time.Second)
+			svc.Updated = stamp
+
+			state.TombstoneOthersServices()
+
+			So(svc.Status, ShouldEqual, service.TOMBSTONE)
+			So(svc.Updated, ShouldBeTheSameTimeAs, stamp.Add(time.Second))
+			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
+		})
+
+		Convey("Draining services are not tombstoned before their lifespan expires", func() {
+			lastChanged := state.Servers[hostname].LastChanged
+			service1.Status = service.DRAINING
+			state.AddServiceEntry(service1)
+			svc := state.Servers[hostname].Services[service1.ID]
+			stamp := service1.Updated.Add(0 - ALIVE_LIFESPAN - 5*time.Second)
+			svc.Updated = stamp
+
+			state.TombstoneOthersServices()
+
+			So(svc.Status, ShouldEqual, service.DRAINING)
+			So(svc.Updated, ShouldBeTheSameTimeAs, stamp)
 			So(state.Servers[hostname].LastChanged.After(lastChanged), ShouldBeTrue)
 		})
 

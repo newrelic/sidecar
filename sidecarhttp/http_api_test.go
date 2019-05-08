@@ -3,13 +3,16 @@ package sidecarhttp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
+	director "github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -307,6 +310,102 @@ func Test_watchHandler(t *testing.T) {
 			api.watchHandler(dummyResp, dummyReq, nil)
 
 			So(dummyResp.Body.String(), ShouldEqual, string(expectedPayload))
+		})
+	})
+}
+
+func Test_drainServiceHandler(t *testing.T) {
+	Convey("When invoking the drainService handler", t, func() {
+		hostname := "chaucer"
+		state := catalog.NewServicesState()
+		state.Hostname = hostname
+		state.Servers[hostname] = catalog.NewServer(hostname)
+
+		baseTime := time.Now().UTC().Add(0 - 1*time.Minute)
+
+		svcId := "deadbeef123"
+		svc := service.Service{
+			ID:       svcId,
+			Name:     "bocaccio",
+			Image:    "101deadbeef",
+			Created:  baseTime,
+			Hostname: hostname,
+			Updated:  baseTime,
+			Status:   service.ALIVE,
+		}
+
+		state.AddServiceEntry(svc)
+
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/services/%s/drain", svcId), nil)
+		recorder := httptest.NewRecorder()
+
+		api := &SidecarApi{state: state}
+
+		params := map[string]string{
+			"id": svcId,
+		}
+
+		Convey("Marks the service as DRAINING", func() {
+			api.drainServiceHandler(recorder, req, params)
+
+			// Make sure we merge the state update
+			state.ProcessServiceMsgs(director.NewFreeLooper(director.ONCE, nil))
+
+			status, _, body := getResult(recorder)
+			So(status, ShouldEqual, 202)
+			So(body, ShouldContainSubstring, "set to DRAINING")
+
+			So(state.Servers[hostname].HasService(svcId), ShouldBeTrue)
+			So(state.Servers[hostname].Services[svcId].Status, ShouldEqual, service.DRAINING)
+
+			Convey("and the service doesn't flip back to ALIVE", func() {
+				svc.Status = service.ALIVE
+				svc.Updated = time.Now().UTC()
+				state.UpdateService(svc)
+
+				// Make sure we merge the state update
+				state.ProcessServiceMsgs(director.NewFreeLooper(director.ONCE, nil))
+
+				So(state.Servers[hostname].HasService(svcId), ShouldBeTrue)
+				So(state.Servers[hostname].Services[svcId].Status, ShouldEqual, service.DRAINING)
+			})
+		})
+
+		Convey("Returns an error for non-POST requests", func() {
+			req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/services/%s/drain", svcId), nil)
+
+			api.drainServiceHandler(recorder, req, params)
+
+			status, _, body := getResult(recorder)
+			So(status, ShouldEqual, 400)
+			So(body, ShouldContainSubstring, "not allowed")
+		})
+
+		Convey("Returns an error if the service ID is not provided", func() {
+			delete(params, "id")
+			api.drainServiceHandler(recorder, req, params)
+
+			status, _, body := getResult(recorder)
+			So(status, ShouldEqual, 404)
+			So(body, ShouldContainSubstring, "No service ID provided")
+		})
+
+		Convey("Returns an error if the state is nil", func() {
+			api.state = nil
+			api.drainServiceHandler(recorder, req, params)
+
+			status, _, body := getResult(recorder)
+			So(status, ShouldEqual, 500)
+			So(body, ShouldContainSubstring, "Something went terribly wrong")
+		})
+
+		Convey("Returns an error if no service is found for the received ID", func() {
+			params["id"] = "missing"
+			api.drainServiceHandler(recorder, req, params)
+
+			status, _, body := getResult(recorder)
+			So(status, ShouldEqual, 404)
+			So(body, ShouldContainSubstring, "not found")
 		})
 	})
 }
