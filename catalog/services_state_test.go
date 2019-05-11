@@ -670,6 +670,11 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 				state.AddServiceEntry(service1)
 				state.AddServiceEntry(service2)
 
+				dummyListener := mockListener{
+					events: make(chan ChangeEvent, len(state.Servers[hostname].Services)),
+				}
+				state.AddListener(&dummyListener)
+
 				go state.ExpireServer(hostname)
 				expired := <-state.Broadcasts
 
@@ -677,6 +682,13 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 				// Timestamps chagne when tombstoning, so regex match
 				So(expired[0], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
 				So(expired[1], ShouldMatch, "^{\"ID\":\"deadbeef.*\"Status\":1}$")
+
+				Convey("and sends the tombstones to any listener", func() {
+					for i := 0; i < len(state.Servers[hostname].Services); i++ {
+						changeEvent := <-dummyListener.Chan()
+						So(changeEvent.Service.Status, ShouldEqual, service.TOMBSTONE)
+					}
+				})
 			})
 
 			Convey("does not announce services for hosts with none", func() {

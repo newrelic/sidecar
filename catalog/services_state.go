@@ -175,8 +175,8 @@ func (state *ServicesState) ExpireServer(hostname string) {
 
 	for _, svc := range state.Servers[hostname].Services {
 		previousStatus := svc.Status
-		state.ServiceChanged(svc, previousStatus, svc.Updated)
 		svc.Tombstone()
+		state.ServiceChanged(svc, previousStatus, svc.Updated)
 		tombstones = append(tombstones, *svc)
 	}
 
