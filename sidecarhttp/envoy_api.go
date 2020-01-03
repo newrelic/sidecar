@@ -4,23 +4,16 @@ package sidecarhttp
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"strconv"
-	"strings"
 
 	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/catalog"
+	"github.com/Nitro/sidecar/envoy/adapter"
 	"github.com/Nitro/sidecar/service"
 	"github.com/gorilla/mux"
 	"github.com/pquerna/ffjson/ffjson"
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	// Used to join service name and port. Must not occur in service names
-	ServiceNameSeparator = ":"
 )
 
 // This file implements the Envoy proxy V1 API on top of a Sidecar
@@ -130,7 +123,7 @@ func (s *EnvoyApi) registrationHandler(response http.ResponseWriter, req *http.R
 		return
 	}
 
-	svcName, svcPort, err := SvcNameSplit(name)
+	svcName, svcPort, err := adapter.SvcNameSplit(name)
 	if err != nil {
 		log.Debugf("Envoy Service '%s' not found in registrationHandler: %s", name, err)
 		sendJsonError(response, 404, "Not Found - "+err.Error())
@@ -240,18 +233,6 @@ func (s *EnvoyApi) listenersHandler(response http.ResponseWriter, req *http.Requ
 	}
 }
 
-// lookupHost does a vv slow lookup of the DNS host for a service. Totally
-// not optimized for high throughput. You should only do this in development
-// scenarios.
-func lookupHost(hostname string) (string, error) {
-	addrs, err := net.LookupHost(hostname)
-
-	if err != nil {
-		return "", err
-	}
-	return addrs[0], nil
-}
-
 // EnvoyServiceFromService converts a Sidecar service to an Envoy
 // API service for reporting to the proxy
 func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) *EnvoyService {
@@ -267,7 +248,7 @@ func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) 
 			// NOT recommended... this is very slow. Useful in dev modes where you
 			// need to resolve to a different IP address only.
 			if s.config.UseHostnames {
-				if host, err := lookupHost(svc.Hostname); err == nil {
+				if host, err := adapter.LookupHost(svc.Hostname); err == nil {
 					address = host
 				} else {
 					log.Warnf("Unable to resolve %s, using IP address", svc.Hostname)
@@ -279,7 +260,7 @@ func (s *EnvoyApi) EnvoyServiceFromService(svc *service.Service, svcPort int64) 
 				LastCheckIn:     svc.Updated.String(),
 				Port:            port.Port,
 				Revision:        svc.Version(),
-				Service:         SvcName(svc.Name, port.ServicePort),
+				Service:         adapter.SvcName(svc.Name, port.ServicePort),
 				ServiceRepoName: svc.Image,
 				Tags:            map[string]string{},
 			}
@@ -321,11 +302,11 @@ func (s *EnvoyApi) EnvoyClustersFromState() []*EnvoyCluster {
 			}
 
 			clusters = append(clusters, &EnvoyCluster{
-				Name:             SvcName(svcName, port.ServicePort),
+				Name:             adapter.SvcName(svcName, port.ServicePort),
 				Type:             "sds", // use Sidecar's SDS endpoint for the hosts
 				ConnectTimeoutMs: 500,
 				LBType:           "round_robin", // TODO figure this out!
-				ServiceName:      SvcName(svcName, port.ServicePort),
+				ServiceName:      adapter.SvcName(svcName, port.ServicePort),
 			})
 		}
 	}
@@ -336,7 +317,7 @@ func (s *EnvoyApi) EnvoyClustersFromState() []*EnvoyCluster {
 // EnvoyListenerFromService takes a Sidecar service and formats it into
 // the API format for an Envoy proxy listener (LDS API v1)
 func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *EnvoyListener {
-	apiName := SvcName(svc.Name, port)
+	apiName := adapter.SvcName(svc.Name, port)
 
 	listener := &EnvoyListener{
 		Name:    apiName,
@@ -437,27 +418,6 @@ func (s *EnvoyApi) EnvoyListenersFromState() []*EnvoyListener {
 	}
 
 	return listeners
-}
-
-// Format an Envoy service name from our service name and port
-func SvcName(name string, port int64) string {
-	return fmt.Sprintf("%s%s%d", name, ServiceNameSeparator, port)
-}
-
-// Split an Enovy service name into our service name and port
-func SvcNameSplit(name string) (string, int64, error) {
-	parts := strings.Split(name, ServiceNameSeparator)
-	if len(parts) < 2 {
-		return "", -1, fmt.Errorf("%s", "Unable to split service name and port!")
-	}
-
-	svcName := parts[0]
-	svcPort, err := strconv.ParseInt(parts[1], 10, 64)
-	if err != nil {
-		return "", -1, fmt.Errorf("%s", "Unable to parse port!")
-	}
-
-	return svcName, svcPort, nil
 }
 
 // HttpMux returns a configured Gorilla mux to handle all the endpoints

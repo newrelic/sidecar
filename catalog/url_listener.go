@@ -71,7 +71,7 @@ func NewUrlListener(listenurl string, managed bool) *UrlListener {
 		Url:          listenurl,
 		looper:       director.NewFreeLooper(director.FOREVER, errorChan),
 		Client:       &http.Client{Timeout: ClientTimeout, Jar: cookieJar},
-		eventChannel: make(chan ChangeEvent, 20),
+		eventChannel: make(chan ChangeEvent, LISTENER_EVENT_BUFFER_SIZE),
 		Retries:      DefaultRetries,
 		managed:      managed,
 		name:         "UrlListener(" + listenurl + ")",

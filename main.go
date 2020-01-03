@@ -1,6 +1,8 @@
 package main // import "github.com/Nitro/sidecar"
 
 import (
+	"context"
+	"net"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -8,7 +10,9 @@ import (
 
 	"github.com/Nitro/memberlist"
 	"github.com/Nitro/sidecar/catalog"
+	"github.com/Nitro/sidecar/config"
 	"github.com/Nitro/sidecar/discovery"
+	"github.com/Nitro/sidecar/envoy"
 	"github.com/Nitro/sidecar/haproxy"
 	"github.com/Nitro/sidecar/healthy"
 	"github.com/Nitro/sidecar/service"
@@ -37,7 +41,7 @@ func announceMembers(list *memberlist.Memberlist, state *catalog.ServicesState) 
 
 // configureOverrides takes CLI opts and applies them over the top of settings
 // taken from the environment variables and stored in config.
-func configureOverrides(config *Config, opts *CliOpts) {
+func configureOverrides(config *config.Config, opts *CliOpts) {
 	if len(*opts.AdvertiseIP) > 0 {
 		config.Sidecar.AdvertiseIP = *opts.AdvertiseIP
 	}
@@ -55,7 +59,7 @@ func configureOverrides(config *Config, opts *CliOpts) {
 	}
 }
 
-func configureHAproxy(config Config) *haproxy.HAproxy {
+func configureHAproxy(config *config.Config) *haproxy.HAproxy {
 	proxy := haproxy.New(config.HAproxy.ConfigFile, config.HAproxy.PidFile)
 
 	if len(config.HAproxy.BindIP) > 0 {
@@ -87,7 +91,7 @@ func configureHAproxy(config Config) *haproxy.HAproxy {
 	return proxy
 }
 
-func configureDiscovery(config *Config, publishedIP string) discovery.Discoverer {
+func configureDiscovery(config *config.Config, publishedIP string) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
 	var svcNamer discovery.ServiceNamer
@@ -140,7 +144,7 @@ func configureDiscovery(config *Config, publishedIP string) discovery.Discoverer
 }
 
 // configureMetrics sets up remote performance metrics if we're asked to send them (statsd)
-func configureMetrics(config *Config) {
+func configureMetrics(config *config.Config) {
 	if config.Sidecar.StatsAddr != "" {
 		sink, err := metrics.NewStatsdSink(config.Sidecar.StatsAddr)
 		exitWithError(err, "Can't configure Statsd")
@@ -152,7 +156,7 @@ func configureMetrics(config *Config) {
 }
 
 // configureDelegate sets up the Memberlist delegate we'll use
-func configureDelegate(state *catalog.ServicesState, config *Config) *servicesDelegate {
+func configureDelegate(state *catalog.ServicesState, config *config.Config) *servicesDelegate {
 	delegate := NewServicesDelegate(state)
 	delegate.Metadata = NodeMetadata{
 		ClusterName: config.Sidecar.ClusterName,
@@ -195,7 +199,7 @@ func configureCpuProfiler(opts *CliOpts) {
 	}
 }
 
-func configureLoggingLevel(config *Config) {
+func configureLoggingLevel(config *config.Config) {
 	level := config.Sidecar.LoggingLevel
 
 	switch {
@@ -213,7 +217,7 @@ func configureLoggingLevel(config *Config) {
 }
 
 // configureLoggingFormat switches between text and JSON log format
-func configureLoggingFormat(config *Config) {
+func configureLoggingFormat(config *config.Config) {
 	if config.Sidecar.LoggingFormat == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	} else {
@@ -222,7 +226,7 @@ func configureLoggingFormat(config *Config) {
 	}
 }
 
-func configureMemberlist(config *Config, state *catalog.ServicesState) *memberlist.Config {
+func configureMemberlist(config *config.Config, state *catalog.ServicesState) *memberlist.Config {
 	delegate := configureDelegate(state, config)
 
 	// Use a LAN config but add our delegate
@@ -258,7 +262,7 @@ func configureMemberlist(config *Config, state *catalog.ServicesState) *memberli
 }
 
 // configureListeners sets up any statically configured state change event listeners.
-func configureListeners(config *Config, state *catalog.ServicesState) {
+func configureListeners(config *config.Config, state *catalog.ServicesState) {
 	for _, url := range config.Listeners.Urls {
 		listener := catalog.NewUrlListener(url, false)
 		listener.Watch(state)
@@ -266,13 +270,13 @@ func configureListeners(config *Config, state *catalog.ServicesState) {
 }
 
 func main() {
-	config := parseConfig()
+	config := config.ParseConfig()
 	opts := parseCommandLine()
-	configureOverrides(&config, opts)
+	configureOverrides(config, opts)
 	configureCpuProfiler(opts)
-	configureLoggingLevel(&config)
-	configureLoggingFormat(&config)
-	configureMetrics(&config)
+	configureLoggingLevel(config)
+	configureLoggingFormat(config)
+	configureMetrics(config)
 
 	// Create a new state instance and fire up the processor. We need
 	// this to happen early in the startup.
@@ -282,9 +286,9 @@ func main() {
 	)
 	go state.ProcessServiceMsgs(svcMsgLooper)
 
-	configureListeners(&config, state)
+	configureListeners(config, state)
 
-	mlConfig := configureMemberlist(&config, state)
+	mlConfig := configureMemberlist(config, state)
 
 	printer := rubberneck.NewPrinter(log.Infof, rubberneck.NoAddLineFeed)
 	printer.PrintWithLabel("Sidecar", config)
@@ -323,7 +327,7 @@ func main() {
 	// Register the cluster name with the state object
 	state.ClusterName = config.Sidecar.ClusterName
 
-	disco := configureDiscovery(&config, mlConfig.AdvertiseAddr)
+	disco := configureDiscovery(config, mlConfig.AdvertiseAddr)
 	go disco.Run(discoLooper)
 
 	// Configure the monitor and use the public address as the default
@@ -370,6 +374,24 @@ func main() {
 	if !config.HAproxy.Disable {
 		err := proxy.WriteAndReload(state)
 		exitWithError(err, "Failed to reload HAProxy config")
+	}
+
+	if config.Envoy.UseGRPCAPI {
+		ctx := context.Background()
+		envoyServer := envoy.NewServer(ctx, state, config.Envoy)
+		envoyServerLooper := director.NewFreeLooper(
+			director.FOREVER, make(chan error),
+		)
+
+		// This listener will be owned and managed by the gRPC server
+		grpcListener, err := net.Listen("tcp", ":"+config.Envoy.GRPCPort)
+		if err != nil {
+			log.Fatalf("Failed to listen on port %q: %s", config.Envoy.GRPCPort, err)
+		}
+
+		go envoyServer.Run(ctx, envoyServerLooper, grpcListener)
+
+		state.AddListener(envoyServer.Listener)
 	}
 
 	select {}

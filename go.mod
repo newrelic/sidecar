@@ -11,9 +11,10 @@ require (
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878
 	github.com/containerd/continuity v0.0.0-20181203112020-004b46473808 // indirect
+	github.com/envoyproxy/go-control-plane v0.9.2
 	github.com/fsouza/go-dockerclient v1.3.1
-	github.com/gogo/protobuf v1.2.1 // indirect
-	github.com/golang/protobuf v1.3.1 // indirect
+	github.com/gogo/protobuf v1.2.1
+	github.com/golang/protobuf v1.3.2
 	github.com/gorilla/mux v1.6.2
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
@@ -34,9 +35,9 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190306220146-200a235640ff
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c // indirect
 	golang.org/x/net v0.0.0-20190503192946-f4e77d36d62c // indirect
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
 	golang.org/x/sys v0.0.0-20190523142557-0e01d883c5c5 // indirect
 	golang.org/x/text v0.3.2 // indirect
+	google.golang.org/grpc v1.26.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.5
 	gopkg.in/jarcoal/httpmock.v1 v1.0.0-20170412085702-cf52904a3cf0
 	gopkg.in/relistan/rubberneck.v1 v1.0.1

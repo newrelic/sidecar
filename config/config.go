@@ -1,9 +1,10 @@
-package main
+package config
 
 import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/relistan/rubberneck.v1"
 )
 
@@ -22,6 +23,13 @@ type HAproxyConfig struct {
 	User         string `envconfig:"USER" default:"haproxy"`
 	Group        string `envconfig:"GROUP" default:"haproxy"`
 	UseHostnames bool   `envconfig:"USE_HOSTNAMES"`
+}
+
+type EnvoyConfig struct {
+	UseGRPCAPI   bool   `envconfig:"USE_GRPC_API" default:"true"`
+	BindIP       string `envconfig:"BIND_IP" default:"192.168.168.168"`
+	UseHostnames bool   `envconfig:"USE_HOSTNAMES"`
+	GRPCPort     string `envconfig:"GRPC_PORT" default:"7776"`
 }
 
 type ServicesConfig struct {
@@ -59,10 +67,11 @@ type Config struct {
 	StaticDiscovery StaticConfig       // STATIC_
 	Services        ServicesConfig     // SERVICES_
 	HAproxy         HAproxyConfig      // HAPROXY_
+	Envoy           EnvoyConfig        // ENVOY_
 	Listeners       ListenerUrlsConfig // LISTENERS_
 }
 
-func parseConfig() Config {
+func ParseConfig() *Config {
 	var config Config
 
 	errs := []error{
@@ -71,15 +80,16 @@ func parseConfig() Config {
 		envconfig.Process("static", &config.StaticDiscovery),
 		envconfig.Process("services", &config.Services),
 		envconfig.Process("haproxy", &config.HAproxy),
+		envconfig.Process("envoy", &config.Envoy),
 		envconfig.Process("listeners", &config.Listeners),
 	}
 
 	for _, err := range errs {
 		if err != nil {
 			rubberneck.Print(config)
-			exitWithError(err, "Can't parse environment config!")
+			log.Fatalf("Can't parse environment config: %s", err)
 		}
 	}
 
-	return config
+	return &config
 }

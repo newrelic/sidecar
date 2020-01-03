@@ -171,11 +171,7 @@ func (d *servicesDelegate) NotifyJoin(node *memberlist.Node) {
 
 func (d *servicesDelegate) NotifyLeave(node *memberlist.Node) {
 	log.Debugf("NotifyLeave(): %s", node.Name)
-	go func() {
-		d.state.Lock()
-		defer d.state.Unlock()
-		d.state.ExpireServer(node.Name)
-	}()
+	go d.state.ExpireServer(node.Name)
 }
 
 func (d *servicesDelegate) NotifyUpdate(node *memberlist.Node) {

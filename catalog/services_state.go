@@ -24,15 +24,16 @@ import (
 // servers to Service lists and manages the lifecycle.
 
 const (
-	TOMBSTONE_LIFESPAN       = 3 * time.Hour                  // How long we keep tombstones around
-	TOMBSTONE_COUNT          = 10                             // Send tombstones at 1 per second 10 times
-	ALIVE_COUNT              = 5                              // Send new services at 1 per second 5 times
-	TOMBSTONE_SLEEP_INTERVAL = 2 * time.Second                // Sleep between local service checks
-	TOMBSTONE_RETRANSMIT     = 1 * time.Second                // Time between tombstone retranmission
-	ALIVE_LIFESPAN           = 1*time.Minute + 20*time.Second // Down if not heard from in 80 seconds
-	DRAINING_LIFESPAN        = 10 * time.Minute               // Down if not heard from in 10 minutes
-	ALIVE_SLEEP_INTERVAL     = 1 * time.Second                // Sleep between local service checks
-	ALIVE_BROADCAST_INTERVAL = 1 * time.Minute                // Broadcast Alive messages every minute
+	TOMBSTONE_LIFESPAN         = 3 * time.Hour                  // How long we keep tombstones around
+	TOMBSTONE_COUNT            = 10                             // Send tombstones at 1 per second 10 times
+	ALIVE_COUNT                = 5                              // Send new services at 1 per second 5 times
+	TOMBSTONE_SLEEP_INTERVAL   = 2 * time.Second                // Sleep between local service checks
+	TOMBSTONE_RETRANSMIT       = 1 * time.Second                // Time between tombstone retranmission
+	ALIVE_LIFESPAN             = 1*time.Minute + 20*time.Second // Down if not heard from in 80 seconds
+	DRAINING_LIFESPAN          = 10 * time.Minute               // Down if not heard from in 10 minutes
+	ALIVE_SLEEP_INTERVAL       = 1 * time.Second                // Sleep between local service checks
+	ALIVE_BROADCAST_INTERVAL   = 1 * time.Minute                // Broadcast Alive messages every minute
+	LISTENER_EVENT_BUFFER_SIZE = 20                             // The number of events that can be buffered in the listener eventChannel
 )
 
 // A ChangeEvent represents the time and hostname that was modified and signals a major
@@ -147,6 +148,9 @@ func (state *ServicesState) HasServer(hostname string) bool {
 
 // A server has left the cluster, so tombstone all of its records
 func (state *ServicesState) ExpireServer(hostname string) {
+	state.Lock()
+	defer state.Unlock()
+
 	if !state.HasServer(hostname) || len(state.Servers[hostname].Services) == 0 {
 		log.Infof("No records to expire for %s", hostname)
 		return
