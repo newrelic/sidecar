@@ -21,9 +21,9 @@ or can also leverage:
 
  * [Lyft's Envoy Proxy](https://github.com/envoyproxy/envoy) - In less than
    a year it is fast becoming a core microservices architecture component.
-   Sidecar implements the Envoy proxy SDS, CDS, and LDS APIs (v1). These
-   allow a standalone Envoy to be entirely configured by Sidecar. This is
-   best used with Nitro's
+   Sidecar implements the Envoy proxy SDS, CDS, LDS (V1) and gRPC (V2) APIs.
+   These allow a standalone Envoy to be entirely configured by Sidecar. This
+   is best used with Nitro's
    [Envoy proxy container](https://hub.docker.com/r/gonitro/envoyproxy/tags/).
 
  * [haproxy-api](https://github.com/Nitro/haproxy-api) - A separation layer
@@ -229,6 +229,12 @@ Defaults are in bold at the end of the line:
  * `HAPROXY_USE_HOSTNAMES`: Should we write hostnames in the HAproxy config instead
    of IP addresses? **`false`**
 
+ * `ENVOY_USE_GRPC_API`: Enable the Envoy gRPC API (V2) **`true`**
+ * `ENVOY_BIND_IP`: The IP that Envoy should bind to on the host **192.168.168.168**
+ * `ENVOY_USE_HOSTNAMES`: Should we write hostnames in the Envoy config instead
+   of IP addresses? **`false`**
+ * `ENVOY_GRPC_PORT`: The port for the Envoy API gRPC server **`7776`**
+
 
 ### Ports
 
@@ -424,7 +430,7 @@ The logging output is pretty good in the normal `info` level. It can be made
 quite verbose in `debug` mode, and contains lots of information about what's
 going on and what the current state is. The web interface also contains a lot
 of runtime information on the cluster and the services. If you are running
-HAproxy, it's also recommneded that you expose the HAproxy stats port on 3212
+HAproxy, it's also recommended that you expose the HAproxy stats port on 3212
 so that Sidecar can find it.
 
 Currently the web interface runs on port 7777 on each machine that runs
@@ -457,11 +463,18 @@ Envoy Proxy Support
 -------------------
 
 Envoy uses a very different model than HAproxy and thus Sidecar's support for
-it is quite different from its support for HAproxy. Envoy makes requests to a
-variety of discovery service APIs on a timed basis. Sidecar currently
-implements three of these: the Cluster Discovery Service (CDS), the Service
-Discovery Service (SDS), and the Listeners Discovery Service (LDS). Nitro
-builds and supports [an Envoy
+it is quite different from its support for HAproxy.
+
+When using the REST-based LDS API (V1), Envoy makes requests to a variety of
+discovery service APIs on a timed basis. Sidecar currently implements three
+of these: the Cluster Discovery Service (CDS), the Service Discovery Service
+(SDS), and the Listeners Discovery Service (LDS). When using the gRPC V2 API,
+Sidecar sends updates to Envoy as soon as possible via gRPC.
+
+Note that the LDS API (V1) has been deprecated by Envoy and it's recommended
+to use the gRPC-based V2 API.
+
+Nitro builds and supports [an Envoy
 container](https://hub.docker.com/r/gonitro/envoyproxy/tags/) that is tested
 and works against Sidecar. This is the easiest way to run Envoy with Sidecar.
 You can find an example container configuration
