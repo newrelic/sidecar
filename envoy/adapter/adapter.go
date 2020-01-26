@@ -106,8 +106,6 @@ func EnvoyListenersFromState(state *catalog.ServicesState, bindIP string) ([]cac
 		}
 	}
 
-	log.Debugf("Created %d Envoy listeners", len(listeners))
-
 	return listeners, nil
 }
 
@@ -259,8 +257,6 @@ func EnvoyClustersFromState(state *catalog.ServicesState, useHostnames bool) []c
 			}
 		}
 	}
-
-	log.Debugf("Created %d Envoy clusters", len(clusters))
 
 	return clusters
 }

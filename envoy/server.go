@@ -45,6 +45,14 @@ type Server struct {
 	xdsServer     xds.Server
 }
 
+// newSnapshotVersion returns a unique version for Envoy cache snapshots
+func newSnapshotVersion() string {
+	// When triggering watches after a cache snapshot is set, the go-control-plane
+	// only sends resources which have a different version to Envoy.
+	// `time.Now().UnixNano()` should always return a unique number.
+	return strconv.FormatInt(time.Now().UnixNano(), 10)
+}
+
 // Run sets up the Sidecar listener event loop and starts the Envoy gRPC server
 func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener net.Listener) {
 	grpcServer := grpc.NewServer()
@@ -66,34 +74,57 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 			<-s.Listener.Chan()
 		}
 
+		// The hostname needs to match the value passed via `--service-node` to Envoy
+		// See https://github.com/envoyproxy/envoy/issues/144#issuecomment-267401271
+		hostname := s.state.Hostname
+
+		snapshotVersion := newSnapshotVersion()
+
+		clusters := adapter.EnvoyClustersFromState(s.state, s.config.UseHostnames)
+
+		// Set the new clusters in the current snapshot to send them along with the
+		// previous listeners to Envoy. If we would pass in the new listeners too, Envoy
+		// will complain if it happens to receive the new listeners before the new clusters
+		// because some of the listeners might be associated with clusters which don't
+		// exit yet.
+		// See the eventual consistency considerations in the documentation for details:
+		// https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#eventual-consistency-considerations
+		snapshot, err := s.snapshotCache.GetSnapshot(hostname)
+		if err != nil {
+			// During the first iteration, there is no existing snapshot, so we create one
+			snapshot = cache.NewSnapshot(snapshotVersion, nil, clusters, nil, nil, nil)
+		} else {
+			snapshot.Resources[cache.Cluster] = cache.NewResources(snapshotVersion, clusters)
+		}
+
+		err = s.snapshotCache.SetSnapshot(hostname, snapshot)
+		if err != nil {
+			log.Errorf("Failed to set new Envoy cache snapshot: %s", err)
+			return nil
+		}
+		log.Infof("Sent %d clusters to Envoy with version %s", len(clusters), snapshotVersion)
+
 		listeners, err := adapter.EnvoyListenersFromState(s.state, s.config.BindIP)
 		if err != nil {
 			log.Errorf("Failed to create Envoy listeners: %s", err)
 			return nil
 		}
 
-		// We are using `time.Now().UnixNano()` to ensure that all versions we send to
-		// Envoy are unique. Otherwise, Envoy will skip the update.
-		version := strconv.FormatInt(time.Now().UnixNano(), 10)
-		err = s.snapshotCache.SetSnapshot(
-			// The hostname needs to match the value passed via `--service-node` to Envoy
-			// See https://github.com/envoyproxy/envoy/issues/144#issuecomment-267401271
-			s.state.Hostname,
-			cache.NewSnapshot(
-				version,
-				nil,
-				adapter.EnvoyClustersFromState(s.state, s.config.UseHostnames),
-				nil,
-				listeners,
-				nil,
-			),
-		)
+		// Create a new snapshot version and, finally, send the updated listeners to Envoy
+		snapshotVersion = newSnapshotVersion()
+		err = s.snapshotCache.SetSnapshot(hostname, cache.NewSnapshot(
+			snapshotVersion,
+			nil,
+			clusters,
+			nil,
+			listeners,
+			nil,
+		))
 		if err != nil {
-			log.Errorf("Failed to create new Envoy cache snapshot: %s", err)
+			log.Errorf("Failed to set new Envoy cache snapshot: %s", err)
 			return nil
 		}
-
-		log.Infof("Envoy configuration updated to version %s", version)
+		log.Infof("Sent %d listeners to Envoy with version %s", len(listeners), snapshotVersion)
 
 		return nil
 	})

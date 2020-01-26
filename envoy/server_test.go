@@ -267,6 +267,7 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("for a HTTP service", func() {
 				state.AddServiceEntry(httpSvc)
 				<-snapshotCache.Waiter
+				<-snapshotCache.Waiter
 
 				envoyMock.ValidateResources(stream, httpSvc, state.Hostname)
 
@@ -274,6 +275,7 @@ func Test_PortForServicePort(t *testing.T) {
 					httpSvc.Tombstone()
 					httpSvc.Updated.Add(1 * time.Millisecond)
 					state.AddServiceEntry(httpSvc)
+					<-snapshotCache.Waiter
 					<-snapshotCache.Waiter
 
 					for resourceType := range validators {
@@ -284,6 +286,7 @@ func Test_PortForServicePort(t *testing.T) {
 
 				Convey("and places another instance of the same service in the same cluster", func() {
 					state.AddServiceEntry(anotherHTTPSvc)
+					<-snapshotCache.Waiter
 					<-snapshotCache.Waiter
 
 					resources := envoyMock.GetResource(stream, cache.ClusterType, state.Hostname)
@@ -303,6 +306,7 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("for a TCP service", func() {
 				state.AddServiceEntry(tcpSvc)
 				<-snapshotCache.Waiter
+				<-snapshotCache.Waiter
 
 				envoyMock.ValidateResources(stream, tcpSvc, state.Hostname)
 			})
@@ -310,6 +314,7 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("and skips tombstones", func() {
 				httpSvc.Tombstone()
 				state.AddServiceEntry(httpSvc)
+				<-snapshotCache.Waiter
 				<-snapshotCache.Waiter
 
 				for resourceType := range validators {
@@ -321,11 +326,13 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("and triggers an update when expiring a server with only one service running", func(c C) {
 				state.AddServiceEntry(httpSvc)
 				<-snapshotCache.Waiter
+				<-snapshotCache.Waiter
 
 				done := make(chan struct{})
 				go func() {
 					select {
 					case <-snapshotCache.Waiter:
+						<-snapshotCache.Waiter
 						close(done)
 					case <-time.After(100 * time.Millisecond):
 						c.So(true, ShouldEqual, false)
@@ -341,10 +348,30 @@ func Test_PortForServicePort(t *testing.T) {
 				}
 			})
 
+			Convey("and sends an update with the new clusters", func() {
+				state.AddServiceEntry(httpSvc)
+
+				// The snapshotCache.Waiter will block after the first cache snapshot
+				// containing the clusters is set
+
+				clusters := envoyMock.GetResource(stream, cache.ClusterType, state.Hostname)
+				So(clusters, ShouldHaveLength, 1)
+				validateCluster(clusters[0], httpSvc)
+
+				listeners := envoyMock.GetResource(stream, cache.ListenerType, state.Hostname)
+				So(listeners, ShouldHaveLength, 0)
+
+				<-snapshotCache.Waiter
+				<-snapshotCache.Waiter
+
+				envoyMock.ValidateResources(stream, httpSvc, state.Hostname)
+			})
+
 			// TODO: This test is flaky in the current implementation
 			// Convey("and doesn't do spurious updates", func() {
 			// 	state.AddServiceEntry(httpSvc)
 			// 	state.AddServiceEntry(anotherHTTPSvc)
+			// 	<-snapshotCache.Waiter
 			// 	<-snapshotCache.Waiter
 
 			// 	updateCount := 0
