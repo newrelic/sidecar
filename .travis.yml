@@ -1,9 +1,8 @@
+os: linux
+
 language: go
-
 go:
-  - 1.12.x
-
-sudo: required
+  - 1.13.x
 
 services:
   - docker
@@ -12,7 +11,7 @@ env:
   - GO111MODULE=on
 
 before_install:
-  - sudo apt-get install -y nodejs
+  - nvm install node
   - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.23.1
 
 script:
