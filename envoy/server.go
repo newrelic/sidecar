@@ -70,18 +70,18 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 	go looper.Loop(func() error {
 		s.state.RLock()
 		lastChanged := s.state.LastChanged
-		s.state.RUnlock()
 
 		// Do nothing if the state hasn't changed
 		if lastChanged == prevStateLastChanged {
+			s.state.RUnlock()
 			return nil
 		}
+		resources := adapter.EnvoyResourcesFromState(s.state, s.config.BindIP, s.config.UseHostnames)
+		s.state.RUnlock()
 
 		prevStateLastChanged = lastChanged
 
 		snapshotVersion := newSnapshotVersion()
-
-		clusters := adapter.EnvoyClustersFromState(s.state, s.config.UseHostnames)
 
 		// Set the new clusters in the current snapshot to send them along with the
 		// previous listeners to Envoy. If we would pass in the new listeners too, Envoy
@@ -93,9 +93,9 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 		snapshot, err := s.snapshotCache.GetSnapshot(hostname)
 		if err != nil {
 			// During the first iteration, there is no existing snapshot, so we create one
-			snapshot = cache.NewSnapshot(snapshotVersion, nil, clusters, nil, nil, nil)
+			snapshot = cache.NewSnapshot(snapshotVersion, nil, resources.Clusters, nil, nil, nil)
 		} else {
-			snapshot.Resources[cache.Cluster] = cache.NewResources(snapshotVersion, clusters)
+			snapshot.Resources[cache.Cluster] = cache.NewResources(snapshotVersion, resources.Clusters)
 		}
 
 		err = s.snapshotCache.SetSnapshot(hostname, snapshot)
@@ -103,29 +103,23 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 			log.Errorf("Failed to set new Envoy cache snapshot: %s", err)
 			return nil
 		}
-		log.Infof("Sent %d clusters to Envoy with version %s", len(clusters), snapshotVersion)
-
-		listeners, err := adapter.EnvoyListenersFromState(s.state, s.config.BindIP)
-		if err != nil {
-			log.Errorf("Failed to create Envoy listeners: %s", err)
-			return nil
-		}
+		log.Infof("Sent %d clusters to Envoy with version %s", len(resources.Clusters), snapshotVersion)
 
 		// Create a new snapshot version and, finally, send the updated listeners to Envoy
 		snapshotVersion = newSnapshotVersion()
 		err = s.snapshotCache.SetSnapshot(hostname, cache.NewSnapshot(
 			snapshotVersion,
 			nil,
-			clusters,
+			resources.Clusters,
 			nil,
-			listeners,
+			resources.Listeners,
 			nil,
 		))
 		if err != nil {
 			log.Errorf("Failed to set new Envoy cache snapshot: %s", err)
 			return nil
 		}
-		log.Infof("Sent %d listeners to Envoy with version %s", len(listeners), snapshotVersion)
+		log.Infof("Sent %d listeners to Envoy with version %s", len(resources.Listeners), snapshotVersion)
 
 		return nil
 	})

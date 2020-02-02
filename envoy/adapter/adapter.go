@@ -28,6 +28,12 @@ const (
 	ServiceNameSeparator = ":"
 )
 
+// EnvoyResources is a collection of Enovy API resource definitions
+type EnvoyResources struct {
+	Clusters  []cache.Resource
+	Listeners []cache.Resource
+}
+
 // SvcName formats an Envoy service name from our service name and port
 func SvcName(name string, port int64) string {
 	return fmt.Sprintf("%s%s%d", name, ServiceNameSeparator, port)
@@ -61,57 +67,94 @@ func LookupHost(hostname string) (string, error) {
 	return addrs[0], nil
 }
 
-// EnvoyListenersFromState creates a set of Enovy API listener
-// definitions from all the ServicePorts in the Sidecar state.
-func EnvoyListenersFromState(state *catalog.ServicesState, bindIP string) ([]cache.Resource, error) {
-	var listeners []cache.Resource
+// EnvoyResourcesFromState creates a set of Enovy API resource definitions from all
+// the ServicePorts in the Sidecar state. The Sidecar state needs to be locked by the
+// caller before calling this function.
+func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
+	useHostnames bool) EnvoyResources {
 
-	state.RLock()
-	defer state.RUnlock()
+	clusterMap := make(map[string]*api.Cluster)
+	listenerMap := make(map[string]cache.Resource)
 
-	svcs := state.ByService()
-	// Loop over all the services by service name
-	for _, endpoints := range svcs {
-		if len(endpoints) < 1 {
-			continue
+	state.EachService(func(hostname *string, id *string, svc *service.Service) {
+		if svc == nil || !svc.IsAlive() {
+			return
 		}
 
-		var svc *service.Service
-		// Find the first alive service and use that as the definition.
-		// If none are alive, we won't open the port.
-		for _, endpoint := range endpoints {
-			if endpoint.IsAlive() {
-				svc = endpoint
-				break
-			}
-		}
-
-		if svc == nil {
-			continue
-		}
-
-		// Loop over the ports and generate a named listener for
-		// each port.
+		// Loop over the ports and generate a named listener for each port
 		for _, port := range svc.Ports {
 			// Only listen on ServicePorts
 			if port.ServicePort < 1 {
 				continue
 			}
 
-			listener, err := EnvoyListenerFromService(svc, port.ServicePort, bindIP)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create listener from service: %s", err)
+			envoyServiceName := SvcName(svc.Name, port.ServicePort)
+
+			if cluster, ok := clusterMap[envoyServiceName]; ok {
+				cluster.LoadAssignment.Endpoints[0].LbEndpoints =
+					append(cluster.LoadAssignment.Endpoints[0].LbEndpoints,
+						envoyServiceFromService(svc, port.ServicePort, useHostnames)...)
+			} else {
+				envoyCluster := &api.Cluster{
+					Name:                 envoyServiceName,
+					ConnectTimeout:       &duration.Duration{Nanos: 500000000},        // 500ms
+					ClusterDiscoveryType: &api.Cluster_Type{Type: api.Cluster_STATIC}, // Use IPs only
+					ProtocolSelection:    api.Cluster_USE_CONFIGURED_PROTOCOL,
+					// Setting the endpoints here directly bypasses EDS, so we can
+					// avoid having to configure that as well
+					// Note that in `EnvoyClustersFromState()` for the REST API we only need
+					// the first non-nil alive endpoint instance to construct the cluster
+					// because, in that case, SDS (now EDS) fetches the actual endpoints in a
+					// separate call.
+					LoadAssignment: &api.ClusterLoadAssignment{
+						ClusterName: envoyServiceName,
+						Endpoints: []*endpoint.LocalityLbEndpoints{{
+							LbEndpoints: envoyServiceFromService(svc, port.ServicePort, useHostnames),
+						}},
+					},
+					// Contour believes the IdleTimeout should be set to 60s. Not sure if we also need to enable these.
+					// See here: https://github.com/projectcontour/contour/blob/2858fec20d26f56cc75a19d91b61d625a86f36de/internal/envoy/listener.go#L102-L106
+					// CommonHttpProtocolOptions: &core.HttpProtocolOptions{
+					// 	IdleTimeout:           &duration.Duration{Seconds: 60},
+					// 	MaxConnectionDuration: &duration.Duration{Seconds: 60},
+					// },
+					// If this needs to be enabled, we might also need to set `ProtocolSelection: api.USE_DOWNSTREAM_PROTOCOL`.
+					// Http2ProtocolOptions: &core.Http2ProtocolOptions{},
+				}
+
+				clusterMap[envoyServiceName] = envoyCluster
 			}
-			listeners = append(listeners, listener)
+
+			if _, ok := listenerMap[envoyServiceName]; !ok {
+				listener, err := envoyListenerFromService(svc, envoyServiceName, port.ServicePort, bindIP)
+				if err != nil {
+					log.Errorf("Failed to create Envoy listener for service %q and port %d: %s", svc.Name, port.ServicePort, err)
+					continue
+				}
+				listenerMap[envoyServiceName] = listener
+			}
 		}
+	})
+
+	clusters := make([]cache.Resource, 0, len(clusterMap))
+	for _, cluster := range clusterMap {
+		clusters = append(clusters, cluster)
 	}
 
-	return listeners, nil
+	listeners := make([]cache.Resource, 0, len(listenerMap))
+	for _, listener := range listenerMap {
+		listeners = append(listeners, listener)
+	}
+
+	return EnvoyResources{
+		Clusters:  clusters,
+		Listeners: listeners,
+	}
 }
 
-// EnvoyListenerFromService creates an Envoy listener from a service instance
-func EnvoyListenerFromService(svc *service.Service, port int64, bindIP string) (cache.Resource, error) {
-	apiName := SvcName(svc.Name, port)
+// envoyListenerFromService creates an Envoy listener from a service instance
+func envoyListenerFromService(svc *service.Service, envoyServiceName string,
+	servicePort int64, bindIP string) (cache.Resource, error) {
 
 	var connectionManagerName string
 	var connectionManager proto.Message
@@ -127,7 +170,7 @@ func EnvoyListenerFromService(svc *service.Service, port int64, bindIP string) (
 			RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{
 				RouteConfig: &api.RouteConfiguration{
 					VirtualHosts: []*route.VirtualHost{{
-						Name:    apiName,
+						Name:    envoyServiceName,
 						Domains: []string{"*"},
 						Routes: []*route.Route{{
 							Match: &route.RouteMatch{
@@ -138,7 +181,7 @@ func EnvoyListenerFromService(svc *service.Service, port int64, bindIP string) (
 							Action: &route.Route_Route{
 								Route: &route.RouteAction{
 									ClusterSpecifier: &route.RouteAction_Cluster{
-										Cluster: apiName,
+										Cluster: envoyServiceName,
 									},
 									Timeout: &duration.Duration{},
 								},
@@ -154,7 +197,7 @@ func EnvoyListenerFromService(svc *service.Service, port int64, bindIP string) (
 		connectionManager = &tcpp.TcpProxy{
 			StatPrefix: "ingress_tcp",
 			ClusterSpecifier: &tcpp.TcpProxy_Cluster{
-				Cluster: apiName,
+				Cluster: envoyServiceName,
 			},
 		}
 	default:
@@ -173,7 +216,7 @@ func EnvoyListenerFromService(svc *service.Service, port int64, bindIP string) (
 				SocketAddress: &core.SocketAddress{
 					Address: bindIP,
 					PortSpecifier: &core.SocketAddress_PortValue{
-						PortValue: uint32(port),
+						PortValue: uint32(servicePort),
 					},
 				},
 			},
@@ -189,80 +232,8 @@ func EnvoyListenerFromService(svc *service.Service, port int64, bindIP string) (
 	}, nil
 }
 
-// EnvoyClustersFromState genenerates a list of Envoy clusters from the
-// current Sidecar state
-func EnvoyClustersFromState(state *catalog.ServicesState, useHostnames bool) []cache.Resource {
-	state.RLock()
-	defer state.RUnlock()
-
-	// `s.state.ByService()` returns the list of service endpoints for each service.
-	// Since some services can expose multiple service ports, we need to create a
-	// separate cluster for each (service, servicePort) pair. If a service doesn't
-	// have any endpoints that are alive, we don't want to create a cluster for it.
-	//
-	// Note that in `EnvoyClustersFromState()` for the REST API we only need
-	// the first non-nil alive endpoint instance to construct the cluster
-	// because, in that case, SDS (now EDS) fetches the actual endpoints in a
-	// separate call.
-	var clusters []cache.Resource
-	clustersMap := make(map[string]*api.Cluster)
-	for svcName, svcEndpoints := range state.ByService() {
-		if len(svcEndpoints) < 1 {
-			continue
-		}
-
-		for _, svcEndpoint := range svcEndpoints {
-			if svcEndpoint == nil || !svcEndpoint.IsAlive() {
-				continue
-			}
-
-			for _, port := range svcEndpoint.Ports {
-				if port.ServicePort < 1 {
-					continue
-				}
-
-				envoyServiceName := SvcName(svcName, port.ServicePort)
-
-				if cluster, ok := clustersMap[envoyServiceName]; ok {
-					cluster.LoadAssignment.Endpoints[0].LbEndpoints =
-						append(cluster.LoadAssignment.Endpoints[0].LbEndpoints,
-							envoyServiceFromService(svcEndpoint, port.ServicePort, useHostnames)...)
-				} else {
-					envoyCluster := &api.Cluster{
-						Name:                 envoyServiceName,
-						ConnectTimeout:       &duration.Duration{Nanos: 500000000},        // 500ms
-						ClusterDiscoveryType: &api.Cluster_Type{Type: api.Cluster_STATIC}, // Use IPs only
-						ProtocolSelection:    api.Cluster_USE_CONFIGURED_PROTOCOL,
-						// Setting the endpoints here directly bypasses EDS, so we can
-						// avoid having to configure that as well
-						LoadAssignment: &api.ClusterLoadAssignment{
-							ClusterName: envoyServiceName,
-							Endpoints: []*endpoint.LocalityLbEndpoints{{
-								LbEndpoints: envoyServiceFromService(svcEndpoint, port.ServicePort, useHostnames),
-							}},
-						},
-						// Contour believes the IdleTimeout should be set to 60s. Not sure if we also need to enable these.
-						// See here: https://github.com/projectcontour/contour/blob/2858fec20d26f56cc75a19d91b61d625a86f36de/internal/envoy/listener.go#L102-L106
-						// CommonHttpProtocolOptions: &core.HttpProtocolOptions{
-						// 	IdleTimeout:           &duration.Duration{Seconds: 60},
-						// 	MaxConnectionDuration: &duration.Duration{Seconds: 60},
-						// },
-						// If this needs to be enabled, we might also need to set `ProtocolSelection: api.USE_DOWNSTREAM_PROTOCOL`.
-						// Http2ProtocolOptions: &core.Http2ProtocolOptions{},
-					}
-
-					clustersMap[envoyServiceName] = envoyCluster
-					clusters = append(clusters, envoyCluster)
-				}
-			}
-		}
-	}
-
-	return clusters
-}
-
-// envoyServiceFromService converts a Sidecar service to an Envoy
-// API service for reporting to the proxy
+// envoyServiceFromService converts a Sidecar service to an Envoy API service for
+// reporting to the proxy
 func envoyServiceFromService(svc *service.Service, svcPort int64, useHostnames bool) []*endpoint.LbEndpoint {
 	var endpoints []*endpoint.LbEndpoint
 	for _, port := range svc.Ports {
