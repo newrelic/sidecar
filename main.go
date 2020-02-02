@@ -379,8 +379,8 @@ func main() {
 	if config.Envoy.UseGRPCAPI {
 		ctx := context.Background()
 		envoyServer := envoy.NewServer(ctx, state, config.Envoy)
-		envoyServerLooper := director.NewFreeLooper(
-			director.FOREVER, make(chan error),
+		envoyServerLooper := director.NewTimedLooper(
+			director.FOREVER, envoy.LooperUpdateInterval, make(chan error),
 		)
 
 		// This listener will be owned and managed by the gRPC server
@@ -390,8 +390,6 @@ func main() {
 		}
 
 		go envoyServer.Run(ctx, envoyServerLooper, grpcListener)
-
-		state.AddListener(envoyServer.Listener)
 	}
 
 	select {}

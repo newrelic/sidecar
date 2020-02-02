@@ -19,6 +19,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	// LooperUpdateInterval indicates how often to check if the state has changed
+	LooperUpdateInterval = 1 * time.Second
+)
+
 type xdsCallbacks struct{}
 
 func (*xdsCallbacks) OnStreamOpen(context.Context, int64, string) error  { return nil }
@@ -38,7 +43,6 @@ func (*xdsCallbacks) OnFetchResponse(*api.DiscoveryRequest, *api.DiscoveryRespon
 // Server is a wrapper around Envoy's control plane xDS gRPC server and it uses
 // the Aggregated Discovery Service (ADS) mechanism.
 type Server struct {
-	Listener      catalog.Listener
 	config        config.EnvoyConfig
 	state         *catalog.ServicesState
 	snapshotCache cache.SnapshotCache
@@ -53,30 +57,27 @@ func newSnapshotVersion() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10)
 }
 
-// Run sets up the Sidecar listener event loop and starts the Envoy gRPC server
+// Run starts the Envoy update looper and the Envoy gRPC server
 func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener net.Listener) {
-	grpcServer := grpc.NewServer()
-	envoy_discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, s.xdsServer)
+	// The local hostname needs to match the value passed via `--service-node` to Envoy
+	// See https://github.com/envoyproxy/envoy/issues/144#issuecomment-267401271
+	// This never changes, so we don't need to lock the state here
+	hostname := s.state.Hostname
 
+	// prevStateLastChanged caches the state.LastChanged timestamp when we send an
+	// update to Envoy
+	prevStateLastChanged := time.Unix(0, 0)
 	go looper.Loop(func() error {
-		// Block until we get an event indicating a state change.
-		// We discard the event since we need a snapshot of the entire state.
-		<-s.Listener.Chan()
+		s.state.RLock()
+		lastChanged := s.state.LastChanged
+		s.state.RUnlock()
 
-		// When a server is expired in catalog/services_state.go -> ExpireServer(),
-		// the listener will receive an event for each expired service. We want to
-		// flush the channel to prevent rapid-fire updates to Envoy.
-		// This was inspired from receiver/receiver.go -> ProcessUpdates().
-		// TODO: Think of a more aggressive / reliable way of draining since we
-		// used a larger value for listenerEventBufferSize.
-		pendingEventCount := len(s.Listener.Chan())
-		for i := 0; i < pendingEventCount; i++ {
-			<-s.Listener.Chan()
+		// Do nothing if the state hasn't changed
+		if lastChanged == prevStateLastChanged {
+			return nil
 		}
 
-		// The hostname needs to match the value passed via `--service-node` to Envoy
-		// See https://github.com/envoyproxy/envoy/issues/144#issuecomment-267401271
-		hostname := s.state.Hostname
+		prevStateLastChanged = lastChanged
 
 		snapshotVersion := newSnapshotVersion()
 
@@ -129,6 +130,9 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 		return nil
 	})
 
+	grpcServer := grpc.NewServer()
+	envoy_discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, s.xdsServer)
+
 	go func() {
 		if err := grpcServer.Serve(grpcListener); err != nil {
 			log.Fatalf("Failed to start Envoy gRPC server: %s", err)
@@ -148,7 +152,6 @@ func NewServer(ctx context.Context, state *catalog.ServicesState, config config.
 	snapshotCache := cache.NewSnapshotCache(true, cache.IDHash{}, nil)
 
 	return &Server{
-		Listener:      NewListener(),
 		config:        config,
 		state:         state,
 		snapshotCache: snapshotCache,

@@ -132,6 +132,7 @@ func (sv *EnvoyMock) GetResource(stream envoy_discovery.AggregatedDiscoveryServi
 
 	// Recv() blocks until the stream ctx expires if the message sent via Send() is not recognised / valid
 	response, err := stream.Recv()
+
 	So(err, ShouldBeNil)
 
 	sv.nonces[resource] = response.GetNonce()
@@ -151,10 +152,15 @@ func (sv *EnvoyMock) ValidateResources(stream envoy_discovery.AggregatedDiscover
 // us get a notification after calling SetSnapshot via the Waiter chan
 type SnapshotCache struct {
 	cache.SnapshotCache
-	Waiter chan struct{}
+	Waiter        chan struct{}
+	PreCallWaiter chan struct{}
 }
 
 func (c *SnapshotCache) SetSnapshot(node string, snapshot cache.Snapshot) error {
+	if c.PreCallWaiter != nil {
+		<-c.PreCallWaiter
+	}
+
 	err := c.SnapshotCache.SetSnapshot(node, snapshot)
 
 	c.Waiter <- struct{}{}
@@ -228,15 +234,11 @@ func Test_PortForServicePort(t *testing.T) {
 		// the state until the Server gets a chance to set a new snapshot in the cache
 		snapshotCache := NewSnapshotCache()
 		server := &Server{
-			Listener:      NewListener(),
 			config:        config,
 			state:         state,
 			snapshotCache: snapshotCache,
 			xdsServer:     xds.NewServer(ctx, snapshotCache, &xdsCallbacks{}),
 		}
-
-		// Hook up the Envoy server Sidecar listener into the state
-		state.AddListener(server.Listener)
 
 		// The gRPC listener will be assigned a random port and will be owned and managed
 		// by the gRPC server
@@ -244,7 +246,9 @@ func Test_PortForServicePort(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(lis.Addr(), ShouldHaveSameTypeAs, &net.TCPAddr{})
 
-		go server.Run(ctx, director.NewFreeLooper(director.FOREVER, make(chan error)), lis)
+		// Using a FreeLooper instead would make it run too often, triggering spurious
+		// locking on the state, which can cause the tests to time out
+		go server.Run(ctx, director.NewTimedLooper(director.FOREVER, 10*time.Millisecond, make(chan error)), lis)
 
 		Convey("sends the Envoy state via gRPC", func() {
 			conn, err := grpc.DialContext(ctx,
@@ -285,6 +289,8 @@ func Test_PortForServicePort(t *testing.T) {
 				})
 
 				Convey("and places another instance of the same service in the same cluster", func() {
+					// Make sure this other service instance was more recently updated than httpSvc
+					anotherHTTPSvc.Updated = anotherHTTPSvc.Updated.Add(1 * time.Millisecond)
 					state.AddServiceEntry(anotherHTTPSvc)
 					<-snapshotCache.Waiter
 					<-snapshotCache.Waiter
@@ -349,10 +355,13 @@ func Test_PortForServicePort(t *testing.T) {
 			})
 
 			Convey("and sends an update with the new clusters", func() {
+				// The snapshotCache.PreCallWaiter will block before the first cache snapshot
+				// containing the clusters is set
+				snapshotCache.PreCallWaiter = make(chan struct{})
 				state.AddServiceEntry(httpSvc)
 
-				// The snapshotCache.Waiter will block after the first cache snapshot
-				// containing the clusters is set
+				snapshotCache.PreCallWaiter <- struct{}{}
+				<-snapshotCache.Waiter
 
 				clusters := envoyMock.GetResource(stream, cache.ClusterType, state.Hostname)
 				So(clusters, ShouldHaveLength, 1)
@@ -361,42 +370,11 @@ func Test_PortForServicePort(t *testing.T) {
 				listeners := envoyMock.GetResource(stream, cache.ListenerType, state.Hostname)
 				So(listeners, ShouldHaveLength, 0)
 
-				<-snapshotCache.Waiter
+				snapshotCache.PreCallWaiter <- struct{}{}
 				<-snapshotCache.Waiter
 
 				envoyMock.ValidateResources(stream, httpSvc, state.Hostname)
 			})
-
-			// TODO: This test is flaky in the current implementation
-			// Convey("and doesn't do spurious updates", func() {
-			// 	state.AddServiceEntry(httpSvc)
-			// 	state.AddServiceEntry(anotherHTTPSvc)
-			// 	<-snapshotCache.Waiter
-			// 	<-snapshotCache.Waiter
-
-			// 	updateCount := 0
-			// 	done := make(chan struct{})
-			// 	go func() {
-			// 		for {
-			// 			select {
-			// 			case <-snapshotCache.Waiter:
-			// 				updateCount++
-			// 			case <-time.After(10 * time.Millisecond):
-			// 				done <- struct{}{}
-			// 				return
-			// 			}
-			// 		}
-			// 	}()
-
-			// 	state.ExpireServer(dummyHostname)
-			// 	<-done
-			// 	So(updateCount, ShouldEqual, 1)
-
-			// 	for resourceType := range validators {
-			// 		resources := envoyMock.GetResource(stream, resourceType, state.Hostname)
-			// 		So(resources, ShouldHaveLength, 0)
-			// 	}
-			// })
 		})
 	})
 }
