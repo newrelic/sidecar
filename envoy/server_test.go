@@ -16,10 +16,9 @@ import (
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
-	tcpp "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	envoy_discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
+	"github.com/envoyproxy/go-control-plane/pkg/conversion"
 	xds "github.com/envoyproxy/go-control-plane/pkg/server"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/golang/protobuf/ptypes"
@@ -54,26 +53,22 @@ func validateListener(serialisedListener *any.Any, svc service.Service) {
 
 	if svc.ProxyMode == "http" {
 		So(filters[0].GetName(), ShouldEqual, wellknown.HTTPConnectionManager)
-		connectionManager := &hcm.HttpConnectionManager{}
-		err = ptypes.UnmarshalAny(filters[0].GetTypedConfig(), connectionManager)
+		// TODO: Switch to ptypes.MarshalAny when updating the Envoy API
+		// See the original implementation from 080e510
+		//nolint:staticcheck // ignore SA1019 for deprecated code
+		connectionManager, err := conversion.MessageToStruct(filters[0].GetConfig())
 		So(err, ShouldBeNil)
-		So(connectionManager.GetStatPrefix(), ShouldEqual, "ingress_http")
-		So(connectionManager.GetRouteConfig(), ShouldNotBeNil)
-		So(connectionManager.GetRouteConfig().GetVirtualHosts(), ShouldHaveLength, 1)
-		virtualHost := connectionManager.GetRouteConfig().GetVirtualHosts()[0]
-		So(virtualHost.GetName(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
-		So(virtualHost.GetRoutes(), ShouldHaveLength, 1)
-		route := virtualHost.GetRoutes()[0].GetRoute()
-		So(route, ShouldNotBeNil)
-		So(route.GetCluster(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
-		So(route.GetTimeout(), ShouldNotBeNil)
+		So(connectionManager, ShouldNotBeZeroValue)
+		So(connectionManager.GetFields()["stat_prefix"].GetStringValue(), ShouldEqual, "ingress_http")
 	} else { // tcp
 		So(filters[0].GetName(), ShouldEqual, wellknown.TCPProxy)
-		connectionManager := &tcpp.TcpProxy{}
-		err = ptypes.UnmarshalAny(filters[0].GetTypedConfig(), connectionManager)
+		// TODO: Switch to ptypes.MarshalAny when updating the Envoy API
+		// See the original implementation from 080e510
+		//nolint:staticcheck // ignore SA1019 for deprecated code
+		connectionManager, err := conversion.MessageToStruct(filters[0].GetConfig())
 		So(err, ShouldBeNil)
-		So(connectionManager.GetStatPrefix(), ShouldEqual, "ingress_tcp")
-		So(connectionManager.GetCluster(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
+		So(connectionManager.GetFields()["stat_prefix"].GetStringValue(), ShouldEqual, "ingress_tcp")
+		So(connectionManager.GetFields()["cluster"].GetStringValue(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
 	}
 }
 

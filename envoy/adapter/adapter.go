@@ -16,9 +16,9 @@ import (
 	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcpp "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
+	"github.com/envoyproxy/go-control-plane/pkg/conversion"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/gogo/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/duration"
 	log "github.com/sirupsen/logrus"
 )
@@ -204,7 +204,9 @@ func envoyListenerFromService(svc *service.Service, envoyServiceName string,
 		return nil, fmt.Errorf("unrecognised proxy mode: %s", svc.ProxyMode)
 	}
 
-	serialisedConnectionManager, err := ptypes.MarshalAny(connectionManager)
+	// TODO: Switch to ptypes.MarshalAny when updating the Envoy API
+	// See the original implementation from 080e510
+	serialisedConnectionManager, err := conversion.MessageToStruct(connectionManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the connection manager: %s", err)
 	}
@@ -224,8 +226,9 @@ func envoyListenerFromService(svc *service.Service, envoyServiceName string,
 		FilterChains: []*listener.FilterChain{{
 			Filters: []*listener.Filter{{
 				Name: connectionManagerName,
-				ConfigType: &listener.Filter_TypedConfig{
-					TypedConfig: serialisedConnectionManager,
+				// TODO: Switch to Filter_TypedConfig when updating the Envoy API
+				ConfigType: &listener.Filter_Config{
+					Config: serialisedConnectionManager,
 				},
 			}},
 		}},
