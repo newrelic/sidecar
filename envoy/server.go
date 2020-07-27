@@ -81,33 +81,15 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 
 		prevStateLastChanged = lastChanged
 
-		snapshotVersion := newSnapshotVersion()
-
-		// Set the new clusters in the current snapshot to send them along with the
-		// previous listeners to Envoy. If we would pass in the new listeners too, Envoy
-		// will complain if it happens to receive the new listeners before the new clusters
-		// because some of the listeners might be associated with clusters which don't
-		// exit yet.
-		// See the eventual consistency considerations in the documentation for details:
+		// Set the computed listeners and clusters in the current snapshot to
+		// send them to Envoy.
+		// See the eventual consistency considerations in the documentation for
+		// details about how Envoy updates these resources:
 		// https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol#eventual-consistency-considerations
-		snapshot, err := s.snapshotCache.GetSnapshot(hostname)
-		if err != nil {
-			// During the first iteration, there is no existing snapshot, so we create one
-			snapshot = cache.NewSnapshot(snapshotVersion, nil, resources.Clusters, nil, nil, nil)
-		} else {
-			snapshot.Resources[cache.Cluster] = cache.NewResources(snapshotVersion, resources.Clusters)
-		}
 
-		err = s.snapshotCache.SetSnapshot(hostname, snapshot)
-		if err != nil {
-			log.Errorf("Failed to set new Envoy cache snapshot: %s", err)
-			return nil
-		}
-		log.Infof("Sent %d clusters to Envoy with version %s", len(resources.Clusters), snapshotVersion)
-
-		// Create a new snapshot version and, finally, send the updated listeners to Envoy
-		snapshotVersion = newSnapshotVersion()
-		err = s.snapshotCache.SetSnapshot(hostname, cache.NewSnapshot(
+		// Create a new snapshot version and send the listeners and clusters to Envoy
+		snapshotVersion := newSnapshotVersion()
+		err := s.snapshotCache.SetSnapshot(hostname, cache.NewSnapshot(
 			snapshotVersion,
 			nil,
 			resources.Clusters,
@@ -119,7 +101,10 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 			log.Errorf("Failed to set new Envoy cache snapshot: %s", err)
 			return nil
 		}
-		log.Infof("Sent %d listeners to Envoy with version %s", len(resources.Listeners), snapshotVersion)
+
+		log.Infof("Sent %d listeners and %d clusters to Envoy with version %s",
+			len(resources.Listeners), len(resources.Clusters), snapshotVersion,
+		)
 
 		return nil
 	})

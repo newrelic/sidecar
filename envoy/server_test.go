@@ -147,15 +147,10 @@ func (sv *EnvoyMock) ValidateResources(stream envoy_discovery.AggregatedDiscover
 // us get a notification after calling SetSnapshot via the Waiter chan
 type SnapshotCache struct {
 	cache.SnapshotCache
-	Waiter        chan struct{}
-	PreCallWaiter chan struct{}
+	Waiter chan struct{}
 }
 
 func (c *SnapshotCache) SetSnapshot(node string, snapshot cache.Snapshot) error {
-	if c.PreCallWaiter != nil {
-		<-c.PreCallWaiter
-	}
-
 	err := c.SnapshotCache.SetSnapshot(node, snapshot)
 
 	c.Waiter <- struct{}{}
@@ -266,7 +261,6 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("for a HTTP service", func() {
 				state.AddServiceEntry(httpSvc)
 				<-snapshotCache.Waiter
-				<-snapshotCache.Waiter
 
 				envoyMock.ValidateResources(stream, httpSvc, state.Hostname)
 
@@ -274,7 +268,6 @@ func Test_PortForServicePort(t *testing.T) {
 					httpSvc.Tombstone()
 					httpSvc.Updated.Add(1 * time.Millisecond)
 					state.AddServiceEntry(httpSvc)
-					<-snapshotCache.Waiter
 					<-snapshotCache.Waiter
 
 					for resourceType := range validators {
@@ -287,7 +280,6 @@ func Test_PortForServicePort(t *testing.T) {
 					// Make sure this other service instance was more recently updated than httpSvc
 					anotherHTTPSvc.Updated = anotherHTTPSvc.Updated.Add(1 * time.Millisecond)
 					state.AddServiceEntry(anotherHTTPSvc)
-					<-snapshotCache.Waiter
 					<-snapshotCache.Waiter
 
 					resources := envoyMock.GetResource(stream, cache.ClusterType, state.Hostname)
@@ -307,7 +299,6 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("for a TCP service", func() {
 				state.AddServiceEntry(tcpSvc)
 				<-snapshotCache.Waiter
-				<-snapshotCache.Waiter
 
 				envoyMock.ValidateResources(stream, tcpSvc, state.Hostname)
 			})
@@ -315,7 +306,6 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("and skips tombstones", func() {
 				httpSvc.Tombstone()
 				state.AddServiceEntry(httpSvc)
-				<-snapshotCache.Waiter
 				<-snapshotCache.Waiter
 
 				for resourceType := range validators {
@@ -327,13 +317,11 @@ func Test_PortForServicePort(t *testing.T) {
 			Convey("and triggers an update when expiring a server with only one service running", func(c C) {
 				state.AddServiceEntry(httpSvc)
 				<-snapshotCache.Waiter
-				<-snapshotCache.Waiter
 
 				done := make(chan struct{})
 				go func() {
 					select {
 					case <-snapshotCache.Waiter:
-						<-snapshotCache.Waiter
 						close(done)
 					case <-time.After(100 * time.Millisecond):
 						c.So(true, ShouldEqual, false)
@@ -347,28 +335,6 @@ func Test_PortForServicePort(t *testing.T) {
 					resources := envoyMock.GetResource(stream, resourceType, state.Hostname)
 					So(resources, ShouldHaveLength, 0)
 				}
-			})
-
-			Convey("and sends an update with the new clusters", func() {
-				// The snapshotCache.PreCallWaiter will block before the first cache snapshot
-				// containing the clusters is set
-				snapshotCache.PreCallWaiter = make(chan struct{})
-				state.AddServiceEntry(httpSvc)
-
-				snapshotCache.PreCallWaiter <- struct{}{}
-				<-snapshotCache.Waiter
-
-				clusters := envoyMock.GetResource(stream, cache.ClusterType, state.Hostname)
-				So(clusters, ShouldHaveLength, 1)
-				validateCluster(clusters[0], httpSvc)
-
-				listeners := envoyMock.GetResource(stream, cache.ListenerType, state.Hostname)
-				So(listeners, ShouldHaveLength, 0)
-
-				snapshotCache.PreCallWaiter <- struct{}{}
-				<-snapshotCache.Waiter
-
-				envoyMock.ValidateResources(stream, httpSvc, state.Hostname)
 			})
 		})
 	})

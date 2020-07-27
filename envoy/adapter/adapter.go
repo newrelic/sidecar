@@ -20,6 +20,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -169,6 +170,7 @@ func envoyListenerFromService(svc *service.Service, envoyServiceName string,
 			}},
 			RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{
 				RouteConfig: &api.RouteConfiguration{
+					ValidateClusters: &wrappers.BoolValue{Value: false},
 					VirtualHosts: []*route.VirtualHost{{
 						Name:    envoyServiceName,
 						Domains: []string{"*"},
