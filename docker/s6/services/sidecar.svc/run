@@ -18,13 +18,18 @@ EOF
 	done
 fi
 
+# If $ENVOY_BIND_IP is set, then use it as the bind IP.
+# Otherwise, fall back to $HAPROXY_BIND_IP.
+BIND_IP="$HAPROXY_BIND_IP"
+[[ -n "$ENVOY_BIND_IP" ]] && BIND_IP="$ENVOY_BIND_IP"
+
 # If there's a BIND_IP and we don't already have it, add the
 # address to the loopback interface.
-if [[ -n "$HAPROXY_BIND_IP" ]] && [[ $HAPROXY_BIND_IP != "0.0.0.0" ]]; then
- 	ip addr show | grep $HAPROXY_BIND_IP
+if [[ -n "$BIND_IP" ]] && [[ "$BIND_IP" != "0.0.0.0" ]]; then
+	ip addr show | grep $BIND_IP
 	if [[ $? -ne 0 ]]; then
-		echo "Adding $HAPROXY_BIND_IP to the loopback interface"
-		ip addr add $HAPROXY_BIND_IP/32 dev lo
+		echo "Adding $BIND_IP to the loopback interface"
+		ip addr add $BIND_IP/32 dev lo
 	fi
 fi
 
