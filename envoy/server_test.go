@@ -43,7 +43,7 @@ func validateListener(serialisedListener *any.Any, svc service.Service) {
 	listener := &api.Listener{}
 	err := ptypes.UnmarshalAny(serialisedListener, listener)
 	So(err, ShouldBeNil)
-	So(listener.Name, ShouldEqual, svc.Name)
+	So(listener.Name, ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
 	So(listener.GetAddress().GetSocketAddress().GetAddress(), ShouldEqual, bindIP)
 	So(listener.GetAddress().GetSocketAddress().GetPortValue(), ShouldEqual, svc.Ports[0].ServicePort)
 	filterChains := listener.GetFilterChains()

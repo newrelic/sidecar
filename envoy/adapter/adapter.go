@@ -172,7 +172,7 @@ func envoyListenerFromService(svc *service.Service, envoyServiceName string,
 				RouteConfig: &api.RouteConfiguration{
 					ValidateClusters: &wrappers.BoolValue{Value: false},
 					VirtualHosts: []*route.VirtualHost{{
-						Name:    envoyServiceName,
+						Name:    svc.Name,
 						Domains: []string{"*"},
 						Routes: []*route.Route{{
 							Match: &route.RouteMatch{
@@ -214,7 +214,7 @@ func envoyListenerFromService(svc *service.Service, envoyServiceName string,
 	}
 
 	return &api.Listener{
-		Name: svc.Name,
+		Name: envoyServiceName,
 		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
