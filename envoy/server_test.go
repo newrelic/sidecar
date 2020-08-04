@@ -15,7 +15,6 @@ import (
 	"github.com/Nitro/sidecar/service"
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	envoy_discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	"github.com/envoyproxy/go-control-plane/pkg/conversion"
@@ -35,6 +34,7 @@ const (
 var (
 	validators = map[string]func(*any.Any, service.Service){
 		cache.ListenerType: validateListener,
+		cache.EndpointType: validateEndpoints,
 		cache.ClusterType:  validateCluster,
 	}
 )
@@ -72,26 +72,33 @@ func validateListener(serialisedListener *any.Any, svc service.Service) {
 	}
 }
 
-func extractClusterEndpoints(serialisedCluster *any.Any, svc service.Service) []*endpoint.LbEndpoint {
+func validateEndpoints(serialisedLoadAssignment *any.Any, svc service.Service) {
+	loadAssignment := &api.ClusterLoadAssignment{}
+	err := ptypes.UnmarshalAny(serialisedLoadAssignment, loadAssignment)
+	So(err, ShouldBeNil)
+	So(loadAssignment.GetClusterName(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
+
+	localityEndpoints := loadAssignment.GetEndpoints()
+	So(localityEndpoints, ShouldHaveLength, 1)
+
+	endpoints := localityEndpoints[0].GetLbEndpoints()
+	So(endpoints, ShouldHaveLength, 1)
+	So(endpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress(), ShouldEqual, svc.Ports[0].IP)
+	So(endpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetPortValue(), ShouldEqual, svc.Ports[0].Port)
+}
+
+func validateCluster(serialisedCluster *any.Any, svc service.Service) {
 	cluster := &api.Cluster{}
 	err := ptypes.UnmarshalAny(serialisedCluster, cluster)
 	So(err, ShouldBeNil)
 	So(cluster.Name, ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
 	So(cluster.GetConnectTimeout().GetNanos(), ShouldEqual, 500000000)
-	loadAssignment := cluster.GetLoadAssignment()
-	So(loadAssignment, ShouldNotBeNil)
-	So(loadAssignment.GetClusterName(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
-	localityEndpoints := loadAssignment.GetEndpoints()
-	So(localityEndpoints, ShouldHaveLength, 1)
-
-	return localityEndpoints[0].GetLbEndpoints()
-}
-
-func validateCluster(serialisedCluster *any.Any, svc service.Service) {
-	endpoints := extractClusterEndpoints(serialisedCluster, svc)
-	So(endpoints, ShouldHaveLength, 1)
-	So(endpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetAddress(), ShouldEqual, svc.Ports[0].IP)
-	So(endpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetPortValue(), ShouldEqual, svc.Ports[0].Port)
+	So(cluster.GetClusterDiscoveryType(), ShouldResemble, &api.Cluster_Type{Type: api.Cluster_EDS})
+	So(cluster.GetEdsClusterConfig(), ShouldNotBeNil)
+	So(cluster.GetEdsClusterConfig().GetEdsConfig(), ShouldNotBeNil)
+	So(cluster.GetEdsClusterConfig().GetEdsConfig().GetConfigSourceSpecifier(), ShouldNotBeNil)
+	So(cluster.GetEdsClusterConfig().GetEdsConfig().GetConfigSourceSpecifier(), ShouldResemble, &core.ConfigSource_Ads{Ads: &core.AggregatedConfigSource{}})
+	So(cluster.GetLoadAssignment(), ShouldBeNil)
 }
 
 // EnvoyMock is used to validate the Envoy state by making the same gRPC stream calls
@@ -282,12 +289,14 @@ func Test_PortForServicePort(t *testing.T) {
 					state.AddServiceEntry(anotherHTTPSvc)
 					<-snapshotCache.Waiter
 
-					resources := envoyMock.GetResource(stream, cache.ClusterType, state.Hostname)
+					resources := envoyMock.GetResource(stream, cache.EndpointType, state.Hostname)
 					So(resources, ShouldHaveLength, 1)
-					endpoints := extractClusterEndpoints(resources[0], httpSvc)
-					So(endpoints, ShouldHaveLength, 2)
+					loadAssignment := &api.ClusterLoadAssignment{}
+					err := ptypes.UnmarshalAny(resources[0], loadAssignment)
+					So(err, ShouldBeNil)
+					So(loadAssignment.GetEndpoints(), ShouldHaveLength, 1)
 					var ports sort.IntSlice
-					for _, endpoint := range endpoints {
+					for _, endpoint := range loadAssignment.GetEndpoints()[0].GetLbEndpoints() {
 						ports = append(ports,
 							int(endpoint.GetEndpoint().GetAddress().GetSocketAddress().GetPortValue()))
 					}

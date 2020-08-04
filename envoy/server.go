@@ -91,7 +91,7 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 		snapshotVersion := newSnapshotVersion()
 		err := s.snapshotCache.SetSnapshot(hostname, cache.NewSnapshot(
 			snapshotVersion,
-			nil,
+			resources.Endpoints,
 			resources.Clusters,
 			nil,
 			resources.Listeners,
@@ -102,8 +102,8 @@ func (s *Server) Run(ctx context.Context, looper director.Looper, grpcListener n
 			return nil
 		}
 
-		log.Infof("Sent %d listeners and %d clusters to Envoy with version %s",
-			len(resources.Listeners), len(resources.Clusters), snapshotVersion,
+		log.Infof("Sent %d endpoints, %d listeners and %d clusters to Envoy with version %s",
+			len(resources.Endpoints), len(resources.Listeners), len(resources.Clusters), snapshotVersion,
 		)
 
 		return nil

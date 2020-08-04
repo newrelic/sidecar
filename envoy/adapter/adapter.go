@@ -31,6 +31,7 @@ const (
 
 // EnvoyResources is a collection of Enovy API resource definitions
 type EnvoyResources struct {
+	Endpoints []cache.Resource
 	Clusters  []cache.Resource
 	Listeners []cache.Resource
 }
@@ -74,6 +75,7 @@ func LookupHost(hostname string) (string, error) {
 func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 	useHostnames bool) EnvoyResources {
 
+	endpointMap := make(map[string]*api.ClusterLoadAssignment)
 	clusterMap := make(map[string]*api.Cluster)
 	listenerMap := make(map[string]cache.Resource)
 
@@ -91,27 +93,28 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 
 			envoyServiceName := SvcName(svc.Name, port.ServicePort)
 
-			if cluster, ok := clusterMap[envoyServiceName]; ok {
-				cluster.LoadAssignment.Endpoints[0].LbEndpoints =
-					append(cluster.LoadAssignment.Endpoints[0].LbEndpoints,
+			if loadAssignment, ok := endpointMap[envoyServiceName]; ok {
+				loadAssignment.Endpoints[0].LbEndpoints =
+					append(loadAssignment.Endpoints[0].LbEndpoints,
 						envoyServiceFromService(svc, port.ServicePort, useHostnames)...)
 			} else {
-				envoyCluster := &api.Cluster{
+				endpointMap[envoyServiceName] = &api.ClusterLoadAssignment{
+					ClusterName: envoyServiceName,
+					Endpoints: []*endpoint.LocalityLbEndpoints{{
+						LbEndpoints: envoyServiceFromService(svc, port.ServicePort, useHostnames),
+					}},
+				}
+
+				clusterMap[envoyServiceName] = &api.Cluster{
 					Name:                 envoyServiceName,
-					ConnectTimeout:       &duration.Duration{Nanos: 500000000},        // 500ms
-					ClusterDiscoveryType: &api.Cluster_Type{Type: api.Cluster_STATIC}, // Use IPs only
-					ProtocolSelection:    api.Cluster_USE_CONFIGURED_PROTOCOL,
-					// Setting the endpoints here directly bypasses EDS, so we can
-					// avoid having to configure that as well
-					// Note that in `EnvoyClustersFromState()` for the REST API we only need
-					// the first non-nil alive endpoint instance to construct the cluster
-					// because, in that case, SDS (now EDS) fetches the actual endpoints in a
-					// separate call.
-					LoadAssignment: &api.ClusterLoadAssignment{
-						ClusterName: envoyServiceName,
-						Endpoints: []*endpoint.LocalityLbEndpoints{{
-							LbEndpoints: envoyServiceFromService(svc, port.ServicePort, useHostnames),
-						}},
+					ConnectTimeout:       &duration.Duration{Nanos: 500000000}, // 500ms
+					ClusterDiscoveryType: &api.Cluster_Type{Type: api.Cluster_EDS},
+					EdsClusterConfig: &api.Cluster_EdsClusterConfig{
+						EdsConfig: &core.ConfigSource{
+							ConfigSourceSpecifier: &core.ConfigSource_Ads{
+								Ads: &core.AggregatedConfigSource{},
+							},
+						},
 					},
 					// Contour believes the IdleTimeout should be set to 60s. Not sure if we also need to enable these.
 					// See here: https://github.com/projectcontour/contour/blob/2858fec20d26f56cc75a19d91b61d625a86f36de/internal/envoy/listener.go#L102-L106
@@ -122,8 +125,6 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 					// If this needs to be enabled, we might also need to set `ProtocolSelection: api.USE_DOWNSTREAM_PROTOCOL`.
 					// Http2ProtocolOptions: &core.Http2ProtocolOptions{},
 				}
-
-				clusterMap[envoyServiceName] = envoyCluster
 			}
 
 			if _, ok := listenerMap[envoyServiceName]; !ok {
@@ -137,6 +138,11 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 		}
 	})
 
+	endpoints := make([]cache.Resource, 0, len(endpointMap))
+	for _, endpoint := range endpointMap {
+		endpoints = append(endpoints, endpoint)
+	}
+
 	clusters := make([]cache.Resource, 0, len(clusterMap))
 	for _, cluster := range clusterMap {
 		clusters = append(clusters, cluster)
@@ -148,6 +154,7 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 	}
 
 	return EnvoyResources{
+		Endpoints: endpoints,
 		Clusters:  clusters,
 		Listeners: listeners,
 	}
