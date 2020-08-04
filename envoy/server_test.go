@@ -18,8 +18,9 @@ import (
 	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcpp "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	envoy_discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
-	xds "github.com/envoyproxy/go-control-plane/pkg/server"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
+	xds "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
@@ -34,9 +35,9 @@ const (
 
 var (
 	validators = map[string]func(*any.Any, service.Service){
-		cache.ListenerType: validateListener,
-		cache.EndpointType: validateEndpoints,
-		cache.ClusterType:  validateCluster,
+		resource.ListenerType: validateListener,
+		resource.EndpointType: validateEndpoints,
+		resource.ClusterType:  validateCluster,
 	}
 )
 
@@ -98,11 +99,10 @@ func validateCluster(serialisedCluster *any.Any, svc service.Service) {
 	So(err, ShouldBeNil)
 	So(cluster.Name, ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
 	So(cluster.GetConnectTimeout().GetNanos(), ShouldEqual, 500000000)
-	So(cluster.GetClusterDiscoveryType(), ShouldResemble, &api.Cluster_Type{Type: api.Cluster_EDS})
+	So(cluster.GetType(), ShouldEqual, api.Cluster_EDS)
 	So(cluster.GetEdsClusterConfig(), ShouldNotBeNil)
 	So(cluster.GetEdsClusterConfig().GetEdsConfig(), ShouldNotBeNil)
-	So(cluster.GetEdsClusterConfig().GetEdsConfig().GetConfigSourceSpecifier(), ShouldNotBeNil)
-	So(cluster.GetEdsClusterConfig().GetEdsConfig().GetConfigSourceSpecifier(), ShouldResemble, &core.ConfigSource_Ads{Ads: &core.AggregatedConfigSource{}})
+	So(cluster.GetEdsClusterConfig().GetEdsConfig().GetAds(), ShouldNotBeNil)
 	So(cluster.GetLoadAssignment(), ShouldBeNil)
 }
 
@@ -294,7 +294,7 @@ func Test_PortForServicePort(t *testing.T) {
 					state.AddServiceEntry(anotherHTTPSvc)
 					<-snapshotCache.Waiter
 
-					resources := envoyMock.GetResource(stream, cache.EndpointType, state.Hostname)
+					resources := envoyMock.GetResource(stream, resource.EndpointType, state.Hostname)
 					So(resources, ShouldHaveLength, 1)
 					assignment := &api.ClusterLoadAssignment{}
 					err := ptypes.UnmarshalAny(resources[0], assignment)

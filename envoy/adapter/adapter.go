@@ -15,7 +15,7 @@ import (
 	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcpp "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
+	cache_types "github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -31,9 +31,9 @@ const (
 
 // EnvoyResources is a collection of Enovy API resource definitions
 type EnvoyResources struct {
-	Endpoints []cache.Resource
-	Clusters  []cache.Resource
-	Listeners []cache.Resource
+	Endpoints []cache_types.Resource
+	Clusters  []cache_types.Resource
+	Listeners []cache_types.Resource
 }
 
 // SvcName formats an Envoy service name from our service name and port
@@ -77,7 +77,7 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 
 	endpointMap := make(map[string]*api.ClusterLoadAssignment)
 	clusterMap := make(map[string]*api.Cluster)
-	listenerMap := make(map[string]cache.Resource)
+	listenerMap := make(map[string]cache_types.Resource)
 
 	state.EachService(func(hostname *string, id *string, svc *service.Service) {
 		if svc == nil || !svc.IsAlive() {
@@ -138,17 +138,17 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 		}
 	})
 
-	endpoints := make([]cache.Resource, 0, len(endpointMap))
+	endpoints := make([]cache_types.Resource, 0, len(endpointMap))
 	for _, endpoint := range endpointMap {
 		endpoints = append(endpoints, endpoint)
 	}
 
-	clusters := make([]cache.Resource, 0, len(clusterMap))
+	clusters := make([]cache_types.Resource, 0, len(clusterMap))
 	for _, cluster := range clusterMap {
 		clusters = append(clusters, cluster)
 	}
 
-	listeners := make([]cache.Resource, 0, len(listenerMap))
+	listeners := make([]cache_types.Resource, 0, len(listenerMap))
 	for _, listener := range listenerMap {
 		listeners = append(listeners, listener)
 	}
@@ -162,7 +162,7 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 
 // envoyListenerFromService creates an Envoy listener from a service instance
 func envoyListenerFromService(svc *service.Service, envoyServiceName string,
-	servicePort int64, bindIP string) (cache.Resource, error) {
+	servicePort int64, bindIP string) (cache_types.Resource, error) {
 
 	var connectionManagerName string
 	var connectionManager proto.Message
