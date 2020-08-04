@@ -93,9 +93,9 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 
 			envoyServiceName := SvcName(svc.Name, port.ServicePort)
 
-			if loadAssignment, ok := endpointMap[envoyServiceName]; ok {
-				loadAssignment.Endpoints[0].LbEndpoints =
-					append(loadAssignment.Endpoints[0].LbEndpoints,
+			if assignment, ok := endpointMap[envoyServiceName]; ok {
+				assignment.Endpoints[0].LbEndpoints =
+					append(assignment.Endpoints[0].LbEndpoints,
 						envoyServiceFromService(svc, port.ServicePort, useHostnames)...)
 			} else {
 				endpointMap[envoyServiceName] = &api.ClusterLoadAssignment{

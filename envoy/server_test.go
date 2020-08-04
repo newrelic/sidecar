@@ -77,13 +77,13 @@ func validateListener(serialisedListener *any.Any, svc service.Service) {
 	}
 }
 
-func validateEndpoints(serialisedLoadAssignment *any.Any, svc service.Service) {
-	loadAssignment := &api.ClusterLoadAssignment{}
-	err := ptypes.UnmarshalAny(serialisedLoadAssignment, loadAssignment)
+func validateEndpoints(serialisedAssignment *any.Any, svc service.Service) {
+	assignment := &api.ClusterLoadAssignment{}
+	err := ptypes.UnmarshalAny(serialisedAssignment, assignment)
 	So(err, ShouldBeNil)
-	So(loadAssignment.GetClusterName(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
+	So(assignment.GetClusterName(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
 
-	localityEndpoints := loadAssignment.GetEndpoints()
+	localityEndpoints := assignment.GetEndpoints()
 	So(localityEndpoints, ShouldHaveLength, 1)
 
 	endpoints := localityEndpoints[0].GetLbEndpoints()
@@ -296,12 +296,12 @@ func Test_PortForServicePort(t *testing.T) {
 
 					resources := envoyMock.GetResource(stream, cache.EndpointType, state.Hostname)
 					So(resources, ShouldHaveLength, 1)
-					loadAssignment := &api.ClusterLoadAssignment{}
-					err := ptypes.UnmarshalAny(resources[0], loadAssignment)
+					assignment := &api.ClusterLoadAssignment{}
+					err := ptypes.UnmarshalAny(resources[0], assignment)
 					So(err, ShouldBeNil)
-					So(loadAssignment.GetEndpoints(), ShouldHaveLength, 1)
+					So(assignment.GetEndpoints(), ShouldHaveLength, 1)
 					var ports sort.IntSlice
-					for _, endpoint := range loadAssignment.GetEndpoints()[0].GetLbEndpoints() {
+					for _, endpoint := range assignment.GetEndpoints()[0].GetLbEndpoints() {
 						ports = append(ports,
 							int(endpoint.GetEndpoint().GetAddress().GetSocketAddress().GetPortValue()))
 					}
