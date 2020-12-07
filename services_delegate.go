@@ -200,7 +200,11 @@ func (d *servicesDelegate) packPacket(broadcasts [][]byte, limit int, overhead i
 		// Don't warn on startup... it's fairly normal
 		gracePeriod := time.Now().UTC().Add(0 - (5 * time.Second))
 		if d.StartedAt.Before(gracePeriod) {
-			log.Warnf("All messages were too long to fit! No broadcasts!")
+			// Sample this so that we don't go apeshit logging when there is something
+			// a bit blocked up. We'll log 1/50th of the time.
+			if rand.Intn(50) == 1 {
+				log.Warnf("All messages were too long to fit! No broadcasts!")
+			}
 		}
 
 		// There could be a scenario here where one hugely long broadcast could
