@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	log "github.com/sirupsen/logrus"
+	anypb "google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -160,17 +161,14 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 	}
 }
 
-// envoyListenerFromService creates an Envoy listener from a service instance
-func envoyListenerFromService(svc *service.Service, envoyServiceName string,
-	servicePort int64, bindIP string) (cache_types.Resource, error) {
-
-	var connectionManagerName string
-	var connectionManager proto.Message
+// connectionManagerForService returns a ConnectionManager configured
+// appropriately for the Sidecar service
+func connectionManagerForService(svc *service.Service, envoyServiceName string) (managerName string, manager proto.Message, err error) {
 	switch svc.ProxyMode {
 	case "http":
-		connectionManagerName = wellknown.HTTPConnectionManager
+		managerName = wellknown.HTTPConnectionManager
 
-		connectionManager = &hcm.HttpConnectionManager{
+		manager = &hcm.HttpConnectionManager{
 			StatPrefix: "ingress_http",
 			HttpFilters: []*hcm.HttpFilter{{
 				Name: wellknown.Router,
@@ -201,22 +199,88 @@ func envoyListenerFromService(svc *service.Service, envoyServiceName string,
 			},
 		}
 	case "tcp":
-		connectionManagerName = wellknown.TCPProxy
+		managerName = wellknown.TCPProxy
 
-		connectionManager = &tcpp.TcpProxy{
+		manager = &tcpp.TcpProxy{
 			StatPrefix: "ingress_tcp",
 			ClusterSpecifier: &tcpp.TcpProxy_Cluster{
 				Cluster: envoyServiceName,
 			},
 		}
+	case "ws":
+		managerName = wellknown.HTTPConnectionManager
+
+		manager = &hcm.HttpConnectionManager{
+			StatPrefix: "ingress_http",
+			HttpFilters: []*hcm.HttpFilter{{
+				Name: wellknown.Router,
+			}},
+			RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{
+				RouteConfig: &api.RouteConfiguration{
+					ValidateClusters: &wrappers.BoolValue{Value: false},
+					VirtualHosts: []*route.VirtualHost{{
+						Name:    svc.Name,
+						Domains: []string{"*"},
+						Routes: []*route.Route{{
+							Match: &route.RouteMatch{
+								PathSpecifier: &route.RouteMatch_Prefix{
+									Prefix: "/",
+								},
+							},
+							Action: &route.Route_Route{
+								Route: &route.RouteAction{
+									ClusterSpecifier: &route.RouteAction_Cluster{
+										Cluster: envoyServiceName,
+									},
+									Timeout: &duration.Duration{},
+								},
+							},
+						}},
+					}},
+				},
+			},
+			UpgradeConfigs: []*hcm.HttpConnectionManager_UpgradeConfig{
+				{
+					UpgradeType: "websocket",
+				},
+			},
+		}
 	default:
-		return nil, fmt.Errorf("unrecognised proxy mode: %s", svc.ProxyMode)
+		return "", nil, fmt.Errorf("unrecognised proxy mode: %s", svc.ProxyMode)
 	}
 
-	serialisedConnectionManager, err := ptypes.MarshalAny(connectionManager)
+	// If it was a supported type, return the result
+	return managerName, manager, nil
+}
+
+// filterChainsForService returns a filter chain configured appropriately for
+// the Sidecar service
+func filterChainsForService(svc *service.Service, managerName string, serializedManager *anypb.Any) []*listener.FilterChain {
+	return []*listener.FilterChain{{
+		Filters: []*listener.Filter{{
+			Name: managerName,
+			ConfigType: &listener.Filter_TypedConfig{
+				TypedConfig: serializedManager,
+			},
+		}},
+	}}
+}
+
+// envoyListenerFromService creates an Envoy listener from a service instance
+func envoyListenerFromService(svc *service.Service, envoyServiceName string,
+	servicePort int64, bindIP string) (cache_types.Resource, error) {
+
+	managerName, manager, err := connectionManagerForService(svc, envoyServiceName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the connection manager: %s", err)
+		return nil, fmt.Errorf("failed to create the connection manager: %w", err)
 	}
+
+	serializedManager, err := ptypes.MarshalAny(manager)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the connection manager: %w", err)
+	}
+
+	filterChains := filterChainsForService(svc, managerName, serializedManager)
 
 	return &api.Listener{
 		Name: envoyServiceName,
@@ -230,14 +294,7 @@ func envoyListenerFromService(svc *service.Service, envoyServiceName string,
 				},
 			},
 		},
-		FilterChains: []*listener.FilterChain{{
-			Filters: []*listener.Filter{{
-				Name: connectionManagerName,
-				ConfigType: &listener.Filter_TypedConfig{
-					TypedConfig: serialisedConnectionManager,
-				},
-			}},
-		}},
+		FilterChains: filterChains,
 	}, nil
 }
 

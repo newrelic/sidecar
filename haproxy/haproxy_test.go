@@ -11,6 +11,7 @@ import (
 
 	"github.com/Nitro/sidecar/catalog"
 	"github.com/Nitro/sidecar/service"
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -19,12 +20,15 @@ var hostname2 = "indefatigable"
 
 func Test_HAproxy(t *testing.T) {
 	Convey("End-to-end testing HAproxy functionality", t, func() {
+		log.SetOutput(ioutil.Discard)
+
 		state := catalog.NewServicesState()
 		state.Hostname = hostname1
 		svcId1 := "deadbeef123"
 		svcId2 := "deadbeef101"
 		svcId3 := "deadbeef105"
 		svcId4 := "deadbeef999"
+		svcId5 := "deadbeef666"
 		baseTime := time.Now().UTC().Round(time.Second)
 		ip := "127.0.0.1"
 		ip3 := "127.0.0.3"
@@ -78,6 +82,15 @@ func Test_HAproxy(t *testing.T) {
 				ProxyMode: "tcp",
 				// No ports!
 			},
+			{
+				ID:        svcId5,
+				Name:      "some-websock-svc",
+				Image:     "some-websock-svc",
+				Hostname:  hostname2,
+				Updated:   baseTime.Add(5 * time.Second),
+				ProxyMode: "ws",
+				Ports:     ports3,
+			},
 		}
 
 		for _, svc := range services {
@@ -100,18 +113,18 @@ func Test_HAproxy(t *testing.T) {
 		Convey("makePortmap() generates a properly formatted list", func() {
 			result := proxy.makePortmap(state.ByService())
 
-			So(len(result), ShouldEqual, 2)
+			So(len(result), ShouldEqual, 3)
 			So(len(result[services[0].Image]), ShouldEqual, 2)
 			So(len(result[services[2].Image]), ShouldEqual, 1)
 		})
 
 		Convey("getModes() generates a correct mode map", func() {
 			result := getModes(state)
-			fmt.Println(result)
 
-			So(len(result), ShouldEqual, 2)
+			So(len(result), ShouldEqual, 3)
 			So(result["awesome-svc"], ShouldEqual, "http")
 			So(result["some-svc"], ShouldEqual, "tcp")
+			So(result["some-websock-svc"], ShouldEqual, "http")
 		})
 
 		Convey("findIpForService() returns hostnames when UseHostnames is set", func() {

@@ -43,7 +43,7 @@ type HAproxy struct {
 
 // Constructs a properly configured HAProxy and returns a pointer to it
 func New(configFile string, pidFile string) *HAproxy {
-	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + " `[[ -f " + pidFile + " ]] && echo \"-sf $(cat " + pidFile + ")\"]]`"
+	reloadCmd := "haproxy -f " + configFile + " -p " + pidFile + " `[[ -f " + pidFile + " ]] && echo \"-sf $(cat " + pidFile + ")\"`"
 	verifyCmd := "haproxy -c -f " + configFile
 
 	proxy := HAproxy{
@@ -337,7 +337,12 @@ func getModes(state *catalog.ServicesState) map[string]string {
 	modeMap := make(map[string]string)
 	state.EachService(
 		func(hostname *string, serviceId *string, svc *service.Service) {
-			modeMap[svc.Name] = svc.ProxyMode
+			mode := svc.ProxyMode
+			// Treat websockets like HTTP
+			if mode == "ws" {
+				mode = "http"
+			}
+			modeMap[svc.Name] = mode
 		},
 	)
 	return modeMap

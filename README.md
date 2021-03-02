@@ -283,8 +283,8 @@ how to handle a service it has discovered. It uses these to:
  2. How to name the service. `ServiceName=`
  3. How to health check the service. `HealthCheck` and `HealthCheckArgs`
  4. Whether or not the service is a receiver of Sidecar change events. `SidecarListener`
- 5. Wether or not Sidecar should entirely ignore this service. `SidecarDiscovery`
- 6. HAproxy proxy behavior. `ProxyMode`
+ 5. Whether or not Sidecar should entirely ignore this service. `SidecarDiscovery`
+ 6. Envoy or HAproxy proxy behavior. `ProxyMode`
 
 **Service Ports**
 Services may be started with one or more `ServicePort_xxx` labels that help
@@ -332,6 +332,13 @@ setting the following Docker label:
 
 ```
 ProxyMode=tcp
+```
+
+You may also enable Websocket support where it's available (e.g. in Envoy) by
+setting:
+
+```
+ProxyMode=ws
 ```
 
 **Templating In Labels**

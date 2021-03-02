@@ -373,6 +373,9 @@ func (s *EnvoyApi) EnvoyListenerFromService(svc *service.Service, port int64) *E
 		}
 	}
 
+	// NOTE: We are not adding support for Websockets here due to this code being
+	// deprecated already. We expect this JSON API to be removed within 2021.
+
 	return listener
 }
 

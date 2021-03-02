@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"sort"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/Nitro/sidecar/config"
 	"github.com/Nitro/sidecar/envoy/adapter"
 	"github.com/Nitro/sidecar/service"
+
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
@@ -22,11 +24,15 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	xds "github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
-	"github.com/relistan/go-director"
-	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
+
+	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
@@ -53,7 +59,8 @@ func validateListener(serialisedListener *any.Any, svc service.Service) {
 	filters := filterChains[0].GetFilters()
 	So(filters, ShouldHaveLength, 1)
 
-	if svc.ProxyMode == "http" {
+	switch svc.ProxyMode {
+	case "http":
 		So(filters[0].GetName(), ShouldEqual, wellknown.HTTPConnectionManager)
 		connectionManager := &hcm.HttpConnectionManager{}
 		err = ptypes.UnmarshalAny(filters[0].GetTypedConfig(), connectionManager)
@@ -68,13 +75,33 @@ func validateListener(serialisedListener *any.Any, svc service.Service) {
 		So(route, ShouldNotBeNil)
 		So(route.GetCluster(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
 		So(route.GetTimeout(), ShouldNotBeNil)
-	} else { // tcp
+	case "tcp":
 		So(filters[0].GetName(), ShouldEqual, wellknown.TCPProxy)
 		connectionManager := &tcpp.TcpProxy{}
 		err = ptypes.UnmarshalAny(filters[0].GetTypedConfig(), connectionManager)
 		So(err, ShouldBeNil)
 		So(connectionManager.GetStatPrefix(), ShouldEqual, "ingress_tcp")
 		So(connectionManager.GetCluster(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
+	case "ws":
+		So(filters[0].GetName(), ShouldEqual, wellknown.HTTPConnectionManager)
+		connectionManager := &hcm.HttpConnectionManager{}
+		err = ptypes.UnmarshalAny(filters[0].GetTypedConfig(), connectionManager)
+		So(err, ShouldBeNil)
+		So(connectionManager.GetStatPrefix(), ShouldEqual, "ingress_http")
+		So(connectionManager.GetRouteConfig(), ShouldNotBeNil)
+		So(connectionManager.GetRouteConfig().GetVirtualHosts(), ShouldHaveLength, 1)
+		virtualHost := connectionManager.GetRouteConfig().GetVirtualHosts()[0]
+		So(virtualHost.GetName(), ShouldEqual, svc.Name)
+		So(virtualHost.GetRoutes(), ShouldHaveLength, 1)
+		route := virtualHost.GetRoutes()[0].GetRoute()
+		So(route, ShouldNotBeNil)
+		So(route.GetCluster(), ShouldEqual, adapter.SvcName(svc.Name, svc.Ports[0].ServicePort))
+		So(route.GetTimeout(), ShouldNotBeNil)
+
+		// websocket stuff
+		upgradeConfigs := connectionManager.GetUpgradeConfigs()
+		So(len(upgradeConfigs), ShouldEqual, 1)
+		So(upgradeConfigs[0].UpgradeType, ShouldEqual, "websocket")
 	}
 }
 
@@ -137,7 +164,8 @@ func (sv *EnvoyMock) GetResource(stream envoy_discovery.AggregatedDiscoveryServi
 		So(err, ShouldBeNil)
 	}
 
-	// Recv() blocks until the stream ctx expires if the message sent via Send() is not recognised / valid
+	// Recv() blocks until the stream ctx expires if the message sent via
+	// Send() is not recognised / valid
 	response, err := stream.Recv()
 
 	So(err, ShouldBeNil)
@@ -155,8 +183,8 @@ func (sv *EnvoyMock) ValidateResources(stream envoy_discovery.AggregatedDiscover
 	}
 }
 
-// SnapshotCache is a light wrapper around cache.SnapshotCache which lets
-// us get a notification after calling SetSnapshot via the Waiter chan
+// SnapshotCache is a light wrapper around cache.SnapshotCache which lets us
+// get a notification after calling SetSnapshot via the Waiter chan
 type SnapshotCache struct {
 	cache.SnapshotCache
 	Waiter chan struct{}
@@ -183,6 +211,8 @@ func Test_PortForServicePort(t *testing.T) {
 			UseGRPCAPI: true,
 			BindIP:     bindIP,
 		}
+
+		log.SetOutput(ioutil.Discard)
 
 		state := catalog.NewServicesState()
 
@@ -227,6 +257,19 @@ func Test_PortForServicePort(t *testing.T) {
 			},
 		}
 
+		wsSvc := service.Service{
+			ID:        "deadbeef666",
+			Name:      "kafka",
+			Created:   baseTime,
+			Hostname:  dummyHostname,
+			Updated:   baseTime,
+			Status:    service.ALIVE,
+			ProxyMode: "ws",
+			Ports: []service.Port{
+				{IP: "127.0.0.1", Port: 6666, ServicePort: 10102},
+			},
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 		Reset(func() {
 			cancel()
@@ -242,14 +285,14 @@ func Test_PortForServicePort(t *testing.T) {
 			xdsServer:     xds.NewServer(ctx, snapshotCache, &xdsCallbacks{}),
 		}
 
-		// The gRPC listener will be assigned a random port and will be owned and managed
-		// by the gRPC server
+		// The gRPC listener will be assigned a random port and will be owned
+		// and managed by the gRPC server
 		lis, err := net.Listen("tcp", ":0")
 		So(err, ShouldBeNil)
 		So(lis.Addr(), ShouldHaveSameTypeAs, &net.TCPAddr{})
 
-		// Using a FreeLooper instead would make it run too often, triggering spurious
-		// locking on the state, which can cause the tests to time out
+		// Using a FreeLooper instead would make it run too often, triggering
+		// spurious locking on the state, which can cause the tests to time out
 		go server.Run(ctx, director.NewTimedLooper(director.FOREVER, 10*time.Millisecond, make(chan error)), lis)
 
 		Convey("sends the Envoy state via gRPC", func() {
@@ -315,6 +358,13 @@ func Test_PortForServicePort(t *testing.T) {
 				<-snapshotCache.Waiter
 
 				envoyMock.ValidateResources(stream, tcpSvc, state.Hostname)
+			})
+
+			Convey("for a Websocket service", func() {
+				state.AddServiceEntry(wsSvc)
+				<-snapshotCache.Waiter
+
+				envoyMock.ValidateResources(stream, wsSvc, state.Hostname)
 			})
 
 			Convey("and skips tombstones", func() {

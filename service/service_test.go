@@ -123,8 +123,7 @@ func Test_ToService(t *testing.T) {
 	sampleHostname, _ := os.Hostname()
 
 	Convey("ToService()", t, func() {
-
-		Convey("Decodes HAProxy mode correctly", func() {
+		Convey("Decodes service correctly", func() {
 			service := ToService(sampleAPIContainer, "127.0.0.1")
 			So(service.ID, ShouldEqual, sampleAPIContainer.ID[:12])
 			So(service.Image, ShouldEqual, sampleAPIContainer.Image)

@@ -38,6 +38,7 @@ require (
 	golang.org/x/sys v0.0.0-20190523142557-0e01d883c5c5 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/grpc v1.27.0
+	google.golang.org/protobuf v1.23.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.5
 	gopkg.in/jarcoal/httpmock.v1 v1.0.0-20170412085702-cf52904a3cf0
 	gopkg.in/relistan/rubberneck.v1 v1.0.1

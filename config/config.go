@@ -21,7 +21,7 @@ type HAproxyConfig struct {
 	PidFile      string `envconfig:"PID_FILE" default:"/var/run/haproxy.pid"`
 	Disable      bool   `envconfig:"DISABLE"`
 	User         string `envconfig:"USER" default:"haproxy"`
-	Group        string `envconfig:"GROUP" default:"haproxy"`
+	Group        string `envconfig:"GROUP" default:""`
 	UseHostnames bool   `envconfig:"USE_HOSTNAMES"`
 }
 
