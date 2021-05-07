@@ -9,7 +9,7 @@ import (
 	director "github.com/relistan/go-director"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/service"
 	"github.com/fsouza/go-dockerclient"
 )
 

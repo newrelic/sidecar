@@ -1,12 +1,12 @@
 Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
-[![](https://travis-ci.com/Nitro/sidecar.svg?branch=master)](https://travis-ci.com/Nitro/sidecar)
+[![](https://travis-ci.com/NinesStack/sidecar.svg?branch=master)](https://travis-ci.com/NinesStack/sidecar)
 [![](https://images.microbadger.com/badges/image/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar)
 [![](https://images.microbadger.com/badges/version/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar "Get your own version badge on microbadger.com")
 
-**The main repo for this project is the [Nitro
-fork](https://github.com/Nitro/sidecar)**
+**The main repo for this project is the [NinesStack
+fork](https://github.com/NinesStack/sidecar)**
 
 Sidecar is a dynamic service discovery platform requiring no external
 coordination service. It's a peer-to-peer system that uses a gossip protocol
@@ -23,20 +23,20 @@ or can also leverage:
    a year it is fast becoming a core microservices architecture component.
    Sidecar implements the Envoy proxy SDS, CDS, LDS (V1) and gRPC (V2) APIs.
    These allow a standalone Envoy to be entirely configured by Sidecar. This
-   is best used with Nitro's
+   is best used with NinesStack's
    [Envoy proxy container](https://hub.docker.com/r/gonitro/envoyproxy/tags/).
 
- * [haproxy-api](https://github.com/Nitro/haproxy-api) - A separation layer
+ * [haproxy-api](https://github.com/NinesStack/haproxy-api) - A separation layer
    that allows Sidecar to drive HAproxy in a separate container. It also
    allows a local HAproxy to be configured against a remote Sidecar instance.
 
- * [sidecar-executor](https://github.com/Nitro/sidecar-executor) - A Mesos
+ * [sidecar-executor](https://github.com/NinesStack/sidecar-executor) - A Mesos
    executor that integrates with Sidecar, allowing your containers to be
    health checked by Sidecar for both service health and service discovery.
    Also supports a number of extra features including Vault integration for
    secrets management.
 
- * [Superside](https://github.com/Nitro/superside) - A multi-environment
+ * [Superside](https://github.com/NinesStack/superside) - A multi-environment
    console for Sidecar. Has a heads up display, event lists, and graphs
    showing what is happening in one or more Sidecar clusters on a live
    basis.
@@ -44,7 +44,7 @@ or can also leverage:
  * [sidecar-dns](https://github.com/relistan/sidecar-dns) - a working, but
    WIP, project to serve DNS SRV records from Sidecar services state.
 
- * [Traefik plugin](https://github.com/Nitro/traefik) - A fork of Traefik
+ * [Traefik plugin](https://github.com/NinesStack/traefik) - A fork of Traefik
    that can be backed by Sidecar. Useful as a gateway from the outside world
    into a Sidecar-based services environment. Working to get this plugin
    pushed upstream.
@@ -125,7 +125,7 @@ Running it
 ----------
 
 You can download the latest release from the [GitHub
-Releases](https://github.com/Nitro/sidecar/releases) page.
+Releases](https://github.com/NinesStack/sidecar/releases) page.
 
 If you'd rather build it yourself, you should install the latest version of
 the Go compiler. Sidecar has not been tested with gccgo, only the mainstream
@@ -210,7 +210,7 @@ Defaults are in bold at the end of the line:
 
  * `HAPROXY_DISABLE`: Disable management of HAproxy entirely. This is useful if
    you need to run without a proxy or are using something like
-   [haproxy-api](https://github.com/Nitro/haproxy-api) to manage HAproxy based
+   [haproxy-api](https://github.com/NinesStack/haproxy-api) to manage HAproxy based
    on Sidecar events. You should also use this setting if you are using
    Envoy as your proxy.
  * `HAPROXY_RELOAD_COMMAND`: The reload command to use for HAproxy **sane defaults**

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/Nitro/sidecar/discovery"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/discovery"
+	"github.com/NinesStack/sidecar/service"
 	"github.com/relistan/go-director"
 	log "github.com/sirupsen/logrus"
 )

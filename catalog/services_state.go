@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Nitro/memberlist"
-	"github.com/Nitro/sidecar/output"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/memberlist"
+	"github.com/NinesStack/sidecar/output"
+	"github.com/NinesStack/sidecar/service"
 	"github.com/armon/go-metrics"
 	"github.com/relistan/go-director"
 	log "github.com/sirupsen/logrus"

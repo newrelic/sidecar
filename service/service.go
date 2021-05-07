@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Nitro/sidecar/output"
+	"github.com/NinesStack/sidecar/output"
 	"github.com/fsouza/go-dockerclient"
 	log "github.com/sirupsen/logrus"
 )

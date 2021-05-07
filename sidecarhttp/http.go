@@ -5,8 +5,8 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"github.com/Nitro/memberlist"
-	"github.com/Nitro/sidecar/catalog"
+	"github.com/NinesStack/memberlist"
+	"github.com/NinesStack/sidecar/catalog"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )

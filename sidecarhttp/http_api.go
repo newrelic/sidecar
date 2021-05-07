@@ -8,9 +8,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Nitro/memberlist"
-	"github.com/Nitro/sidecar/catalog"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/memberlist"
+	"github.com/NinesStack/sidecar/catalog"
+	"github.com/NinesStack/sidecar/service"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )

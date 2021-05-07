@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Nitro/sidecar/catalog"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/catalog"
+	"github.com/NinesStack/sidecar/service"
 	director "github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 )

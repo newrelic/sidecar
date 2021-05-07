@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/Nitro/sidecar/catalog"
+	"github.com/NinesStack/sidecar/catalog"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

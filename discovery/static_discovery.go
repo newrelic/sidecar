@@ -12,7 +12,7 @@ import (
 	"github.com/relistan/go-director"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/service"
 )
 
 type Target struct {

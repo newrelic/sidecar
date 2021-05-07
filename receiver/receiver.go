@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Nitro/sidecar/catalog"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/catalog"
+	"github.com/NinesStack/sidecar/service"
 	"github.com/mohae/deepcopy"
 	"github.com/relistan/go-director"
 	log "github.com/sirupsen/logrus"

@@ -5,7 +5,7 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"github.com/Nitro/sidecar/catalog"
+	"github.com/NinesStack/sidecar/catalog"
 )
 
 // A ServicesState.Listener that we use for the /watch endpoint

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Nitro/sidecar/catalog"
-	"github.com/Nitro/sidecar/config"
-	"github.com/Nitro/sidecar/envoy/adapter"
+	"github.com/NinesStack/sidecar/catalog"
+	"github.com/NinesStack/sidecar/config"
+	"github.com/NinesStack/sidecar/envoy/adapter"
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	envoy_discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v2"
