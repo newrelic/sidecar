@@ -2,7 +2,6 @@ Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
 [![](https://travis-ci.com/NinesStack/sidecar.svg?branch=master)](https://travis-ci.com/NinesStack/sidecar)
-[![](https://images.microbadger.com/badges/image/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar)
 [![](https://images.microbadger.com/badges/version/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar "Get your own version badge on microbadger.com")
 
 **The main repo for this project is the [NinesStack
