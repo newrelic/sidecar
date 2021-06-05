@@ -2,7 +2,6 @@ Sidecar ![Sidecar](views/static/Sidecar.png)
 =====
 
 [![](https://travis-ci.com/NinesStack/sidecar.svg?branch=master)](https://travis-ci.com/NinesStack/sidecar)
-[![](https://images.microbadger.com/badges/version/gonitro/sidecar.svg)](https://microbadger.com/images/gonitro/sidecar "Get your own version badge on microbadger.com")
 
 **The main repo for this project is the [NinesStack
 fork](https://github.com/NinesStack/sidecar)**
@@ -35,26 +34,18 @@ or can also leverage:
    Also supports a number of extra features including Vault integration for
    secrets management.
 
- * [Superside](https://github.com/NinesStack/superside) - A multi-environment
-   console for Sidecar. Has a heads up display, event lists, and graphs
-   showing what is happening in one or more Sidecar clusters on a live
-   basis.
-
  * [sidecar-dns](https://github.com/relistan/sidecar-dns) - a working, but
    WIP, project to serve DNS SRV records from Sidecar services state.
-
- * [Traefik plugin](https://github.com/NinesStack/traefik) - A fork of Traefik
-   that can be backed by Sidecar. Useful as a gateway from the outside world
-   into a Sidecar-based services environment. Working to get this plugin
-   pushed upstream.
 
 Overview in Brief
 -----------------
 
 Services communicate to each other through a proxy (Envoy or HAproxy) instance
-on each host that is itself managed and configured by Sidecar. It is inspired
-by Airbnb's SmartStack. But, we believe it has a few advantages over
-SmartStack:
+on each host that is itself managed and configured by Sidecar. This is, in
+effect, a half service mesh where outbound connections go through the proxy,
+but inbound requests do not. This has most of the advantages of service mesh
+with a lot less complexity to manage. It is inspired by Airbnb's SmartStack.
+But, we believe it has a few advantages over SmartStack:
 
  * Eventually consistent model - a better fit for real world microservices
  * Native support for Docker (works without Docker, too!)
@@ -78,21 +69,21 @@ Complete Overview and Theory
 
 ![Sidecar Architecture](views/static/Sidecar%20Architecture.png)
 
-Sidecar is an eventually consistent service discovery platform where hosts learn
-about each others' state via a gossip protocol. Hosts exchange messages about
-which services they are running and which have gone away. All messages are
-timestamped and the latest timestamp always wins. Each host maintains its own
-local state and continually merges changes in from others. Messaging is over
-UDP except when doing anti-entropy transfers.
+Sidecar is an eventually consistent service discovery platform where hosts
+learn about each others' state via a gossip protocol. Hosts exchange messages
+about which services they are running and which have gone away. All messages
+are timestamped and the latest timestamp always wins. Each host maintains its
+own local state and continually merges changes in from others. Messaging is
+over UDP except when doing anti-entropy transfers.
 
 There is an anti-entropy mechanism where full state exchanges take place
 between peer nodes on an intermittent basis. This allows for any missed
 messages to propagate, and helps keep state consistent across the cluster.
 
-Sidecar hosts join a cluster by having a set of cluster seed hosts passed to them
-on the command line at startup. Once in a cluster, the first thing a host does
-is merge the state directly from another host. This is a big JSON blob that is
-delivered over a TCP session directly between the hosts.
+Sidecar hosts join a cluster by having a set of cluster seed hosts passed to
+them on the command line at startup. Once in a cluster, the first thing a host
+does is merge the state directly from another host. This is a big JSON blob
+that is delivered over a TCP session directly between the hosts.
 
 Now the host starts continuously polling its own services and reviewing the
 services that it has in its own state, sleeping a couple of seconds in between.
@@ -110,15 +101,14 @@ There are lifespans assigned to both tombstone and alive records so that:
 2. We do not continually add to the tombstone state we are carrying
 
 Because the gossip mechanism is UDP and a service going away is a higher
-priority message, each tombstone is sent twice initially, followed by
-once a second for 10 seconds. This delivers reliable messaging of service
-death.
+priority message, each tombstone is sent twice initially, followed by once a
+second for 10 seconds. This delivers reliable messaging of service death.
 
 Timestamps are all local to the host that sent them. This is because we can
-have clock drift on various machines. But if we always look at the origin timestamp
-they will at least be comparable to each other by all hosts in the cluster. The
-one exception to this is that if clock drift is more than a second or two, the
-alive lifespan may be negatively impacted.
+have clock drift on various machines. But if we always look at the origin
+timestamp they will at least be comparable to each other by all hosts in the
+cluster. The one exception to this is that if clock drift is more than a second
+or two, the alive lifespan may be negatively impacted.
 
 Running it
 ----------
@@ -126,9 +116,9 @@ Running it
 You can download the latest release from the [GitHub
 Releases](https://github.com/NinesStack/sidecar/releases) page.
 
-If you'd rather build it yourself, you should install the latest version of
-the Go compiler. Sidecar has not been tested with gccgo, only the mainstream
-Go compiler.
+If you'd rather build it yourself, you should install the latest version of the
+Go compiler. Sidecar has not been tested with gccgo, only the mainstream Go
+compiler.
 
 It's a Go application and the dependencies are all vendored into the `vendor/`
 directory so you should be able to build it out of the box.
@@ -144,12 +134,13 @@ $ go run *.go --cluster-ip <boostrap_host>
 ```
 
 You always need to supply at least one IP address or hostname with the
-`--cluster-ip` argument (or via the `SIDECAR_SEEDS` environment variable).
-If are running solo, or are the first member, this can be your own
-hostname. You may specify the argument multiple times to have
-multiple hosts. It is recommended to use more than one when possible.
+`--cluster-ip` argument (or via the `SIDECAR_SEEDS` environment variable).  If
+are running solo, or are the first member, this can be your own hostname. You
+may specify the argument multiple times to have multiple hosts. It is
+recommended to use more than one when possible.
 
-Note: `--cluster-ip` will overwrite the values passed into the `SIDECAR_SEEDS` environment variable.
+Note: `--cluster-ip` will overwrite the values passed into the `SIDECAR_SEEDS`
+environment variable.
 
 ### Running in a Container
 
@@ -237,8 +228,8 @@ Defaults are in bold at the end of the line:
 
 ### Ports
 
-Sidecar requires both TCP and UDP protocols be open on the port configured
-via SIDECAR_BIND_PORT (default 7946) through any network filters or firewalls
+Sidecar requires both TCP and UDP protocols be open on the port configured via
+SIDECAR_BIND_PORT (default 7946) through any network filters or firewalls
 between it and any peers in the cluster. This is the port that the gossip
 protocol (Memberlist) runs on.
 
