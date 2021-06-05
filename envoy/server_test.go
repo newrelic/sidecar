@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Nitro/sidecar/catalog"
-	"github.com/Nitro/sidecar/config"
-	"github.com/Nitro/sidecar/envoy/adapter"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/catalog"
+	"github.com/NinesStack/sidecar/config"
+	"github.com/NinesStack/sidecar/envoy/adapter"
+	"github.com/NinesStack/sidecar/service"
 
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"

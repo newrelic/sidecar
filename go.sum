@@ -5,8 +5,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/DataDog/datadog-go v2.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/Microsoft/go-winio v0.4.11 h1:zoIOcVf0xPN1tnMVbTtEdI+P8OofVk3NObnwOQ6nK2Q=
 github.com/Microsoft/go-winio v0.4.11/go.mod h1:VhR8bwka0BXejwEJY73c50VrPtXAaKcyvVC4A4RozmA=
-github.com/Nitro/memberlist v0.0.0-20170522194404-cfac2b5cf519 h1:0M0GvFnY4WOwfunvvevC2hHAdOjF9BL6cTPaIVUnhFU=
-github.com/Nitro/memberlist v0.0.0-20170522194404-cfac2b5cf519/go.mod h1:qsmmjfd30PnKS5ZpYe2vMTplags+V7VRdH3Bd40aFJQ=
+github.com/NinesStack/memberlist v0.0.0-20170522194404-cfac2b5cf519 h1:8jCnq6tYQmgQCoRhmg2ome4NGcuAZc5OnG3eN82oJ78=
+github.com/NinesStack/memberlist v0.0.0-20170522194404-cfac2b5cf519/go.mod h1:7P4ZHEg2JkfWyySH/AUWFePBxLPtD1WceuIoiPuyeRU=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 h1:TngWCqHvy9oXAN6lEVMRuU21PR1EtLVZJmdB18Gu3Rw=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5/go.mod h1:lmUJ/7eu/Q8D7ML55dXQrVaamCz2vxCfdQBasLZfHKk=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38 h1:smF2tmSOzy2Mm+0dGI2AIUHY+w0BUc+4tn40djz7+6U=

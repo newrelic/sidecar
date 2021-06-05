@@ -1,9 +1,9 @@
-module github.com/Nitro/sidecar
+module github.com/NinesStack/sidecar
 
 go 1.12
 
 require (
-	github.com/Nitro/memberlist v0.0.0-20170522194404-cfac2b5cf519
+	github.com/NinesStack/memberlist v0.0.0-20170522194404-cfac2b5cf519
 	github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38 // indirect
 	github.com/alecthomas/colour v0.0.0-20160524082231-60882d9e2721 // indirect
 	github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1 // indirect

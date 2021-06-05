@@ -6,7 +6,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/jarcoal/httpmock.v1"
-	"github.com/Nitro/sidecar/catalog"
+	"github.com/NinesStack/sidecar/catalog"
 )
 
 func Test_FetchState(t *testing.T) {

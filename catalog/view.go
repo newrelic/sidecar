@@ -3,8 +3,8 @@ package catalog
 import (
 	"sort"
 
-	"github.com/Nitro/memberlist"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/memberlist"
+	"github.com/NinesStack/sidecar/service"
 )
 
 // These are functions useful in viewing the contents of the state

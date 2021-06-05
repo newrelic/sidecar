@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Nitro/sidecar/discovery"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/discovery"
+	"github.com/NinesStack/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 )

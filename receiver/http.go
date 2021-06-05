@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/Nitro/sidecar/catalog"
+	"github.com/NinesStack/sidecar/catalog"
 	log "github.com/sirupsen/logrus"
 )
 

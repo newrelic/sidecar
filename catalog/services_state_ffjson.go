@@ -6,7 +6,7 @@ package catalog
 import (
 	"bytes"
 	"fmt"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/service"
 	fflib "github.com/pquerna/ffjson/fflib/v1"
 )
 

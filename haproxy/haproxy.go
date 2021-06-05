@@ -16,8 +16,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Nitro/sidecar/catalog"
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/catalog"
+	"github.com/NinesStack/sidecar/service"
 	log "github.com/sirupsen/logrus"
 )
 

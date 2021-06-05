@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Nitro/sidecar/service"
+	"github.com/NinesStack/sidecar/service"
 	"github.com/relistan/go-director"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/jarcoal/httpmock.v1"
