@@ -137,6 +137,7 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 						"Port collision! %s is attempting to squat on port %d owned by %s",
 						svc.Name, port.ServicePort, portsMap[port.ServicePort],
 					)
+					LastLoggedPortCollision = time.Now().UTC()
 				}
 				continue
 			}
