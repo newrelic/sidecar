@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/NinesStack/sidecar/catalog"
 	"github.com/NinesStack/sidecar/service"
@@ -26,8 +27,18 @@ import (
 )
 
 const (
-	// ServiceNameSeparator is used to join service name and port. Must not occur in service names.
+
+	// ServiceNameSeparator is used to join service name and port. Must not
+	// occur in service names.
 	ServiceNameSeparator = ":"
+
+	// PortCollisionLoggingBackoff is how long we wait between logging about
+	// port collisions.
+	PortCollisionLoggingBackoff = 1 * time.Minute
+)
+
+var (
+	LastLoggedPortCollision time.Time
 )
 
 // EnvoyResources is a collection of Enovy API resource definitions
@@ -58,8 +69,8 @@ func SvcNameSplit(name string) (string, int64, error) {
 	return svcName, svcPort, nil
 }
 
-// LookupHost does a vv slow lookup of the DNS host for a service. Totally
-// not optimized for high throughput. You should only do this in development
+// LookupHost does a vv slow lookup of the DNS host for a service. Totally not
+// optimized for high throughput. You should only do this in development
 // scenarios.
 func LookupHost(hostname string) (string, error) {
 	addrs, err := net.LookupHost(hostname)
@@ -70,9 +81,30 @@ func LookupHost(hostname string) (string, error) {
 	return addrs[0], nil
 }
 
-// EnvoyResourcesFromState creates a set of Enovy API resource definitions from all
-// the ServicePorts in the Sidecar state. The Sidecar state needs to be locked by the
-// caller before calling this function.
+// isPortCollision will make sure we don't tell Envoy about more than one
+// service on the same port. This leads to it going completely apeshit both
+// with CPU usage and logging.
+func isPortCollision(portsMap map[int64]string, svc *service.Service, port service.Port) bool {
+	registeredName, ok := portsMap[port.ServicePort]
+	// See if we already know about this port
+	if ok {
+		// If it is the same service, then no collision
+		if registeredName == svc.Name {
+			return false
+		}
+
+		// Uh, oh, this is not the service assigned to this port
+		return true
+	}
+
+	// We don't know about it, so assign it.
+	portsMap[port.ServicePort] = svc.Name
+	return false
+}
+
+// EnvoyResourcesFromState creates a set of Enovy API resource definitions from
+// all the ServicePorts in the Sidecar state. The Sidecar state needs to be
+// locked by the caller before calling this function.
 func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 	useHostnames bool) EnvoyResources {
 
@@ -80,7 +112,12 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 	clusterMap := make(map[string]*api.Cluster)
 	listenerMap := make(map[string]cache_types.Resource)
 
-	state.EachService(func(hostname *string, id *string, svc *service.Service) {
+	// Used to make sure we don't map the same port to more than one service
+	portsMap := make(map[int64]string)
+
+	// We use the more expensive EachServiceSorted to make sure we make a stable
+	// port mapping allocation in the event of port collisions.
+	state.EachServiceSorted(func(hostname *string, id *string, svc *service.Service) {
 		if svc == nil || !svc.IsAlive() {
 			return
 		}
@@ -89,6 +126,19 @@ func EnvoyResourcesFromState(state *catalog.ServicesState, bindIP string,
 		for _, port := range svc.Ports {
 			// Only listen on ServicePorts
 			if port.ServicePort < 1 {
+				continue
+			}
+
+			// Make sure we don't make Envoy go nuts by reporting the same port twice
+			if isPortCollision(portsMap, svc, port) {
+				// This happens A LOT when it happens, so let's back off to once a minute-ish
+				if time.Now().UTC().Sub(LastLoggedPortCollision) > PortCollisionLoggingBackoff {
+					log.Warnf(
+						"Port collision! %s is attempting to squat on port %d owned by %s",
+						svc.Name, port.ServicePort, portsMap[port.ServicePort],
+					)
+					LastLoggedPortCollision = time.Now().UTC()
+				}
 				continue
 			}
 
