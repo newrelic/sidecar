@@ -248,6 +248,7 @@ func configureMemberlist(config *config.Config, state *catalog.ServicesState) *m
 		mlConfig.GossipMessages = config.Sidecar.GossipMessages
 	}
 	mlConfig.GossipInterval = config.Sidecar.GossipInterval
+	mlConfig.HandoffQueueDepth = config.Sidecar.HandoffQueueDepth
 
 	// Make sure we pass on the cluster name to Memberlist
 	mlConfig.ClusterName = config.Sidecar.ClusterName
