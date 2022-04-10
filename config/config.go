@@ -44,6 +44,8 @@ type SidecarConfig struct {
 	StatsAddr            string        `envconfig:"STATS_ADDR"`
 	PushPullInterval     time.Duration `envconfig:"PUSH_PULL_INTERVAL" default:"20s"`
 	GossipMessages       int           `envconfig:"GOSSIP_MESSAGES" default:"15"`
+	GossipInterval       time.Duration `envconfig:"GOSSIP_INTERVAL" default:"200ms"`
+	HandoffQueueDepth    int           `envconfig:"HANDOFF_QUEUE_DEPTH" default:"1024"`
 	LoggingFormat        string        `envconfig:"LOGGING_FORMAT"`
 	LoggingLevel         string        `envconfig:"LOGGING_LEVEL" default:"info"`
 	DefaultCheckEndpoint string        `envconfig:"DEFAULT_CHECK_ENDPOINT" default:"/version"`

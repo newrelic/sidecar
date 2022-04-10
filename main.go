@@ -247,6 +247,8 @@ func configureMemberlist(config *config.Config, state *catalog.ServicesState) *m
 	if config.Sidecar.GossipMessages != 0 {
 		mlConfig.GossipMessages = config.Sidecar.GossipMessages
 	}
+	mlConfig.GossipInterval = config.Sidecar.GossipInterval
+	mlConfig.HandoffQueueDepth = config.Sidecar.HandoffQueueDepth
 
 	// Make sure we pass on the cluster name to Memberlist
 	mlConfig.ClusterName = config.Sidecar.ClusterName
@@ -297,8 +299,9 @@ func main() {
 	exitWithError(err, "Failed to create memberlist")
 
 	// Join an existing cluster by specifying at least one known member.
-	_, err = list.Join(config.Sidecar.Seeds)
+	nodeCount, err := list.Join(config.Sidecar.Seeds)
 	exitWithError(err, "Failed to join cluster")
+	log.Info("Joined cluster with %d nodes contacted", nodeCount)
 
 	// Set up a bunch of go-director Loopers to run our
 	// background goroutines
@@ -358,7 +361,12 @@ func main() {
 		go proxy.Watch(state)
 	}
 
-	go announceMembers(list, state)
+	// This is kind of expensive because it looks at the state and formats text
+	// output on an ongoing basis. Only run in debug mode.
+	if config.Debug {
+		go announceMembers(list, state)
+	}
+
 	go state.BroadcastServices(serviceFunc, servicesLooper)
 	go state.BroadcastTombstones(serviceFunc, tombstoneLooper)
 	go state.TrackNewServices(serviceFunc, trackingLooper)
