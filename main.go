@@ -136,6 +136,14 @@ func configureDiscovery(config *config.Config, publishedIP string) discovery.Dis
 				disco.Discoverers,
 				discovery.NewStaticDiscovery(config.StaticDiscovery.ConfigFile, publishedIP),
 			)
+		case "kubernetes_api":
+			disco.Discoverers = append(
+				disco.Discoverers,
+				discovery.NewK8sAPIDiscoverer(
+					config.K8sAPIDiscovery.ClusterIP, config.K8sAPIDiscovery.ClusterHostname,
+					config.K8sAPIDiscovery.Namespace, config.K8sAPIDiscovery.KubectlPath,
+				),
+			)
 		default:
 		}
 	}
@@ -301,7 +309,7 @@ func main() {
 	// Join an existing cluster by specifying at least one known member.
 	nodeCount, err := list.Join(config.Sidecar.Seeds)
 	exitWithError(err, "Failed to join cluster")
-	log.Info("Joined cluster with %d nodes contacted", nodeCount)
+	log.Infof("Joined cluster with %d nodes contacted", nodeCount)
 
 	// Set up a bunch of go-director Loopers to run our
 	// background goroutines
@@ -315,7 +323,7 @@ func main() {
 		director.FOREVER, catalog.ALIVE_SLEEP_INTERVAL, nil,
 	)
 	discoLooper := director.NewTimedLooper(
-		director.FOREVER, discovery.DefaultSleepInterval, make(chan error),
+		director.FOREVER, config.Sidecar.DiscoverySleepInterval, make(chan error),
 	)
 	listenLooper := director.NewTimedLooper(
 		director.FOREVER, discovery.DefaultSleepInterval, make(chan error),
@@ -363,7 +371,7 @@ func main() {
 
 	// This is kind of expensive because it looks at the state and formats text
 	// output on an ongoing basis. Only run in debug mode.
-	if config.Debug {
+	if config.Sidecar.Debug {
 		go announceMembers(list, state)
 	}
 
