@@ -39,20 +39,22 @@ type ServicesConfig struct {
 }
 
 type SidecarConfig struct {
-	ExcludeIPs           []string      `envconfig:"EXCLUDE_IPS" default:"192.168.168.168"`
-	Discovery            []string      `envconfig:"DISCOVERY" default:"docker"`
-	StatsAddr            string        `envconfig:"STATS_ADDR"`
-	PushPullInterval     time.Duration `envconfig:"PUSH_PULL_INTERVAL" default:"20s"`
-	GossipMessages       int           `envconfig:"GOSSIP_MESSAGES" default:"15"`
-	GossipInterval       time.Duration `envconfig:"GOSSIP_INTERVAL" default:"200ms"`
-	HandoffQueueDepth    int           `envconfig:"HANDOFF_QUEUE_DEPTH" default:"1024"`
-	LoggingFormat        string        `envconfig:"LOGGING_FORMAT"`
-	LoggingLevel         string        `envconfig:"LOGGING_LEVEL" default:"info"`
-	DefaultCheckEndpoint string        `envconfig:"DEFAULT_CHECK_ENDPOINT" default:"/version"`
-	Seeds                []string      `envconfig:"SEEDS"`
-	ClusterName          string        `envconfig:"CLUSTER_NAME" default:"default"`
-	AdvertiseIP          string        `envconfig:"ADVERTISE_IP"`
-	BindPort             int           `envconfig:"BIND_PORT" default:"7946"`
+	ExcludeIPs             []string      `envconfig:"EXCLUDE_IPS" default:"192.168.168.168"`
+	Discovery              []string      `envconfig:"DISCOVERY" default:"docker"`
+	StatsAddr              string        `envconfig:"STATS_ADDR"`
+	PushPullInterval       time.Duration `envconfig:"PUSH_PULL_INTERVAL" default:"20s"`
+	GossipMessages         int           `envconfig:"GOSSIP_MESSAGES" default:"15"`
+	GossipInterval         time.Duration `envconfig:"GOSSIP_INTERVAL" default:"200ms"`
+	HandoffQueueDepth      int           `envconfig:"HANDOFF_QUEUE_DEPTH" default:"1024"`
+	LoggingFormat          string        `envconfig:"LOGGING_FORMAT"`
+	LoggingLevel           string        `envconfig:"LOGGING_LEVEL" default:"info"`
+	DefaultCheckEndpoint   string        `envconfig:"DEFAULT_CHECK_ENDPOINT" default:"/version"`
+	Seeds                  []string      `envconfig:"SEEDS"`
+	ClusterName            string        `envconfig:"CLUSTER_NAME" default:"default"`
+	AdvertiseIP            string        `envconfig:"ADVERTISE_IP"`
+	BindPort               int           `envconfig:"BIND_PORT" default:"7946"`
+	Debug                  bool          `envconfig:"DEBUG" default:"false"`
+	DiscoverySleepInterval time.Duration `envconfig:"DISCOVERY_SLEEP_INTERVAL" default:"1s"`
 }
 
 type DockerConfig struct {
@@ -63,10 +65,19 @@ type StaticConfig struct {
 	ConfigFile string `envconfig:"CONFIG_FILE" default:"static.json"`
 }
 
+type K8sAPIConfig struct {
+	KubeAPIIP   string        `envconfig:"KUBE_API_IP" default:"127.0.0.1"`
+	KubeAPIPort int           `envconfig:"KUBE_API_PORT" default:"8080"`
+	Namespace   string        `envconfig:"NAMESPACE" default:"default"`
+	KubeTimeout time.Duration `envconfig:"KUBE_TIMEOUT" default:"3s"`
+	CredsPath   string        `envconfig:"CREDS_PATH" default:"/var/run/secrets/kubernetes.io/serviceaccount"`
+}
+
 type Config struct {
 	Sidecar         SidecarConfig      // SIDECAR_
 	DockerDiscovery DockerConfig       // DOCKER_
 	StaticDiscovery StaticConfig       // STATIC_
+	K8sAPIDiscovery K8sAPIConfig       // K8S_
 	Services        ServicesConfig     // SERVICES_
 	HAproxy         HAproxyConfig      // HAPROXY_
 	Envoy           EnvoyConfig        // ENVOY_
@@ -80,6 +91,7 @@ func ParseConfig() *Config {
 		envconfig.Process("sidecar", &config.Sidecar),
 		envconfig.Process("docker", &config.DockerDiscovery),
 		envconfig.Process("static", &config.StaticDiscovery),
+		envconfig.Process("k8s", &config.K8sAPIDiscovery),
 		envconfig.Process("services", &config.Services),
 		envconfig.Process("haproxy", &config.HAproxy),
 		envconfig.Process("envoy", &config.Envoy),

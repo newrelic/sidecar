@@ -33,4 +33,18 @@ if [[ -n "$BIND_IP" ]] && [[ "$BIND_IP" != "0.0.0.0" ]]; then
 	fi
 fi
 
+if [[ -n "$KUBERNETES_SERVICE_HOST" ]]; then
+	mkdir /root/.kube && chmod 0700 /root/.kube
+	cat << EOF > /root/.kube/config
+apiVersion: v1
+clusters:
+- cluster:
+    server: https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+  name: dev
+kind: Config
+preferences: {}
+users: []
+EOF
+fi
+
 exec ./sidecar $CLI

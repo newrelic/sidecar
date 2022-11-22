@@ -165,7 +165,7 @@ Defaults are in bold at the end of the line:
    **info**
  * `SIDECAR_LOGGING_FORMAT`: Logging format to use (text, json) **text**
  * `SIDECAR_DISCOVERY`: Which discovery backends to use as a csv array
-   (static, docker) **`[ docker ]`**
+   (static, docker, kubernetes_api) **`[ docker ]`**
  * `SIDECAR_SEEDS`: csv array of IP addresses used to seed the cluster.
  * `SIDECAR_CLUSTER_NAME`: The name of the Sidecar cluster. Restricts membership
    to hosts with the same cluster name.
@@ -226,6 +226,13 @@ Defaults are in bold at the end of the line:
  * `ENVOY_GRPC_PORT`: The port for the Envoy API gRPC server **`7776`**
 
 
+ * `KUBE_API_IP`: The IP address at which to reach the Kubernetes API **`127.0.0.1`**
+ * `KUBE_API_PORT`: The port to use to contact the Kubernetes API **`8080`**
+ * `NAMESPACE`: The namespace against which we should do discovery **`default`**
+ * `KUBE_TIMEOUT`: How long until we time out calling the Kube API? **`3s`**
+ * `CREDS_PATH`: Where do we find the token file containing API auth credentials?
+   **`/var/run/secrets/kubernetes.io/serviceaccount`**
+
 ### Ports
 
 Sidecar requires both TCP and UDP protocols be open on the port configured via
@@ -235,14 +242,14 @@ protocol (Memberlist) runs on.
 
 ## Discovery
 
-Sidecar supports both Docker-based discovery and a discovery mechanism where
-you publish services into a JSON file locally, called "static". These can then
-be advertised as running services just like they would be from a Docker host.
-These are configured with the `SIDECAR_DISCOVERY` environment variable. Using
-both would look like:
+Sidecar supports Docker-based discovery, a discovery mechanism where you
+publish services into a JSON file locally, called "static", and from the
+Kubernetes API. These can then be advertised as running services just like they
+would be from a Docker host. These are configured with the `SIDECAR_DISCOVERY`
+environment variable. Using all of them would look like:
 
 ```bash
-export SIDECAR_DISCOVERY=static,docker
+export SIDECAR_DISCOVERY=static,docker,kubernetes_api
 ```
 
 Zero or more options may be supplied. Note that if nothing is in this section,
@@ -395,6 +402,20 @@ Usually this is a version or git commit string. It will show up in the Sidecar
 web UI.
 
 A further example is available in the `fixtures/` directory used by the tests.
+
+### Configuring Kubernetes API Discovery
+
+This method of discovery will enale you to bridge together an existing Sidecar
+cluster with a Kubernetes cluster that will make services availabel to the
+Sidecar cluster. It will announce all of the Kubernetes services that it finds
+available and map them to a port in the 30000+ range, with the expectation
+being that your have configured services to run with a NodePort in that range.
+
+This is most useful for transitioning services from one cluster to another. You
+can run one or more Sidecar instances per Kubernetes cluster and they will show
+up like services exported from other discovery mechanisms with the exception
+that version information is not passed. The environment variables for
+configuring the behavior of this discovery method are described above.
 
 Sidecar Events and Listeners
 ----------------------------
