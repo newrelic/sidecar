@@ -54,7 +54,13 @@ func (m *mockK8sDiscoveryCommand) GetServices() ([]byte, error) {
 	               {
 	                  "port" : 10007,
 	                  "protocol" : "TCP",
-	                  "targetPort" : 8088
+	                  "targetPort" : 8088,
+					  "nodePort": 38088
+	               },
+	               {
+	                  "port" : 10008,
+	                  "protocol" : "TCP",
+	                  "targetPort" : 8089
 	               }
 	            ]
 	         }
@@ -155,7 +161,7 @@ func Test_K8sGetServices(t *testing.T) {
 			So(disco.discoveredSvcs, ShouldNotBeNil)
 			So(disco.discoveredSvcs, ShouldNotEqual, &K8sServices{})
 			So(len(disco.discoveredSvcs.Items), ShouldEqual, 1)
-			So(len(disco.discoveredSvcs.Items[0].Spec.Ports), ShouldEqual, 1)
+			So(len(disco.discoveredSvcs.Items[0].Spec.Ports), ShouldEqual, 2)
 		})
 
 		Convey("call the command and logs errors", func() {

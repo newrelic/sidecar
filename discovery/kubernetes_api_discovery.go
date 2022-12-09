@@ -52,6 +52,12 @@ func (k *K8sAPIDiscoverer) Services() []service.Service {
 		hostname, ip := getIPHostForNode(&node)
 
 		for _, item := range k.discoveredSvcs.Items {
+			// We require an annotation called 'ServiceName' to make sure this is
+			// a service we want to announce.
+			if item.Metadata.Labels.ServiceName == "" {
+				continue
+			}
+
 			svc := service.Service{
 				ID:        item.Metadata.UID,
 				Name:      item.Metadata.Labels.ServiceName,
@@ -62,7 +68,12 @@ func (k *K8sAPIDiscoverer) Services() []service.Service {
 				Status:    service.ALIVE,
 				Updated:   time.Now().UTC(),
 			}
+
 			for _, port := range item.Spec.Ports {
+				// We only support entries with NodePort defined
+				if port.NodePort < 1 {
+					continue
+				}
 				svc.Ports = append(svc.Ports, service.Port{
 					Type:        "tcp",
 					Port:        int64(port.NodePort),
