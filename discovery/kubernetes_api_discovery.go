@@ -19,22 +19,69 @@ type K8sAPIDiscoverer struct {
 
 	Command K8sDiscoveryAdapter
 
-	discoveredSvcs  *K8sServices
-	discoveredNodes *K8sNodes
-	lock            sync.RWMutex
+	discoveredSvcs   *K8sServices
+	discoveredNodes  *K8sNodes
+	lock             sync.RWMutex
+	announceAllNodes bool
+	hostname         string
 }
 
 // NewK8sAPIDiscoverer returns a properly configured K8sAPIDiscoverer
-func NewK8sAPIDiscoverer(kubeHost string, kubePort int, namespace string, timeout time.Duration, credsPath string) *K8sAPIDiscoverer {
+func NewK8sAPIDiscoverer(kubeHost string, kubePort int, namespace string, timeout time.Duration,
+	credsPath string, announceAllNodes bool, hostname string) *K8sAPIDiscoverer {
 
 	cmd := NewKubeAPIDiscoveryCommand(kubeHost, kubePort, namespace, timeout, credsPath)
 
 	return &K8sAPIDiscoverer{
-		discoveredSvcs:  &K8sServices{},
-		discoveredNodes: &K8sNodes{},
-		Namespace:       namespace,
-		Command:         cmd,
+		discoveredSvcs:   &K8sServices{},
+		discoveredNodes:  &K8sNodes{},
+		Namespace:        namespace,
+		Command:          cmd,
+		announceAllNodes: announceAllNodes,
+		hostname:         hostname,
 	}
+}
+
+// servicesForNode will emit all the services that we previously discovered.
+// This means we will attempt to hit the NodePort for each of the nodes when
+// looking for this service over HTTP/TCP.
+func (k *K8sAPIDiscoverer) servicesForNode(hostname, ip string) []service.Service {
+	var services []service.Service
+
+	for _, item := range k.discoveredSvcs.Items {
+		// We require an annotation called 'ServiceName' to make sure this is
+		// a service we want to announce.
+		if item.Metadata.Labels.ServiceName == "" {
+			continue
+		}
+
+		svc := service.Service{
+			ID:        item.Metadata.UID,
+			Name:      item.Metadata.Labels.ServiceName,
+			Image:     item.Metadata.Labels.ServiceName + ":kubernetes-hosted",
+			Created:   item.Metadata.CreationTimestamp,
+			Hostname:  hostname,
+			ProxyMode: "http",
+			Status:    service.ALIVE,
+			Updated:   time.Now().UTC(),
+		}
+
+		for _, port := range item.Spec.Ports {
+			// We only support entries with NodePort defined
+			if port.NodePort < 1 {
+				continue
+			}
+			svc.Ports = append(svc.Ports, service.Port{
+				Type:        "tcp",
+				Port:        int64(port.NodePort),
+				ServicePort: int64(port.Port),
+				IP:          ip,
+			})
+		}
+		services = append(services, svc)
+	}
+
+	return services
 }
 
 // Services implements part of the Discoverer interface and looks at the last
@@ -44,44 +91,22 @@ func (k *K8sAPIDiscoverer) Services() []service.Service {
 	k.lock.RLock()
 	defer k.lock.RUnlock()
 
-	// Enumerate all the K8s nodes we discovered, and for each one, emit all the
-	// services that we separately discovered. This means we will attempt to hit
-	// the NodePort for each of the nodes when looking for this service.
+	// Enumerate all the K8s nodes we discovered, and for each one, enumerate
+	// all the services.
 	var services []service.Service
 	for _, node := range k.discoveredNodes.Items {
 		hostname, ip := getIPHostForNode(&node)
+		if k.announceAllNodes {
+			nodeServices := k.servicesForNode(hostname, ip)
+			services = append(services, nodeServices...)
+			continue
+		}
 
-		for _, item := range k.discoveredSvcs.Items {
-			// We require an annotation called 'ServiceName' to make sure this is
-			// a service we want to announce.
-			if item.Metadata.Labels.ServiceName == "" {
-				continue
-			}
-
-			svc := service.Service{
-				ID:        item.Metadata.UID,
-				Name:      item.Metadata.Labels.ServiceName,
-				Image:     item.Metadata.Labels.ServiceName + ":kubernetes-hosted",
-				Created:   item.Metadata.CreationTimestamp,
-				Hostname:  hostname,
-				ProxyMode: "http",
-				Status:    service.ALIVE,
-				Updated:   time.Now().UTC(),
-			}
-
-			for _, port := range item.Spec.Ports {
-				// We only support entries with NodePort defined
-				if port.NodePort < 1 {
-					continue
-				}
-				svc.Ports = append(svc.Ports, service.Port{
-					Type:        "tcp",
-					Port:        int64(port.NodePort),
-					ServicePort: int64(port.Port),
-					IP:          ip,
-				})
-			}
-			services = append(services, svc)
+		// Don't discover all nodes, only this one. Short circuit if we found it
+		// since we'll only be in the list once.
+		if hostname == k.hostname {
+			services = k.servicesForNode(hostname, ip)
+			break
 		}
 	}
 

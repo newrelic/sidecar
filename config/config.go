@@ -66,11 +66,12 @@ type StaticConfig struct {
 }
 
 type K8sAPIConfig struct {
-	KubeAPIIP   string        `envconfig:"KUBE_API_IP" default:"127.0.0.1"`
-	KubeAPIPort int           `envconfig:"KUBE_API_PORT" default:"8080"`
-	Namespace   string        `envconfig:"NAMESPACE" default:"default"`
-	KubeTimeout time.Duration `envconfig:"KUBE_TIMEOUT" default:"3s"`
-	CredsPath   string        `envconfig:"CREDS_PATH" default:"/var/run/secrets/kubernetes.io/serviceaccount"`
+	KubeAPIIP        string        `envconfig:"KUBE_API_IP" default:"127.0.0.1"`
+	KubeAPIPort      int           `envconfig:"KUBE_API_PORT" default:"8080"`
+	Namespace        string        `envconfig:"NAMESPACE" default:"default"`
+	KubeTimeout      time.Duration `envconfig:"KUBE_TIMEOUT" default:"3s"`
+	CredsPath        string        `envconfig:"CREDS_PATH" default:"/var/run/secrets/kubernetes.io/serviceaccount"`
+	AnnounceAllNodes bool          `envconfig:"ANNOUNCE_ALL_NODES" default:"false"`
 }
 
 type Config struct {

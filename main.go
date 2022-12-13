@@ -91,7 +91,7 @@ func configureHAproxy(config *config.Config) *haproxy.HAproxy {
 	return proxy
 }
 
-func configureDiscovery(config *config.Config, publishedIP string) discovery.Discoverer {
+func configureDiscovery(config *config.Config, publishedIP string, localNode *memberlist.Node) discovery.Discoverer {
 	disco := new(discovery.MultiDiscovery)
 
 	var svcNamer discovery.ServiceNamer
@@ -142,7 +142,8 @@ func configureDiscovery(config *config.Config, publishedIP string) discovery.Dis
 				discovery.NewK8sAPIDiscoverer(
 					config.K8sAPIDiscovery.KubeAPIIP, config.K8sAPIDiscovery.KubeAPIPort,
 					config.K8sAPIDiscovery.Namespace, config.K8sAPIDiscovery.KubeTimeout,
-					config.K8sAPIDiscovery.CredsPath,
+					config.K8sAPIDiscovery.CredsPath, config.K8sAPIDiscovery.AnnounceAllNodes,
+					localNode.Name,
 				),
 			)
 		default:
@@ -339,7 +340,7 @@ func main() {
 	// Register the cluster name with the state object
 	state.ClusterName = config.Sidecar.ClusterName
 
-	disco := configureDiscovery(config, mlConfig.AdvertiseAddr)
+	disco := configureDiscovery(config, mlConfig.AdvertiseAddr, list.LocalNode())
 	go disco.Run(discoLooper)
 
 	// Configure the monitor and use the public address as the default

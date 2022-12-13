@@ -232,6 +232,9 @@ Defaults are in bold at the end of the line:
  * `KUBE_TIMEOUT`: How long until we time out calling the Kube API? **`3s`**
  * `CREDS_PATH`: Where do we find the token file containing API auth credentials?
    **`/var/run/secrets/kubernetes.io/serviceaccount`**
+ * `ANNOUNCE_ALL_NODES`: Should we query the API and announce every node is running
+   the service? This is useful to represent the K8s cluster with a single Sidecar.
+   **`false`**
 
 ### Ports
 

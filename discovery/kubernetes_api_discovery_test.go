@@ -103,6 +103,24 @@ func (m *mockK8sDiscoveryCommand) GetNodes() ([]byte, error) {
 		               }
 		            ]
 		         }
+		      },
+		      {
+		         "status" : {
+		            "addresses" : [
+		               {
+		                  "address" : "10.100.69.147",
+		                  "type" : "InternalIP"
+		               },
+		               {
+		                  "address" : "heorot.example.com",
+		                  "type" : "Hostname"
+		               },
+		               {
+		                  "address" : "heorot.example.com",
+		                  "type" : "InternalDNS"
+		               }
+		            ]
+		         }
 		      }
 		   ]
 		}
@@ -113,22 +131,25 @@ func (m *mockK8sDiscoveryCommand) GetNodes() ([]byte, error) {
 func Test_NewK8sAPIDiscoverer(t *testing.T) {
 	Convey("NewK8sAPIDiscoverer()", t, func() {
 		Convey("returns a properly configured K8sAPIDiscoverer", func() {
-			disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath)
+			disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, true, "hrothgar")
 
 			So(disco.discoveredSvcs, ShouldNotBeNil)
 			So(disco.Namespace, ShouldEqual, "heorot")
+			So(disco.announceAllNodes, ShouldBeTrue)
+			So(disco.hostname, ShouldEqual, "hrothgar")
 			So(disco.Command, ShouldNotBeNil)
 
 			command := disco.Command.(*KubeAPIDiscoveryCommand)
 			So(command.KubeHost, ShouldEqual, "127.0.0.1")
 			So(command.KubePort, ShouldEqual, 443)
+
 		})
 	})
 }
 
 func Test_K8sHealthCheck(t *testing.T) {
 	Convey("HealthCheck() always returns 'AlwaysSuccessful'", t, func() {
-		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath)
+		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, true, "hrothgar")
 		check, args := disco.HealthCheck(nil)
 		So(check, ShouldEqual, "AlwaysSuccessful")
 		So(args, ShouldBeEmpty)
@@ -137,7 +158,7 @@ func Test_K8sHealthCheck(t *testing.T) {
 
 func Test_K8sListeners(t *testing.T) {
 	Convey("Listeners() always returns and empty slice", t, func() {
-		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath)
+		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, true, "hrothgar")
 		listeners := disco.Listeners()
 		So(listeners, ShouldBeEmpty)
 	})
@@ -145,7 +166,7 @@ func Test_K8sListeners(t *testing.T) {
 
 func Test_K8sGetServices(t *testing.T) {
 	Convey("GetServices()", t, func() {
-		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath)
+		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, true, "hrothgar")
 		mock := &mockK8sDiscoveryCommand{}
 		disco.Command = mock
 
@@ -188,7 +209,7 @@ func Test_K8sGetServices(t *testing.T) {
 
 func Test_K8sGetNodes(t *testing.T) {
 	Convey("GetNodes()", t, func() {
-		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath)
+		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, true, "hrothgar")
 		mock := &mockK8sDiscoveryCommand{}
 		disco.Command = mock
 
@@ -203,7 +224,7 @@ func Test_K8sGetNodes(t *testing.T) {
 			So(capture.String(), ShouldNotContainSubstring, "error")
 			So(disco.discoveredNodes, ShouldNotBeNil)
 			So(disco.discoveredNodes, ShouldNotEqual, &K8sNodes{})
-			So(len(disco.discoveredNodes.Items), ShouldEqual, 1)
+			So(len(disco.discoveredNodes.Items), ShouldEqual, 2)
 			So(len(disco.discoveredNodes.Items[0].Status.Addresses), ShouldEqual, 3)
 		})
 
@@ -231,16 +252,43 @@ func Test_K8sGetNodes(t *testing.T) {
 
 func Test_K8sServices(t *testing.T) {
 	Convey("Services()", t, func() {
-		disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath)
 		mock := &mockK8sDiscoveryCommand{}
-		disco.Command = mock
 
 		Convey("works on a newly-created Discoverer", func() {
+			disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, true, "hrothgar")
+			disco.Command = mock
+
 			services := disco.Services()
 			So(len(services), ShouldEqual, 0)
 		})
 
-		Convey("returns the list of cached services", func() {
+		Convey("when discovering for all nodes", func() {
+			disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, true, "hrothgar")
+			disco.Command = mock
+
+			Convey("returns the list of cached services", func() {
+				disco.Run(director.NewFreeLooper(director.ONCE, nil))
+				services := disco.Services()
+
+				So(len(services), ShouldEqual, 2)
+				svc := services[0]
+				So(svc.ID, ShouldEqual, "107b5bbf-9640-4fd0-b5de-1e898e8ae9f7")
+				So(svc.Name, ShouldEqual, "chopper")
+				So(svc.Image, ShouldEqual, "chopper:kubernetes-hosted")
+				So(svc.Created.String(), ShouldEqual, "2022-11-07 13:18:03 +0000 UTC")
+				So(svc.Hostname, ShouldEqual, "beowulf.example.com")
+				So(svc.ProxyMode, ShouldEqual, "http")
+				So(svc.Status, ShouldEqual, service.ALIVE)
+				So(svc.Updated.Unix(), ShouldBeGreaterThan, time.Now().UTC().Add(-2*time.Second).Unix())
+				So(len(svc.Ports), ShouldEqual, 1)
+				So(svc.Ports[0].IP, ShouldEqual, "10.100.69.136")
+			})
+		})
+
+		Convey("when discovering for only this node", func() {
+			disco := NewK8sAPIDiscoverer("127.0.0.1", 443, "heorot", 3*time.Second, credsPath, false, "heorot.example.com")
+			disco.Command = mock
+
 			disco.Run(director.NewFreeLooper(director.ONCE, nil))
 			services := disco.Services()
 
@@ -250,12 +298,12 @@ func Test_K8sServices(t *testing.T) {
 			So(svc.Name, ShouldEqual, "chopper")
 			So(svc.Image, ShouldEqual, "chopper:kubernetes-hosted")
 			So(svc.Created.String(), ShouldEqual, "2022-11-07 13:18:03 +0000 UTC")
-			So(svc.Hostname, ShouldEqual, "beowulf.example.com")
+			So(svc.Hostname, ShouldEqual, "heorot.example.com")
 			So(svc.ProxyMode, ShouldEqual, "http")
 			So(svc.Status, ShouldEqual, service.ALIVE)
 			So(svc.Updated.Unix(), ShouldBeGreaterThan, time.Now().UTC().Add(-2*time.Second).Unix())
 			So(len(svc.Ports), ShouldEqual, 1)
-			So(svc.Ports[0].IP, ShouldEqual, "10.100.69.136")
+			So(svc.Ports[0].IP, ShouldEqual, "10.100.69.147")
 		})
 	})
 }
