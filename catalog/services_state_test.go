@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"sync"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/NinesStack/sidecar/service"
 	"github.com/relistan/go-director"
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -130,7 +132,7 @@ func Test_ServicesStateWithData(t *testing.T) {
 				So(state.Servers[anotherHostname].Services[svc.ID], ShouldNotBeNil)
 			})
 
-			Convey("Doesn't merge a stale service", func() {
+			Convey("Doesn't merge an update that is older than what we have", func() {
 				state.AddServiceEntry(svc)
 
 				staleService := service.Service{
@@ -150,6 +152,26 @@ func Test_ServicesStateWithData(t *testing.T) {
 					ShouldBeTheSameTimeAs, baseTime)
 				So(state.Servers[anotherHostname].Services[svc.ID].Image,
 					ShouldEqual, "101deadbeef")
+			})
+
+			Convey("Doesn't merge an update that is past the tombstone lifespan", func() {
+				staleService := service.Service{
+					ID:       "deadbeef123",
+					Name:     "stale_service",
+					Image:    "stale",
+					Created:  baseTime,
+					Hostname: anotherHostname,
+					Updated:  baseTime.Add(0 - 1*time.Minute).Add(0 - TOMBSTONE_LIFESPAN),
+					Status:   service.ALIVE,
+				}
+
+				capture := LogCapture(func() {
+					state.AddServiceEntry(staleService)
+				})
+
+				_, ok := state.Servers[anotherHostname]
+				So(ok, ShouldBeFalse)
+				So(capture, ShouldContainSubstring, "Dropping stale service received on gossip")
 			})
 
 			Convey("Updates the LastUpdated time for the server", func() {
@@ -723,7 +745,7 @@ func Test_ClusterMembershipManagement(t *testing.T) {
 
 func Test_DecodeStream(t *testing.T) {
 	Convey("Test decoding stream", t, func() {
-		serv := service.Service{ID: "007", Name: "api", Hostname: "some-aws-host", Status: 1}
+		serv := service.Service{ID: "007", Name: "api", Hostname: "some-aws-host", Status: 1, Updated: time.Now().UTC()}
 		state := NewServicesState()
 		state.AddServiceEntry(serv)
 
@@ -840,4 +862,14 @@ func ShouldMatch(actual interface{}, expected ...interface{}) string {
 	}
 
 	return ""
+}
+
+// LogCapture logs for async testing where we can't get a nice handle on thigns
+func LogCapture(fn func()) string {
+	capture := &bytes.Buffer{}
+	log.SetOutput(capture)
+	fn()
+	log.SetOutput(os.Stdout)
+
+	return capture.String()
 }

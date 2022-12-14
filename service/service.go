@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/NinesStack/sidecar/output"
-	"github.com/fsouza/go-dockerclient"
+	docker "github.com/fsouza/go-dockerclient"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -63,6 +63,12 @@ func (svc *Service) IsDraining() bool {
 
 func (svc *Service) Invalidates(otherSvc *Service) bool {
 	return otherSvc != nil && svc.Updated.After(otherSvc.Updated)
+}
+
+func (svc *Service) IsStale(lifespan time.Duration) bool {
+	oldestAllowed := time.Now().UTC().Add(0 - lifespan)
+	// We add a fudge factor for clock drift
+	return svc.Updated.Before(oldestAllowed.Add(0 - 1*time.Minute))
 }
 
 func (svc *Service) Format() string {

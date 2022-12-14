@@ -3,8 +3,9 @@ package service
 import (
 	"os"
 	"testing"
+	"time"
 
-	"github.com/fsouza/go-dockerclient"
+	docker "github.com/fsouza/go-dockerclient"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -134,6 +135,26 @@ func Test_ToService(t *testing.T) {
 			So(service.Updated, ShouldNotBeNil)
 			So(service.ProxyMode, ShouldEqual, "tcp")
 			So(service.Status, ShouldEqual, 0)
+		})
+	})
+}
+
+func Test_IsStale(t *testing.T) {
+	Convey("IsStale()", t, func() {
+		Convey("identifies records that are too old to process", func() {
+			lifespan := 1 * time.Hour
+			lastUpdated := time.Now().UTC().Add(0-lifespan).Add(0-2 * time.Minute)
+
+			svc := &Service{
+				Name:     "hrunting",
+				Updated:  lastUpdated,
+				Hostname: "beowulf",
+			}
+
+			So(svc.IsStale(lifespan), ShouldBeTrue)
+
+			svc.Updated = time.Now().UTC().Add(0-lifespan)
+			So(svc.IsStale(62*time.Minute), ShouldBeFalse)
 		})
 	})
 }

@@ -296,6 +296,17 @@ func (state *ServicesState) AddServiceEntry(newSvc service.Service) {
 	state.Lock()
 	defer state.Unlock()
 
+	// Some weird edge cases can cause very old stuff to get broadcast.  This
+	// can end up in a broadcast/tombstone/broadcast loop. We'll attempt to
+	// prevent that by dropping anything older than the tombstone window.
+	if newSvc.IsStale(TOMBSTONE_LIFESPAN) {
+		log.Warnf(
+			"Dropping stale service received on gossip: %s:%s (%s)",
+			newSvc.Hostname, newSvc.Name, newSvc.ID,
+		)
+		return
+	}
+
 	if !state.HasServer(newSvc.Hostname) {
 		state.Servers[newSvc.Hostname] = NewServer(newSvc.Hostname)
 	}

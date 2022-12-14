@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/NinesStack/sidecar/service"
 	"github.com/relistan/go-director"
@@ -65,7 +66,7 @@ func Test_Listen(t *testing.T) {
 		hostname := "grendel"
 
 		svcId1 := "deadbeef123"
-		service1 := service.Service{ID: svcId1, Hostname: hostname}
+		service1 := service.Service{ID: svcId1, Hostname: hostname, Updated: time.Now().UTC()}
 
 		state := NewServicesState()
 		state.Hostname = hostname
