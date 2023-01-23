@@ -43,7 +43,10 @@ type K8sServices struct {
 			Ports                 []struct {
 				Port       int    `json:"port"`
 				Protocol   string `json:"protocol"`
-				TargetPort int    `json:"targetPort"`
+				// This field mutates types when served from the K8s API. This is bad
+				// API design, and means this won't parse with Go's stdlib JSON support.
+				// Commenting out so that this reason is clear.
+				// TargetPort int    `json:"targetPort"`
 				NodePort   int    `json:"nodePort"`
 			} `json:"ports"`
 			Selector struct {
